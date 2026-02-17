@@ -1,18 +1,18 @@
 import { StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-export default function HomeScreen() {
+export default function CommunityScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.content}>
-        <Text style={styles.greeting}>Welcome to Gia!</Text>
+        <Text style={styles.title}>Community</Text>
         <Text style={styles.subtitle}>
-          You've completed your setup. Your personalized skincare journey starts here.
+          Connect with others on their skincare journey.
         </Text>
 
         <View style={styles.placeholder}>
           <Text style={styles.placeholderText}>
-            🌱 Your routine dashboard will appear here
+            👥 Community features will appear here
           </Text>
         </View>
       </View>
@@ -31,7 +31,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: 24,
   },
-  greeting: {
+  title: {
     fontSize: 28,
     fontWeight: '600',
     color: '#5A7A6B',

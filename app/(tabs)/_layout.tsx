@@ -32,6 +32,34 @@ export default function TabLayout() {
           tabBarIcon: ({ color }) => <TabBarIcon name="home-outline" color={color} />,
         }}
       />
+      <Tabs.Screen
+        name="garden"
+        options={{
+          title: 'Garden',
+          tabBarIcon: ({ color }) => <TabBarIcon name="leaf-outline" color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="progress"
+        options={{
+          title: 'Progress',
+          tabBarIcon: ({ color }) => <TabBarIcon name="calendar-outline" color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="community"
+        options={{
+          title: 'Community',
+          tabBarIcon: ({ color }) => <TabBarIcon name="people-outline" color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="profile"
+        options={{
+          title: 'Profile',
+          tabBarIcon: ({ color }) => <TabBarIcon name="person-outline" color={color} />,
+        }}
+      />
     </Tabs>
   );
 }
