@@ -1,17 +1,19 @@
-import React, { useState } from 'react';
-import {
-  StyleSheet,
-  View,
-  Text,
-  TouchableOpacity,
-  TextInput,
-  ScrollView,
-  Dimensions,
-} from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import Slider from '@react-native-community/slider';
+import { router } from 'expo-router';
+import React, { useState } from 'react';
+import {
+  Dimensions,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { DermatologistPlanUpload } from '../../components/DermatologistPlanUpload';
+import { TreatmentProducts } from '../../components/TreatmentProducts';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -67,11 +69,11 @@ export default function Registration() {
   // Treatment plan recommendations based on condition
   const getTreatmentPlans = (): TreatmentPlan[] => {
     const conditions = formData.conditions.map(c => c.toLowerCase()).sort();
-    
+
     // Multi-condition plans
     if (conditions.length > 1) {
       const conditionKey = conditions.join('+');
-      
+
       const multiPlans: { [key: string]: TreatmentPlan[] } = {
         'acne+rosacea': [
           {
@@ -127,13 +129,13 @@ export default function Registration() {
           }
         ]
       };
-      
+
       return multiPlans[conditionKey] || [];
     }
-    
+
     // Single condition plans
     const primaryCondition = conditions[0];
-    
+
     const plans: { [key: string]: TreatmentPlan[] } = {
       acne: [
         {
@@ -287,7 +289,7 @@ export default function Registration() {
         <Ionicons name="arrow-back" size={24} color="#7B9B8C" />
       </TouchableOpacity>
 
-      <ScrollView 
+      <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
@@ -418,35 +420,11 @@ export default function Registration() {
 
           {/* Step 3.4: Dermatologist Plan Upload */}
           {step === 3.4 && (
-            <View>
-              <Text style={styles.title}>Upload your dermatologist plan</Text>
-              <Text style={styles.subtitle}>
-                Add the products from your prescribed routine
-              </Text>
-              
-              <View style={styles.uploadPlaceholder}>
-                <Ionicons name="document-text-outline" size={48} color="#7B9B8C" />
-                <Text style={styles.uploadPlaceholderText}>
-                  Upload feature coming soon
-                </Text>
-                <Text style={styles.uploadPlaceholderSubtext}>
-                  For now, tap Next to continue
-                </Text>
-              </View>
-
-              {/* Temporary: Allow proceeding without upload */}
-              <TouchableOpacity
-                style={styles.skipButton}
-                onPress={() => {
-                  setFormData({ 
-                    ...formData, 
-                    dermatologistProducts: [{ id: '1', name: 'Placeholder', brand: '', instructions: '', timeOfDay: 'both', step: '1' }] 
-                  });
-                }}
-              >
-                <Text style={styles.skipButtonText}>Skip for now</Text>
-              </TouchableOpacity>
-            </View>
+            <DermatologistPlanUpload
+              onBack={() => setStep(3)}
+              onContinue={() => setStep(4)}
+              onUpload={(products) => setFormData({ ...formData, dermatologistProducts: products })}
+            />
           )}
 
           {/* Step 3.5: Treatment Plan Selection */}
@@ -454,17 +432,17 @@ export default function Registration() {
             <View>
               <Text style={styles.title}>Choose a starter routine</Text>
               <Text style={styles.subtitle}>
-                {formData.conditions.length > 1 
+                {formData.conditions.length > 1
                   ? `Recommended routines for ${formData.conditions.join(' + ')}`
                   : `Recommended routines for ${formData.conditions[0]}`
                 }
               </Text>
-              
+
               {/* Info banner */}
               <View style={styles.infoBanner}>
                 <Ionicons name="information-circle-outline" size={20} color="#7B9B8C" />
                 <Text style={styles.infoBannerText}>
-                  {formData.conditions.length > 1 
+                  {formData.conditions.length > 1
                     ? "These routines address multiple conditions. For personalized treatment, consult a dermatologist."
                     : "These are general recommendations. For personalized treatment, consult a dermatologist."
                   }
@@ -494,9 +472,9 @@ export default function Registration() {
                         <Text style={styles.checkmark}>✓</Text>
                       )}
                     </View>
-                    
+
                     <Text style={styles.planFrequency}>{plan.frequency}</Text>
-                    
+
                     <View style={styles.planSteps}>
                       <Text style={styles.planStepsTitle}>☀️ MORNING (AM)</Text>
                       {plan.amSteps.map((stepItem, idx) => (
@@ -506,7 +484,7 @@ export default function Registration() {
                         </View>
                       ))}
                     </View>
-                    
+
                     <View style={styles.planSteps}>
                       <Text style={styles.planStepsTitle}>🌙 EVENING (PM)</Text>
                       {plan.pmSteps.map((stepItem, idx) => (
@@ -523,23 +501,12 @@ export default function Registration() {
           )}
 
           {/* Step 3.6: Product Recommendations */}
-          {step === 3.6 && (
-            <View>
-              <Text style={styles.title}>Product Recommendations</Text>
-              <Text style={styles.subtitle}>
-                Based on your selected routine
-              </Text>
-              
-              <View style={styles.productPlaceholder}>
-                <Ionicons name="cart-outline" size={48} color="#7B9B8C" />
-                <Text style={styles.uploadPlaceholderText}>
-                  Product recommendations coming soon
-                </Text>
-                <Text style={styles.uploadPlaceholderSubtext}>
-                  We'll suggest specific products for your routine
-                </Text>
-              </View>
-            </View>
+          {step === 3.6 && formData.selectedTreatmentPlan && (
+            <TreatmentProducts
+              planId={formData.selectedTreatmentPlan}
+              onBack={() => setStep(3.5)}
+              onContinue={() => setStep(4)}
+            />
           )}
 
           {/* Step 4: Skin Satisfaction */}
@@ -578,7 +545,7 @@ export default function Registration() {
               <Text style={styles.subtitle}>
                 Share what you'd like to achieve
               </Text>
-              
+
               <View style={styles.methodOptions}>
                 <TouchableOpacity
                   onPress={() => setFormData({ ...formData, skinGoalsMethod: 'type' })}
@@ -627,10 +594,10 @@ export default function Registration() {
 
               {(formData.skinGoalsMethod === 'video' || formData.skinGoalsMethod === 'audio') && (
                 <View style={styles.recordingPlaceholder}>
-                  <Ionicons 
-                    name={formData.skinGoalsMethod === 'audio' ? 'mic' : 'videocam'} 
-                    size={32} 
-                    color="#7B9B8C" 
+                  <Ionicons
+                    name={formData.skinGoalsMethod === 'audio' ? 'mic' : 'videocam'}
+                    size={32}
+                    color="#7B9B8C"
                   />
                   <Text style={styles.uploadPlaceholderText}>
                     {formData.skinGoalsMethod === 'audio' ? 'Audio' : 'Video'} recording coming soon
@@ -739,10 +706,10 @@ export default function Registration() {
               {step === 7 ? 'Complete' : 'Next'}
             </Text>
             {step < 7 && (
-              <Ionicons 
-                name="chevron-forward" 
-                size={20} 
-                color={canProceed() ? '#FFFFFF' : '#6B7370'} 
+              <Ionicons
+                name="chevron-forward"
+                size={20}
+                color={canProceed() ? '#FFFFFF' : '#6B7370'}
               />
             )}
           </TouchableOpacity>

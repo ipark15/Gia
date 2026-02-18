@@ -1,61 +1,63 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { useRoutineCompletion } from '../../context/RoutineCompletionContext';
+import { router } from 'expo-router';
+import React, { useEffect, useState } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { HomeDashboard } from '../../components/HomeDashboard';
 
 export default function HomeScreen() {
-  return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.content}>
-        <Text style={styles.greeting}>Welcome to Gia!</Text>
-        <Text style={styles.subtitle}>
-          You've completed your setup. Your personalized skincare journey starts here.
-        </Text>
+  const userCondition = 'acne';
+  const currentStreak = 3;
+  const weekCount = 2;
+  const [morningRoutinesDone, setMorningRoutinesDone] = useState(2);
+  const [eveningRoutinesDone, setEveningRoutinesDone] = useState(1);
+  const [morningRoutineCompleted, setMorningRoutineCompleted] = useState(false);
+  const [eveningRoutineCompleted, setEveningRoutineCompleted] = useState(false);
+  const [showRoutineCelebration, setShowRoutineCelebration] = useState(false);
+  const { setOnComplete } = useRoutineCompletion();
 
-        <View style={styles.placeholder}>
-          <Text style={styles.placeholderText}>
-            🌱 Your routine dashboard will appear here
-          </Text>
-        </View>
-      </View>
+  useEffect(() => {
+    const handler = (type: 'morning' | 'evening') => {
+      if (type === 'morning') {
+        setMorningRoutineCompleted(true);
+        setMorningRoutinesDone((n) => n + 1);
+      } else {
+        setEveningRoutineCompleted(true);
+        setEveningRoutinesDone((n) => n + 1);
+      }
+      setShowRoutineCelebration(true);
+    };
+    setOnComplete(handler);
+    return () => setOnComplete(null);
+  }, [setOnComplete]);
+
+  const handleStartRoutine = () => {
+    router.push({
+      pathname: '/routine-execution',
+      params: { planId: 'acne-basic' },
+    });
+  };
+
+  return (
+    <SafeAreaView style={{ flex: 1 }} edges={['top']}>
+      <HomeDashboard
+        onStartRoutine={handleStartRoutine}
+        onActivateGreenhouse={() => {}}
+        onFreshStart={() => {}}
+        onCustomizeRoutine={() => {}}
+        onOpenInventory={() => {}}
+        onOpenGarden={() => {}}
+        userCondition={userCondition}
+        currentStreak={currentStreak}
+        weekCount={weekCount}
+        morningRoutinesDone={morningRoutinesDone}
+        eveningRoutinesDone={eveningRoutinesDone}
+        morningRoutineCompleted={morningRoutineCompleted}
+        eveningRoutineCompleted={eveningRoutineCompleted}
+        onMorningRoutineComplete={() => setMorningRoutineCompleted(true)}
+        onEveningRoutineComplete={() => setEveningRoutineCompleted(true)}
+        showRoutineCelebration={showRoutineCelebration}
+        onRoutineCelebrationDismiss={() => setShowRoutineCelebration(false)}
+      />
     </SafeAreaView>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#FAF8F5',
-  },
-  content: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 24,
-  },
-  greeting: {
-    fontSize: 28,
-    fontWeight: '600',
-    color: '#5A7A6B',
-    marginBottom: 12,
-    textAlign: 'center',
-  },
-  subtitle: {
-    fontSize: 16,
-    color: '#6B7370',
-    textAlign: 'center',
-    lineHeight: 24,
-    marginBottom: 40,
-  },
-  placeholder: {
-    backgroundColor: '#FFFFFF',
-    padding: 32,
-    borderRadius: 16,
-    borderWidth: 2,
-    borderColor: '#D8D5CF',
-    borderStyle: 'dashed',
-  },
-  placeholderText: {
-    fontSize: 14,
-    color: '#8A9088',
-    textAlign: 'center',
-  },
-});
