@@ -1,8 +1,8 @@
-import { useRoutineCompletion } from '../../context/RoutineCompletionContext';
 import { router } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { HomeDashboard } from '../../components/HomeDashboard';
+import { useRoutineCompletion } from '../../context/RoutineCompletionContext';
 
 export default function HomeScreen() {
   const userCondition = 'acne';
@@ -41,11 +41,11 @@ export default function HomeScreen() {
     <SafeAreaView style={{ flex: 1 }} edges={['top']}>
       <HomeDashboard
         onStartRoutine={handleStartRoutine}
-        onActivateGreenhouse={() => {}}
-        onFreshStart={() => {}}
-        onCustomizeRoutine={() => {}}
-        onOpenInventory={() => {}}
-        onOpenGarden={() => {}}
+        onActivateGreenhouse={() => { }}
+        onFreshStart={() => { }}
+        onCustomizeRoutine={() => { }}
+        onOpenInventory={() => { }}
+        onOpenGarden={() => { }}
         userCondition={userCondition}
         currentStreak={currentStreak}
         weekCount={weekCount}

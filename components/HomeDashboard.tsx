@@ -125,8 +125,17 @@ export function HomeDashboard({
   const [optionalFieldsExpanded, setOptionalFieldsExpanded] = useState(false);
   const [checkInNote, setCheckInNote] = useState('');
   const [checkInCompleted, setCheckInCompleted] = useState(false);
+  const [selectedSeason, setSelectedSeason] = useState<string | null>(null);
 
   const recordingIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const seasons = [
+    { name: 'Winter', icon: 'snow-outline' as const, tip: 'Extra moisturizer needed' },
+    { name: 'Spring', icon: 'leaf-outline' as const, tip: 'Fresh start with gentle care' },
+    { name: 'Summer', icon: 'sunny-outline' as const, tip: 'More SPF protection' },
+    { name: 'Fall', icon: 'water-outline' as const, tip: 'Transition to richer products' },
+    { name: 'Traveling', icon: 'airplane-outline' as const, tip: 'Adjust routine for new environment' },
+  ];
 
   useEffect(() => {
     return () => {
@@ -239,7 +248,7 @@ export function HomeDashboard({
   return (
     <View style={styles.container}>
       {showRoutineCelebration && (
-        <Confetti onComplete={onRoutineCelebrationDismiss ?? (() => {})} />
+        <Confetti onComplete={onRoutineCelebrationDismiss ?? (() => { })} />
       )}
 
       <ScrollView
@@ -296,21 +305,6 @@ export function HomeDashboard({
               </View>
             </TouchableOpacity>
           )}
-
-          {/* Ask Gia primary CTA */}
-          <TouchableOpacity
-            style={styles.askGiaCta}
-            activeOpacity={0.9}
-            onPress={() => setAskExpanded(true)}
-          >
-            <View style={styles.primaryCtaRow}>
-              <View style={styles.askGiaLeft}>
-                <Ionicons name="mic-outline" size={22} color="#FFFFFF" />
-                <Text style={styles.primaryCtaText}>ask gia a question</Text>
-              </View>
-              <Ionicons name="chevron-forward" size={22} color="#FFFFFF" />
-            </View>
-          </TouchableOpacity>
 
           {/* Quick check-in */}
           <View style={styles.card}>
@@ -552,12 +546,6 @@ export function HomeDashboard({
                   {morningRoutinesDone + eveningRoutinesDone} routines completed this week
                 </Text>
               </View>
-              {onOpenGarden && (
-                <TouchableOpacity activeOpacity={0.7} onPress={onOpenGarden} style={styles.viewAll}>
-                  <Text style={styles.viewAllText}>View All</Text>
-                  <Ionicons name="chevron-forward" size={16} color="#7B9B8C" />
-                </TouchableOpacity>
-              )}
             </View>
 
             <View style={styles.pond}>
@@ -598,6 +586,39 @@ export function HomeDashboard({
           <View style={styles.reinforcement}>
             <Text style={styles.reinforcementTitle}>You've shown up {currentStreak} days in a row</Text>
             <Text style={styles.reinforcementSubtitle}>Even small routines protect your skin barrier</Text>
+          </View>
+
+          {/* Fresh Starts & Tips */}
+          <Text style={styles.sectionTitle}>Fresh Starts & Tips</Text>
+          <View style={styles.seasonGrid}>
+            {seasons.map((season) => (
+              <TouchableOpacity
+                key={season.name}
+                onPress={() => setSelectedSeason(selectedSeason === season.name ? null : season.name)}
+                style={[styles.seasonButton, selectedSeason === season.name && styles.seasonButtonSelected]}
+                activeOpacity={0.85}
+              >
+                <Ionicons name={season.icon} size={24} color="#7B9B8C" />
+                <Text style={styles.seasonButtonText}>{season.name}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+          {selectedSeason && (
+            <View style={styles.seasonTipBox}>
+              <Text style={styles.seasonTipText}>
+                <Text style={styles.seasonTipLabel}>Seasonal Tip: </Text>
+                {seasons.find((s) => s.name === selectedSeason)?.tip}
+              </Text>
+            </View>
+          )}
+
+          {/* Remember */}
+          <View style={styles.rememberCard}>
+            <Text style={styles.rememberTitle}>Remember</Text>
+            <Text style={styles.rememberText}>
+              Flare days aren't failures — they're opportunities to tend to your garden with extra care.
+              Every season has its challenges, and every day is a chance to begin again.
+            </Text>
           </View>
         </View>
       </ScrollView>
@@ -701,6 +722,18 @@ const styles = StyleSheet.create({
   reinforcement: { backgroundColor: '#D4E3DB', borderRadius: 18, padding: 16, borderWidth: 1, borderColor: '#D8D5CF' },
   reinforcementTitle: { color: '#7B9B8C', fontSize: 16, textAlign: 'center', marginBottom: 4 },
   reinforcementSubtitle: { color: '#6B7370', fontSize: 13, textAlign: 'center' },
+
+  sectionTitle: { fontSize: 18, fontWeight: '600', color: '#7B9B8C', marginTop: 24, marginBottom: 12 },
+  seasonGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginBottom: 16 },
+  seasonButton: { width: '47%', padding: 16, borderRadius: 16, borderWidth: 2, borderColor: '#D8D5CF', backgroundColor: '#FFFFFF', alignItems: 'center' },
+  seasonButtonSelected: { borderColor: '#7B9B8C', backgroundColor: 'rgba(212,227,219,0.2)' },
+  seasonButtonText: { fontSize: 14, color: '#7B9B8C', marginTop: 8, fontWeight: '600' },
+  seasonTipBox: { padding: 16, backgroundColor: '#F5F1ED', borderRadius: 16, borderWidth: 2, borderColor: '#D4E3DB', marginBottom: 16 },
+  seasonTipLabel: { fontWeight: '600', color: '#7B9B8C' },
+  seasonTipText: { fontSize: 14, color: '#6B7370', lineHeight: 22 },
+  rememberCard: { padding: 20, backgroundColor: '#FFFFFF', borderRadius: 16, borderWidth: 2, borderColor: '#D8D5CF' },
+  rememberTitle: { fontSize: 16, fontWeight: '600', color: '#7B9B8C', marginBottom: 8 },
+  rememberText: { fontSize: 14, color: '#6B7370', lineHeight: 22 },
 
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', alignItems: 'center', justifyContent: 'center', padding: 24 },
   confettiCard: { width: '100%', maxWidth: 360, backgroundColor: '#FFFFFF', borderRadius: 24, padding: 28, borderWidth: 2, borderColor: '#7B9B8C', alignItems: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.15, shadowRadius: 24, elevation: 12 },

@@ -45,7 +45,7 @@ export default function ProgressScreen() {
 
   const pickImage = async () => {
     const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    
+
     if (permissionResult.granted === false) {
       alert('Permission to access camera roll is required!');
       return;
@@ -73,7 +73,7 @@ export default function ProgressScreen() {
 
   const takePhoto = async () => {
     const permissionResult = await ImagePicker.requestCameraPermissionsAsync();
-    
+
     if (permissionResult.granted === false) {
       alert('Permission to access camera is required!');
       return;
@@ -119,7 +119,7 @@ export default function ProgressScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      <ScrollView 
+      <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}

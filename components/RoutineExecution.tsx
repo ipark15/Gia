@@ -8,8 +8,8 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { getProductRecommendations } from './TreatmentProducts';
 import { AskGiaChat } from './AskGiaChat';
+import { getProductRecommendations } from './TreatmentProducts';
 
 export interface RoutineExecutionProps {
   onComplete: () => void;

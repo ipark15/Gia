@@ -33,10 +33,10 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="garden"
+        name="insights"
         options={{
-          title: 'Garden',
-          tabBarIcon: ({ color }) => <TabBarIcon name="leaf-outline" color={color} />,
+          title: 'Insights',
+          tabBarIcon: ({ color }) => <TabBarIcon name="bar-chart-outline" color={color} />,
         }}
       />
       <Tabs.Screen

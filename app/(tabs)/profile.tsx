@@ -1,61 +1,35 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { ProfilePage } from '../../components/ProfilePage';
+import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
+
+// Demo data — replace with real app state / storage
+const DEMO_COMPLETED_DAYS = [
+  { date: '2026-01-20', stepsCompleted: 5, totalSteps: 5 },
+  { date: '2026-01-21', stepsCompleted: 3, totalSteps: 5 },
+  { date: '2026-01-22', stepsCompleted: 5, totalSteps: 5 },
+  { date: '2026-01-25', stepsCompleted: 5, totalSteps: 5 },
+  { date: '2026-01-26', stepsCompleted: 4, totalSteps: 5 },
+];
+
+const DEMO_REGISTRATION = {
+  conditions: ['Acne'],
+  hasDermatologist: false,
+  severity: 'moderate',
+  satisfaction: 4,
+  commitment: '5-7',
+  preferredTimes: ['morning', 'evening'],
+};
 
 export default function ProfileScreen() {
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
-      <View style={styles.content}>
-        <Text style={styles.title}>Profile</Text>
-        <Text style={styles.subtitle}>
-          Manage your account and preferences.
-        </Text>
-
-        <View style={styles.placeholder}>
-          <Text style={styles.placeholderText}>
-            👤 Your profile settings will appear here
-          </Text>
-        </View>
-      </View>
+    <SafeAreaView style={{ flex: 1 }} edges={['top']}>
+      <ProfilePage
+        completedDays={DEMO_COMPLETED_DAYS}
+        registrationData={DEMO_REGISTRATION}
+        onEdit={() => router.push('/(onboarding)/registration')}
+        currentStreak={7}
+        onManageRules={() => {}}
+      />
     </SafeAreaView>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#FAF8F5',
-  },
-  content: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 24,
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: '600',
-    color: '#5A7A6B',
-    marginBottom: 12,
-    textAlign: 'center',
-  },
-  subtitle: {
-    fontSize: 16,
-    color: '#6B7370',
-    textAlign: 'center',
-    lineHeight: 24,
-    marginBottom: 40,
-  },
-  placeholder: {
-    backgroundColor: '#FFFFFF',
-    padding: 32,
-    borderRadius: 16,
-    borderWidth: 2,
-    borderColor: '#D8D5CF',
-    borderStyle: 'dashed',
-  },
-  placeholderText: {
-    fontSize: 14,
-    color: '#8A9088',
-    textAlign: 'center',
-  },
-});

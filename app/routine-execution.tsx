@@ -1,8 +1,8 @@
-import { RoutineExecution } from '../components/RoutineExecution';
-import { useRoutineCompletion } from '../context/RoutineCompletionContext';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useCallback } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { RoutineExecution } from '../components/RoutineExecution';
+import { useRoutineCompletion } from '../context/RoutineCompletionContext';
 
 export default function RoutineExecutionScreen() {
   const params = useLocalSearchParams<{ planId?: string }>();
