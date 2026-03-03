@@ -1,6 +1,6 @@
-import { ProfilePage } from '../../components/ProfilePage';
 import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { ProfilePage } from '../../components/ProfilePage';
 
 // Demo data — replace with real app state / storage
 const DEMO_COMPLETED_DAYS = [
@@ -28,7 +28,7 @@ export default function ProfileScreen() {
         registrationData={DEMO_REGISTRATION}
         onEdit={() => router.push('/(onboarding)/registration')}
         currentStreak={7}
-        onManageRules={() => {}}
+        onManageRules={() => { }}
       />
     </SafeAreaView>
   );

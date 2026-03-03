@@ -22,10 +22,10 @@ export function ExecutiveSummary({
   });
   const nextLabel = nextAppointment
     ? new Date(nextAppointment).toLocaleDateString('en-US', {
-        month: 'long',
-        day: 'numeric',
-        year: 'numeric',
-      })
+      month: 'long',
+      day: 'numeric',
+      year: 'numeric',
+    })
     : 'Not set';
 
   return (

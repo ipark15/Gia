@@ -1,5 +1,5 @@
-import { Community } from '../../components/Community';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Community } from '../../components/Community';
 
 export default function CommunityScreen() {
   return (

@@ -155,7 +155,7 @@ export function Insights({
             <Text style={styles.subtitle}>Your skin history — searchable, reflective, yours</Text>
           </View>
           <View style={styles.headerActions}>
-            <TouchableOpacity style={styles.iconBtn} onPress={() => {}}>
+            <TouchableOpacity style={styles.iconBtn} onPress={() => { }}>
               <Ionicons name="help-circle-outline" size={24} color="#7B9B8C" />
             </TouchableOpacity>
             {onCustomizeRoutine && (
