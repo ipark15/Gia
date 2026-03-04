@@ -950,12 +950,13 @@ export function HomeDashboard({
                   <Text style={styles.askGiaTitle}>Ask Gia</Text>
                   <Text style={styles.askGiaSubtitle}>Have any doubts?</Text>
                 </View>
+                <Ionicons
+                  name={askExpanded ? 'chevron-down' : 'chevron-forward'}
+                  size={20}
+                  color="#FFFFFF"
+                  style={styles.askGiaChevron}
+                />
               </View>
-              <Ionicons
-                name={askExpanded ? 'chevron-down' : 'chevron-forward'}
-                size={20}
-                color="#FFFFFF"
-              />
             </TouchableOpacity>
 
             {askExpanded && (
@@ -1030,15 +1031,6 @@ export function HomeDashboard({
                   {morningRoutinesDone + eveningRoutinesDone} routines completed this week
                 </Text>
               </View>
-              {onOpenGarden && (
-                <TouchableOpacity
-                  style={styles.iconButton}
-                  onPress={onOpenGarden}
-                  activeOpacity={0.8}
-                >
-                  <Ionicons name="water-outline" size={20} color="#5F8575" />
-                </TouchableOpacity>
-              )}
             </View>
 
             <View style={styles.gardenPond}>
@@ -1069,21 +1061,21 @@ export function HomeDashboard({
                 <Text style={styles.gardenStatValue}>
                   {morningRoutinesDone + eveningRoutinesDone}
                 </Text>
-                <Text style={styles.gardenStatLabel}>flowers bloomed</Text>
+                <Text style={styles.gardenStatLabel}>{'flowers\nbloomed'}</Text>
               </View>
               <View style={styles.gardenStatCard}>
                 <View style={styles.gardenStatIconCircleFlame}>
                   <Ionicons name="flame" size={20} color="#FFFFFF" />
                 </View>
                 <Text style={styles.gardenStatValue}>{currentStreak}</Text>
-                <Text style={styles.gardenStatLabel}>day streak</Text>
+                <Text style={styles.gardenStatLabel}>{'day\nstreak'}</Text>
               </View>
               <View style={styles.gardenStatCard}>
                 <View style={styles.gardenStatIconCircleCalendar}>
                   <Ionicons name="calendar-outline" size={20} color="#FFFFFF" />
                 </View>
                 <Text style={styles.gardenStatValue}>{weekCount}</Text>
-                <Text style={styles.gardenStatLabel}>weeks active</Text>
+                <Text style={styles.gardenStatLabel}>{'weeks\nactive'}</Text>
               </View>
             </View>
           </View>
@@ -1169,8 +1161,9 @@ const styles = StyleSheet.create({
   },
   completionBanner: {
     backgroundColor: '#5F8575',
-    borderRadius: 20,
-    padding: 16,
+    borderRadius: 24,
+    paddingVertical: 20,
+    paddingHorizontal: 18,
     marginBottom: 16,
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -1203,7 +1196,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: '#E879B9',
     borderRadius: 24,
-    paddingVertical: 18,
+    paddingVertical: 22,
     paddingHorizontal: 18,
     shadowColor: '#000',
     shadowOpacity: 0.18,
@@ -1252,7 +1245,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 20,
-    paddingVertical: 16,
+    paddingVertical: 20,
   },
   checkInHeaderLeft: {
     flexDirection: 'row',
@@ -1629,11 +1622,9 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   askGiaHeader: {
-    padding: 16,
+    paddingHorizontal: 18,
+    paddingVertical: 20,
     backgroundColor: '#7B9B8C',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
   },
   askGiaHeaderInner: {
     flexDirection: 'row',
@@ -1661,6 +1652,9 @@ const styles = StyleSheet.create({
     color: 'rgba(255,255,255,0.85)',
     fontSize: 12,
     fontStyle: 'italic',
+  },
+  askGiaChevron: {
+    marginLeft: 8,
   },
   askGiaBody: {
     paddingHorizontal: 16,
@@ -1796,16 +1790,23 @@ const styles = StyleSheet.create({
   },
   gardenStatsRow: {
     flexDirection: 'row',
-    marginTop: 12,
+    marginTop: 16,
   },
   gardenStatCard: {
     flex: 1,
-    borderRadius: 18,
-    paddingVertical: 10,
-    paddingHorizontal: 8,
-    backgroundColor: '#F5F1ED',
+    borderRadius: 24,
+    paddingVertical: 18,
+    paddingHorizontal: 12,
+    backgroundColor: '#FFF7F2',
     marginHorizontal: 4,
     alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#F0E4DA',
+    shadowColor: '#000',
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 2,
   },
   gardenStatIconCirclePink: {
     width: 40,
@@ -1839,7 +1840,7 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
   },
   gardenStatValue: {
-    fontSize: 18,
+    fontSize: 20,
     color: '#2D4A3E',
     fontWeight: '700',
     fontStyle: 'italic',
@@ -1848,6 +1849,7 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: '#6B7370',
     fontStyle: 'italic',
+    textAlign: 'center',
   },
   reminderToastContainer: {
     position: 'absolute',
