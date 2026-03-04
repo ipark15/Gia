@@ -600,7 +600,7 @@ export default function Registration() {
                         style={[
                           styles.satisfactionButton,
                           formData.skinSatisfaction === value &&
-                            styles.satisfactionButtonActive,
+                          styles.satisfactionButtonActive,
                         ]}
                         activeOpacity={0.9}
                       >
@@ -608,7 +608,7 @@ export default function Registration() {
                           style={[
                             styles.satisfactionButtonText,
                             formData.skinSatisfaction === value &&
-                              styles.satisfactionButtonTextActive,
+                            styles.satisfactionButtonTextActive,
                           ]}
                         >
                           {value}
@@ -676,7 +676,7 @@ export default function Registration() {
                     style={[
                       styles.optionButton,
                       formData.timesOfDay.includes(time.value) &&
-                        styles.optionButtonSelected,
+                      styles.optionButtonSelected,
                     ]}
                     activeOpacity={0.9}
                   >

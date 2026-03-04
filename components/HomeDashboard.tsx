@@ -1,8 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  Animated,
-  Modal,
+  Image,
   ScrollView,
   StyleSheet,
   Text,
@@ -11,78 +10,36 @@ import {
   View,
 } from 'react-native';
 
-interface ConfettiProps {
-  onComplete?: () => void;
-}
+export type CheckInData = {
+  type: 'morning' | 'evening';
+  date: string;
+  mood: number;
+  skinFeeling: number;
+  notes?: string;
+  symptomsToday: string[];
+  energyLevel?: number;
+  photoUrl?: string;
+};
 
-function Confetti({ onComplete }: ConfettiProps) {
-  const scale = useRef(new Animated.Value(0.85)).current;
-  const opacity = useRef(new Animated.Value(0)).current;
+type ReminderType = 'streak' | 'routine' | 'affirmation' | 'appointment' | 'seasonal';
 
-  useEffect(() => {
-    Animated.parallel([
-      Animated.spring(scale, {
-        toValue: 1,
-        useNativeDriver: true,
-        friction: 8,
-        tension: 80,
-      }),
-      Animated.timing(opacity, {
-        toValue: 1,
-        duration: 200,
-        useNativeDriver: true,
-      }),
-    ]).start();
-  }, [scale, opacity]);
+type ActiveReminder = {
+  type: ReminderType;
+  message: string;
+  daysUntilAppointment?: number | null;
+  streakCount?: number;
+  seasonName?: string;
+};
 
-  const handleDismiss = () => {
-    Animated.timing(opacity, {
-      toValue: 0,
-      duration: 150,
-      useNativeDriver: true,
-    }).start(() => onComplete?.());
-  };
-
-  return (
-    <Modal transparent animationType="fade" visible onRequestClose={handleDismiss}>
-      <View style={styles.modalOverlay}>
-        <Animated.View
-          style={[
-            styles.confettiCard,
-            {
-              opacity,
-              transform: [{ scale }],
-            },
-          ]}
-        >
-          <Text style={styles.confettiEmoji}>🪷</Text>
-          <Text style={styles.confettiTitle}>you did it!</Text>
-          <Text style={styles.confettiText}>a new flower has bloomed in your garden</Text>
-          <Text style={styles.confettiSubtext}>streak maintained</Text>
-          <TouchableOpacity style={styles.confettiButton} onPress={handleDismiss} activeOpacity={0.85}>
-            <Text style={styles.confettiButtonText}>continue</Text>
-          </TouchableOpacity>
-        </Animated.View>
-      </View>
-    </Modal>
-  );
-}
-
-function HelpButton() {
-  return (
-    <TouchableOpacity style={styles.iconButton} activeOpacity={0.7} onPress={() => { }}>
-      <Ionicons name="help-circle-outline" size={22} color="#5F8575" />
-    </TouchableOpacity>
-  );
-}
-
-export interface HomeDashboardProps {
+interface HomeDashboardProps {
   onStartRoutine: () => void;
   onActivateGreenhouse: () => void;
   onFreshStart: () => void;
   onCustomizeRoutine: () => void;
   onOpenInventory?: () => void;
   onOpenGarden?: () => void;
+  onOpenSettings?: () => void;
+  onCheckInComplete?: (data: CheckInData) => void;
   userCondition: string;
   currentStreak: number;
   weekCount: number;
@@ -94,12 +51,70 @@ export interface HomeDashboardProps {
   onEveningRoutineComplete: () => void;
   showRoutineCelebration?: boolean;
   onRoutineCelebrationDismiss?: () => void;
+  nextAppointment?: string;
 }
+
+type ReminderToastProps = {
+  reminder: ActiveReminder;
+  onDismiss: () => void;
+};
+
+function ReminderToast({ reminder, onDismiss }: ReminderToastProps) {
+  return (
+    <View style={styles.reminderToastContainer}>
+      <View style={styles.reminderToast}>
+        <View style={styles.reminderTextWrapper}>
+          <Text style={styles.reminderTitle}>
+            {reminder.type === 'appointment' && 'Dermatologist visit coming up'}
+            {reminder.type === 'streak' && 'Streak reminder'}
+            {reminder.type === 'routine' && 'Routine reminder'}
+            {reminder.type === 'affirmation' && 'You are doing great'}
+            {reminder.type === 'seasonal' && (reminder.seasonName ?? 'Seasonal reminder')}
+          </Text>
+          <Text style={styles.reminderMessage}>{reminder.message}</Text>
+        </View>
+        <TouchableOpacity onPress={onDismiss} style={styles.reminderClose} hitSlop={12}>
+          <Ionicons name="close" size={18} color="#FFFFFF" />
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+}
+
+type FaceVariant = '1' | '2' | '3' | '4' | '5';
+
+function MoodFace({ variant, active }: { variant: FaceVariant; active: boolean }) {
+  const labelMap: Record<FaceVariant, string> = {
+    '1': '😣',
+    '2': '🙁',
+    '3': '😐',
+    '4': '🙂',
+    '5': '😊',
+  };
+  return (
+    <View
+      style={[
+        styles.moodFaceCircle,
+        active ? styles.moodFaceCircleActive : styles.moodFaceCircleInactive,
+      ]}
+    >
+      <Text style={styles.moodFaceEmoji}>{labelMap[variant]}</Text>
+    </View>
+  );
+}
+
+type RoutineType = 'morning' | 'evening';
 
 export function HomeDashboard({
   onStartRoutine,
+  onActivateGreenhouse,
+  onFreshStart,
+  onCustomizeRoutine,
   onOpenInventory,
   onOpenGarden,
+  onOpenSettings,
+  onCheckInComplete,
+  userCondition,
   currentStreak,
   weekCount,
   morningRoutinesDone,
@@ -110,94 +125,270 @@ export function HomeDashboard({
   onEveningRoutineComplete,
   showRoutineCelebration = false,
   onRoutineCelebrationDismiss,
+  nextAppointment,
 }: HomeDashboardProps) {
   const [checkInExpanded, setCheckInExpanded] = useState(false);
   const [askExpanded, setAskExpanded] = useState(false);
   const [askQuestion, setAskQuestion] = useState('');
   const [chatMessages, setChatMessages] = useState<{ question: string; answer: string }[]>([]);
+
   const [isRecording, setIsRecording] = useState(false);
-  const [recordingTimer, setRecordingTimer] = useState(0);
+  const recordingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const [showConfetti, setShowConfetti] = useState(false);
 
   const [hasFlare, setHasFlare] = useState<boolean | null>(null);
   const [selectedFlareTags, setSelectedFlareTags] = useState<string[]>([]);
-  const [moodSelection, setMoodSelection] = useState<string | null>(null);
+  const [moodSelection, setMoodSelection] = useState<FaceVariant | null>(null);
   const [contextTags, setContextTags] = useState<string[]>([]);
   const [optionalFieldsExpanded, setOptionalFieldsExpanded] = useState(false);
   const [checkInNote, setCheckInNote] = useState('');
   const [checkInCompleted, setCheckInCompleted] = useState(false);
-  const [selectedSeason, setSelectedSeason] = useState<string | null>(null);
+  const [checkInPhotoUrl, setCheckInPhotoUrl] = useState<string | null>(null);
 
-  const recordingIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const [wearablesExpanded, setWearablesExpanded] = useState(false);
+  const [wearablesConnected, setWearablesConnected] = useState(false);
+  const [sleepHours, setSleepHours] = useState<string>('');
+  const [stressLevel, setStressLevel] = useState<number | null>(null);
+  const [onPeriod, setOnPeriod] = useState(false);
 
-  const seasons = [
-    { name: 'Winter', icon: 'snow-outline' as const, tip: 'Extra moisturizer needed' },
-    { name: 'Spring', icon: 'leaf-outline' as const, tip: 'Fresh start with gentle care' },
-    { name: 'Summer', icon: 'sunny-outline' as const, tip: 'More SPF protection' },
-    { name: 'Fall', icon: 'water-outline' as const, tip: 'Transition to richer products' },
-    { name: 'Traveling', icon: 'airplane-outline' as const, tip: 'Adjust routine for new environment' },
-  ];
-
-  useEffect(() => {
-    return () => {
-      if (recordingIntervalRef.current) {
-        clearInterval(recordingIntervalRef.current);
-        recordingIntervalRef.current = null;
-      }
-    };
-  }, []);
+  const [dismissedReminders, setDismissedReminders] = useState<ReminderType[]>([]);
+  const [lastShownReminders, setLastShownReminders] = useState<Record<ReminderType, number>>(
+    {} as Record<ReminderType, number>
+  );
 
   const timeOfDay = new Date().getHours();
   const isEvening = timeOfDay >= 18 || timeOfDay < 6;
   const isMorning = timeOfDay >= 6 && timeOfDay < 12;
 
-  const currentRoutineType = isEvening ? 'evening' : 'morning';
+  const currentRoutineType: RoutineType = isEvening ? 'evening' : 'morning';
   const isCurrentRoutineCompleted =
     currentRoutineType === 'evening' ? eveningRoutineCompleted : morningRoutineCompleted;
 
+  const daysUntilAppointment = useMemo(() => {
+    if (!nextAppointment) return null;
+    const today = new Date();
+    const apptDate = new Date(nextAppointment);
+    const diffTime = apptDate.getTime() - today.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    return diffDays;
+  }, [nextAppointment]);
+
+  const canShowReminder = (type: ReminderType, minHours: number): boolean => {
+    const lastShown = lastShownReminders[type];
+    if (!lastShown) return true;
+    const now = Date.now();
+    const hoursPassed = (now - lastShown) / (1000 * 60 * 60);
+    return hoursPassed >= minHours;
+  };
+
+  const markReminderShown = (type: ReminderType) => {
+    setLastShownReminders((prev) => ({
+      ...prev,
+      [type]: Date.now(),
+    }));
+  };
+
+  const getCurrentSeason = (): { name: string; tip: string } | null => {
+    const now = new Date();
+    const month = now.getMonth();
+    const day = now.getDate();
+
+    if ((month === 11 && day >= 21) || month === 0 || month === 1 || (month === 2 && day < 20)) {
+      return {
+        name: 'Winter',
+        tip: 'Focus on hydration + barrier care. Use gentler cleansers. Protect from cold + indoor dryness. Keep using SPF',
+      };
+    }
+    if ((month === 2 && day >= 20) || month === 3 || month === 4 || (month === 5 && day <= 20)) {
+      return {
+        name: 'Spring',
+        tip: 'Soothe sensitivity from weather shifts. Simplify if skin feels reactive. Transition textures gradually',
+      };
+    }
+    if ((month === 5 && day >= 21) || month === 6 || month === 7 || (month === 8 && day <= 22)) {
+      return {
+        name: 'Summer',
+        tip: 'Protect daily (SPF + reapply). Use lighter textures if needed. Cleanse gently after sweat. Stay hydrated',
+      };
+    }
+    return {
+      name: 'Fall',
+      tip: 'Adjust slowly as weather cools. Support your skin barrier. Reintroduce stronger products gradually',
+    };
+  };
+
+  const isSeasonStart = (): boolean => {
+    const now = new Date();
+    const month = now.getMonth();
+    const day = now.getDate();
+
+    const seasonStarts = [
+      { month: 2, day: 20 },
+      { month: 5, day: 21 },
+      { month: 8, day: 23 },
+      { month: 11, day: 21 },
+    ];
+
+    for (const start of seasonStarts) {
+      if (month === start.month && day >= start.day && day <= start.day + 7) {
+        return true;
+      }
+    }
+    return false;
+  };
+
+  const activeReminder: ActiveReminder | null = useMemo(() => {
+    if (
+      daysUntilAppointment !== null &&
+      daysUntilAppointment >= 0 &&
+      daysUntilAppointment <= 3 &&
+      !dismissedReminders.includes('appointment') &&
+      canShowReminder('appointment', 24)
+    ) {
+      markReminderShown('appointment');
+      return {
+        type: 'appointment',
+        message:
+          'Your dermatologist appointment is coming up. Prepare any questions or photos you want to discuss',
+        daysUntilAppointment,
+      };
+    }
+
+    if (
+      currentStreak > 0 &&
+      !morningRoutineCompleted &&
+      !eveningRoutineCompleted &&
+      !dismissedReminders.includes('streak') &&
+      isMorning &&
+      canShowReminder('streak', 24)
+    ) {
+      markReminderShown('streak');
+      const messages = [
+        `You're on a ${currentStreak}-day streak! Keep it going by completing your routine today`,
+        `${currentStreak} days strong! Your skin is thanking you. Don't break the streak now`,
+        `${currentStreak} days of consistency! That's real progress. Let's make it ${currentStreak + 1}`,
+      ];
+      return {
+        type: 'streak',
+        message: messages[currentStreak % messages.length],
+        streakCount: currentStreak,
+      };
+    }
+
+    if (
+      !isCurrentRoutineCompleted &&
+      !dismissedReminders.includes('routine') &&
+      canShowReminder('routine', 8)
+    ) {
+      markReminderShown('routine');
+      const routineMessages = {
+        morning: [
+          'Morning! Starting your day with your routine sets the tone for healthy skin',
+          'Rise and shine! Your skin is ready for some love this morning',
+          'A few minutes now = happy skin all day. Ready for your morning routine?',
+        ],
+        evening: [
+          'Evening routine time! Your skin repairs itself at night—give it what it needs',
+          'Winding down? Perfect time to wind down with your evening routine',
+          'Before bed, show your skin some love. Your evening routine is waiting',
+        ],
+      } as const;
+      const messages = routineMessages[currentRoutineType];
+      const randomIndex = Math.floor(Date.now() / (1000 * 60 * 60)) % messages.length;
+      return {
+        type: 'routine',
+        message: messages[randomIndex],
+      };
+    }
+
+    if (
+      (morningRoutineCompleted || eveningRoutineCompleted) &&
+      !dismissedReminders.includes('affirmation') &&
+      canShowReminder('affirmation', 12)
+    ) {
+      markReminderShown('affirmation');
+      const affirmations = [
+        "Healing takes time, and you're showing up for it every single day. That's powerful",
+        "Your skin is adapting and getting stronger. Trust the process—you're doing great",
+        "Consistency beats perfection. You're building habits that will transform your skin over time",
+        "Small daily efforts compound into big results. Your future skin is thanking you today",
+        "You're not just treating symptoms—you're learning your skin and becoming your own expert",
+        "Progress isn't always visible day-to-day, but it's happening. Keep going, you've got this",
+      ];
+      const index = Math.floor((morningRoutinesDone + eveningRoutinesDone) / 2) % affirmations.length;
+      return {
+        type: 'affirmation',
+        message: affirmations[index],
+      };
+    }
+
+    if (
+      isSeasonStart() &&
+      !dismissedReminders.includes('seasonal') &&
+      canShowReminder('seasonal', 24)
+    ) {
+      const seasonInfo = getCurrentSeason();
+      if (seasonInfo) {
+        markReminderShown('seasonal');
+        return {
+          type: 'seasonal',
+          message: seasonInfo.tip,
+          seasonName: seasonInfo.name,
+        };
+      }
+    }
+
+    return null;
+  }, [
+    daysUntilAppointment,
+    dismissedReminders,
+    currentStreak,
+    morningRoutineCompleted,
+    eveningRoutineCompleted,
+    isMorning,
+    isCurrentRoutineCompleted,
+    morningRoutinesDone,
+    eveningRoutinesDone,
+    currentRoutineType,
+    lastShownReminders,
+  ]);
+
+  const handleDismissReminder = (type: ReminderType) => {
+    setDismissedReminders((prev) => [...prev, type]);
+  };
+
   const toggleFlareTag = (tag: string) => {
-    setSelectedFlareTags((prev) => (prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag]));
+    setSelectedFlareTags((prev) =>
+      prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag]
+    );
   };
 
   const toggleContextTag = (tag: string) => {
-    setContextTags((prev) => (prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag]));
-  };
-
-  const generateAnswer = (question: string): string => {
-    const q = question.toLowerCase();
-    if (q.includes('irritation') || q.includes('normal')) {
-      return "some irritation can be normal when starting new products, especially actives. if it persists beyond 2 weeks, becomes painful, or worsens, consider pausing the product and consulting your dermatologist.";
-    }
-    if (q.includes('redness') || q.includes('red')) {
-      return "redness can be managed with gentle, fragrance-free products. look for ingredients like centella asiatica, niacinamide, or azelaic acid. avoid hot water and harsh exfoliants.";
-    }
-    if (q.includes('stop') || q.includes('discontinue')) {
-      return "stop a product if you experience severe burning, blistering, significant swelling, or an allergic reaction. mild tingling from actives like retinol is normal, but pain isn't.";
-    }
-    if (q.includes('retinol') || q.includes('tretinoin')) {
-      return "start retinoids slowly - 2-3 times per week, gradually increasing. use a pea-sized amount for whole face. buffer with moisturizer if needed. irritation in first 2-4 weeks is common.";
-    }
-    if (q.includes('purge') || q.includes('purging')) {
-      return "purging typically happens with actives like retinoids or acids. it should only occur in areas where you normally break out and resolve within 4-6 weeks. new breakouts in unusual areas may indicate irritation.";
-    }
-    return "that's a great question. based on aad guidelines, i'd recommend discussing this with your dermatologist for personalized advice. in the meantime, stick to gentle, fragrance-free products and avoid over-exfoliating.";
+    setContextTags((prev) =>
+      prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag]
+    );
   };
 
   const handleAskQuestion = (question: string) => {
-    if (!question.trim()) return;
-    const answer = generateAnswer(question);
-    setChatMessages([{ question, answer }]);
+    const trimmed = question.trim();
+    if (!trimmed) return;
+    const answer = generateAnswer(trimmed);
+    setChatMessages([{ question: trimmed, answer }]);
     setAskQuestion('');
+  };
+
+  const handleCommonQuestion = (q: string) => {
+    handleAskQuestion(q);
   };
 
   const handleVoiceRecording = () => {
     if (isRecording) {
       setIsRecording(false);
-      setRecordingTimer(0);
-      if (recordingIntervalRef.current) {
-        clearInterval(recordingIntervalRef.current);
-        recordingIntervalRef.current = null;
+      if (recordingTimerRef.current) {
+        clearTimeout(recordingTimerRef.current);
+        recordingTimerRef.current = null;
       }
-
       const voiceQuestions = [
         'is this irritation normal?',
         'what helps with redness?',
@@ -205,23 +396,36 @@ export function HomeDashboard({
         'how do I know if my skin is purging?',
         'can I use retinol every day?',
       ];
-      const randomQuestion = voiceQuestions[Math.floor(Math.random() * voiceQuestions.length)];
+      const randomQuestion =
+        voiceQuestions[Math.floor(Math.random() * voiceQuestions.length)];
       handleAskQuestion(randomQuestion);
-      return;
+    } else {
+      setIsRecording(true);
+      if (recordingTimerRef.current) clearTimeout(recordingTimerRef.current);
+      recordingTimerRef.current = setTimeout(() => {
+        handleVoiceRecording();
+      }, 5000);
     }
+  };
 
-    setIsRecording(true);
-    setRecordingTimer(0);
-    recordingIntervalRef.current = setInterval(() => {
-      setRecordingTimer((prev) => {
-        const next = prev + 1;
-        if (next >= 5) {
-          // auto-stop
-          setTimeout(() => handleVoiceRecording(), 0);
-        }
-        return next;
-      });
-    }, 1000);
+  useEffect(() => {
+    return () => {
+      if (recordingTimerRef.current) {
+        clearTimeout(recordingTimerRef.current);
+      }
+    };
+  }, []);
+
+  const handleCompleteRoutine = () => {
+    const nowHour = new Date().getHours();
+    const currentlyEvening = nowHour >= 18 || nowHour < 6;
+    if (currentlyEvening && !eveningRoutineCompleted) {
+      onEveningRoutineComplete();
+      setShowConfetti(true);
+    } else if (!currentlyEvening && !morningRoutineCompleted) {
+      onMorningRoutineComplete();
+      setShowConfetti(true);
+    }
   };
 
   const getGreeting = () => {
@@ -232,23 +436,73 @@ export function HomeDashboard({
 
   const getNextRoutineInfo = () => {
     if (morningRoutineCompleted && !eveningRoutineCompleted) {
-      return { message: 'Next up: Evening routine', time: '6:00 PM' };
+      return {
+        message: 'Next up: evening routine',
+        time: '6:00 PM',
+      };
     }
     if (eveningRoutineCompleted && !morningRoutineCompleted) {
-      return { message: 'Next up: Morning routine', time: 'tomorrow' };
+      return {
+        message: 'Next up: morning routine',
+        time: '',
+      };
     }
     if (morningRoutineCompleted && eveningRoutineCompleted) {
-      return { message: 'Both routines completed!', time: '✨' };
+      return {
+        message: 'Both routines completed!',
+        time: '✨',
+      };
     }
     return null;
   };
 
   const nextRoutineInfo = getNextRoutineInfo();
 
+  const handleSaveCheckIn = () => {
+    setCheckInCompleted(true);
+    setCheckInExpanded(false);
+    if (onCheckInComplete) {
+      const skinFeelingNumber = moodSelection ? parseInt(moodSelection, 10) : 3;
+      const checkInData: CheckInData = {
+        type: currentRoutineType,
+        date: new Date().toISOString().split('T')[0],
+        mood: skinFeelingNumber,
+        skinFeeling: skinFeelingNumber,
+        notes: checkInNote || undefined,
+        symptomsToday: hasFlare ? selectedFlareTags : ['None'],
+        energyLevel: stressLevel ? 6 - stressLevel : undefined,
+        photoUrl: checkInPhotoUrl || undefined,
+      };
+      onCheckInComplete(checkInData);
+    }
+  };
+
   return (
-    <View style={styles.container}>
-      {showRoutineCelebration && (
-        <Confetti onComplete={onRoutineCelebrationDismiss ?? (() => { })} />
+    <View style={styles.root}>
+      {activeReminder && (
+        <ReminderToast
+          reminder={activeReminder}
+          onDismiss={() => handleDismissReminder(activeReminder.type)}
+        />
+      )}
+
+      {(showConfetti || showRoutineCelebration) && (
+        <View style={styles.confettiOverlay} pointerEvents="box-none">
+          <View style={styles.confettiInner}>
+            <Text style={styles.confettiEmoji}>🪷</Text>
+            <Text style={styles.confettiTitle}>You did it!</Text>
+            <Text style={styles.confettiSubtitle}>A new flower has bloomed in your garden</Text>
+            <TouchableOpacity
+              style={styles.confettiButton}
+              onPress={() => {
+                setShowConfetti(false);
+                onRoutineCelebrationDismiss?.();
+              }}
+            >
+              <Text style={styles.confettiButtonText}>close</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
       )}
 
       <ScrollView
@@ -256,279 +510,510 @@ export function HomeDashboard({
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        <View style={styles.maxWidth}>
-          {/* Header */}
+        <View style={styles.inner}>
           <View style={styles.headerRow}>
-            <View style={styles.headerText}>
+            <View style={styles.headerTextBlock}>
               <Text style={styles.greeting}>{getGreeting()}</Text>
-              <Text style={styles.headerSubtext}>ready for your routine today</Text>
+              <Text style={styles.greetingSub}>Ready for your routine today</Text>
             </View>
-
             <View style={styles.headerActions}>
-              <HelpButton />
+              <TouchableOpacity
+                style={styles.helpButton}
+                onPress={handleVoiceRecording}
+                activeOpacity={0.9}
+              >
+                <Ionicons
+                  name={isRecording ? 'mic' : 'help-circle-outline'}
+                  size={20}
+                  color="#5F8575"
+                />
+              </TouchableOpacity>
               {onOpenInventory && (
-                <TouchableOpacity style={styles.iconButton} activeOpacity={0.7} onPress={onOpenInventory}>
-                  <Ionicons name="cube-outline" size={22} color="#5F8575" />
+                <TouchableOpacity
+                  onPress={onOpenInventory}
+                  style={styles.iconButton}
+                  activeOpacity={0.8}
+                >
+                  <Ionicons name="briefcase-outline" size={20} color="#5F8575" />
+                </TouchableOpacity>
+              )}
+              {onOpenSettings && (
+                <TouchableOpacity
+                  onPress={onOpenSettings}
+                  style={styles.iconButton}
+                  activeOpacity={0.8}
+                >
+                  <Ionicons name="settings-outline" size={20} color="#5F8575" />
                 </TouchableOpacity>
               )}
             </View>
           </View>
 
-          {/* Completion Status Banner */}
           {nextRoutineInfo && (
             <View style={styles.completionBanner}>
               <View style={styles.completionBannerLeft}>
-                <Text style={styles.completionTitle}>
+                <Text style={styles.completionBannerTitle}>
                   {morningRoutineCompleted && eveningRoutineCompleted
-                    ? 'both routines complete'
+                    ? 'Both routines complete'
                     : morningRoutineCompleted
-                      ? 'morning routine complete'
-                      : 'evening routine complete'}
+                      ? 'Morning routine complete'
+                      : 'Evening routine complete'}
                 </Text>
-                <Text style={styles.completionSubtitle}>
-                  {nextRoutineInfo.message.toLowerCase()}{' '}
-                  {nextRoutineInfo.time !== '✨' ? `at ${nextRoutineInfo.time}` : 'check your garden'}
+                <Text style={styles.completionBannerSubtitle}>
+                  {nextRoutineInfo.message.toLowerCase()}
+                  {nextRoutineInfo.time === '✨' && ' - check your garden'}
                 </Text>
               </View>
-              <Text style={styles.completionIcon}>
+              <Text style={styles.completionBannerIcon}>
                 {morningRoutineCompleted && eveningRoutineCompleted ? '✨' : '○'}
               </Text>
             </View>
           )}
 
-          {/* Start routine CTA */}
           {!isCurrentRoutineCompleted && (
-            <TouchableOpacity style={styles.primaryCta} activeOpacity={0.9} onPress={onStartRoutine}>
-              <View style={styles.primaryCtaRow}>
-                <Text style={styles.primaryCtaText}>start routine</Text>
+            <View style={styles.primaryCtaWrapper}>
+              <TouchableOpacity
+                onPress={onStartRoutine}
+                style={styles.primaryCta}
+                activeOpacity={0.95}
+              >
+                <View style={styles.primaryCtaContent}>
+                  <View style={styles.primaryCtaIconCircle}>
+                    <Ionicons name="sparkles-outline" size={20} color="#FFFFFF" />
+                  </View>
+                  <View>
+                    <Text style={styles.primaryCtaTitle}>
+                      Start {currentRoutineType} routine
+                    </Text>
+                    <Text style={styles.primaryCtaSubtitle}>Let's grow your garden today</Text>
+                  </View>
+                </View>
                 <Ionicons name="chevron-forward" size={22} color="#FFFFFF" />
-              </View>
-            </TouchableOpacity>
+              </TouchableOpacity>
+            </View>
           )}
 
-          {/* Quick check-in */}
-          <View style={styles.card}>
+          <View style={styles.checkInCard}>
             <TouchableOpacity
               onPress={() => setCheckInExpanded((v) => !v)}
-              style={styles.expandHeader}
-              activeOpacity={0.85}
+              style={styles.checkInHeader}
+              activeOpacity={0.8}
             >
-              <View style={styles.expandHeaderLeft}>
-                <View style={[styles.statusDot, checkInCompleted ? styles.statusDotDone : styles.statusDotIdle]}>
-                  <Text style={[styles.statusDotText, checkInCompleted && styles.statusDotTextDone]}>
+              <View style={styles.checkInHeaderLeft}>
+                <View
+                  style={[
+                    styles.checkInStatusCircle,
+                    checkInCompleted
+                      ? styles.checkInStatusCircleComplete
+                      : styles.checkInStatusCirclePending,
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.checkInStatusIcon,
+                      checkInCompleted && styles.checkInStatusIconComplete,
+                    ]}
+                  >
                     {checkInCompleted ? '✓' : '○'}
                   </Text>
                 </View>
                 <View>
-                  <Text style={styles.expandTitle}>{checkInCompleted ? 'check-in complete' : 'quick check-in'}</Text>
-                  <Text style={styles.expandSubtitle}>20 seconds</Text>
+                  <Text style={styles.checkInTitle}>
+                    {checkInCompleted ? 'Check-in complete' : 'Quick check-in'}
+                  </Text>
+                  <Text style={styles.checkInDuration}>20 seconds</Text>
                 </View>
               </View>
               <Ionicons
                 name={checkInExpanded ? 'chevron-down' : 'chevron-forward'}
-                size={20}
+                size={18}
                 color="#6B8B7D"
               />
             </TouchableOpacity>
 
             {checkInExpanded && (
-              <View style={styles.expandBody}>
-                <Text style={styles.question}>any flare today?</Text>
-                <View style={styles.twoColRow}>
-                  <TouchableOpacity
-                    onPress={() => {
-                      setHasFlare(false);
-                      setSelectedFlareTags([]);
-                    }}
-                    style={[styles.pillButton, hasFlare === false && styles.pillButtonSelected]}
-                    activeOpacity={0.8}
-                  >
-                    <Text style={[styles.pillButtonText, hasFlare === false && styles.pillButtonTextSelected]}>
-                      no
-                    </Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    onPress={() => setHasFlare(true)}
-                    style={[styles.pillButton, hasFlare === true && styles.pillButtonSelected]}
-                    activeOpacity={0.8}
-                  >
-                    <Text style={[styles.pillButtonText, hasFlare === true && styles.pillButtonTextSelected]}>
-                      yes
-                    </Text>
-                  </TouchableOpacity>
+              <View style={styles.checkInBody}>
+                <View style={styles.sectionBlock}>
+                  <Text style={styles.sectionTitle}>Any flare today?</Text>
+                  <View style={styles.rowGap}>
+                    <TouchableOpacity
+                      style={[
+                        styles.flareToggle,
+                        hasFlare === false && styles.flareToggleActive,
+                      ]}
+                      onPress={() => {
+                        setHasFlare(false);
+                        setSelectedFlareTags([]);
+                      }}
+                    >
+                      <Text
+                        style={[
+                          styles.flareToggleText,
+                          hasFlare === false && styles.flareToggleTextActive,
+                        ]}
+                      >
+                        no
+                      </Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[
+                        styles.flareToggle,
+                        hasFlare === true && styles.flareToggleActive,
+                      ]}
+                      onPress={() => setHasFlare(true)}
+                    >
+                      <Text
+                        style={[
+                          styles.flareToggleText,
+                          hasFlare === true && styles.flareToggleTextActive,
+                        ]}
+                      >
+                        yes
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+
+                  {hasFlare && (
+                    <View style={styles.chipRow}>
+                      {['itch', 'redness', 'dryness', 'breakout', 'pain'].map((tag) => {
+                        const active = selectedFlareTags.includes(tag);
+                        return (
+                          <TouchableOpacity
+                            key={tag}
+                            style={[styles.chip, active && styles.chipActive]}
+                            onPress={() => toggleFlareTag(tag)}
+                          >
+                            <Text
+                              style={[styles.chipText, active && styles.chipTextActive]}
+                            >
+                              {tag}
+                            </Text>
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </View>
+                  )}
                 </View>
 
-                {hasFlare && (
-                  <View style={styles.tagWrap}>
-                    {['itch', 'redness', 'dryness', 'breakout', 'pain'].map((tag) => (
-                      <TouchableOpacity
-                        key={tag}
-                        onPress={() => toggleFlareTag(tag)}
-                        style={[styles.tag, selectedFlareTags.includes(tag) && styles.tagSelected]}
-                        activeOpacity={0.85}
-                      >
-                        <Text style={[styles.tagText, selectedFlareTags.includes(tag) && styles.tagTextSelected]}>
-                          {tag}
-                        </Text>
-                      </TouchableOpacity>
+                <View style={styles.sectionBlock}>
+                  <Text style={styles.sectionTitle}>
+                    How are you feeling about your skin today?
+                  </Text>
+                  <View style={styles.moodRow}>
+                    {(['1', '2', '3', '4', '5'] as FaceVariant[]).map((value) => (
+                      <View key={value} style={styles.moodItem}>
+                        <TouchableOpacity
+                          onPress={() => setMoodSelection(value)}
+                          activeOpacity={0.9}
+                        >
+                          <MoodFace variant={value} active={moodSelection === value} />
+                        </TouchableOpacity>
+                        <Text style={styles.moodLabel}>{value}</Text>
+                      </View>
                     ))}
+                  </View>
+                  <View style={styles.moodScaleLabels}>
+                    <Text style={styles.moodScaleText}>not satisfied</Text>
+                    <Text style={styles.moodScaleText}>very satisfied</Text>
+                  </View>
+                </View>
+
+                <View style={styles.sectionBlock}>
+                  <Text style={styles.sectionTitle}>Anything affecting your skin?</Text>
+                  <View style={styles.chipRow}>
+                    {['sleep', 'stress', 'product change', 'period', 'weather'].map(
+                      (tag) => {
+                        const active = contextTags.includes(tag);
+                        return (
+                          <TouchableOpacity
+                            key={tag}
+                            style={[styles.chip, active && styles.chipActive]}
+                            onPress={() => toggleContextTag(tag)}
+                          >
+                            <Text
+                              style={[styles.chipText, active && styles.chipTextActive]}
+                            >
+                              {tag}
+                            </Text>
+                          </TouchableOpacity>
+                        );
+                      }
+                    )}
+                  </View>
+                </View>
+
+                <View style={styles.sectionDivider} />
+                <TouchableOpacity
+                  onPress={() => setWearablesExpanded((v) => !v)}
+                  style={styles.wearablesToggle}
+                  activeOpacity={0.85}
+                >
+                  <View style={styles.rowCenter}>
+                    <Ionicons name="watch-outline" size={18} color="#5F8575" />
+                    <Text style={styles.wearablesToggleText}>Add wearable wellness data</Text>
+                  </View>
+                  <Ionicons
+                    name={wearablesExpanded ? 'chevron-down' : 'chevron-forward'}
+                    size={18}
+                    color="#5F8575"
+                  />
+                </TouchableOpacity>
+
+                {wearablesExpanded && (
+                  <View style={styles.wearablesBody}>
+                    <Text style={styles.wearablesHint}>
+                      Tracking sleep, stress, and cycles helps connect the dots
+                    </Text>
+
+                    {!wearablesConnected ? (
+                      <View style={styles.wearablesConnectBlock}>
+                        <TouchableOpacity
+                          onPress={() => setWearablesConnected(true)}
+                          style={styles.wearablesConnectButton}
+                          activeOpacity={0.9}
+                        >
+                          <Ionicons
+                            name="pulse-outline"
+                            size={16}
+                            color="#5F8575"
+                            style={{ marginRight: 6 }}
+                          />
+                          <Text style={styles.wearablesConnectText}>
+                            sync with my wearable
+                          </Text>
+                        </TouchableOpacity>
+                        <Text style={styles.wearablesOrText}>
+                          or just enter manually below ↓
+                        </Text>
+                      </View>
+                    ) : (
+                      <View style={styles.wearablesConnected}>
+                        <Ionicons name="pulse" size={16} color="#5F8575" />
+                        <Text style={styles.wearablesConnectedText}>
+                          connected! pulling data automatically
+                        </Text>
+                      </View>
+                    )}
+
+                    <View style={styles.sectionBlock}>
+                      <Text style={styles.inputLabel}>
+                        How much sleep did you get last night?
+                      </Text>
+                      <TextInput
+                        style={styles.textInput}
+                        value={sleepHours}
+                        onChangeText={setSleepHours}
+                        placeholder="e.g., 7.5 hours"
+                        placeholderTextColor="#8A9088"
+                        keyboardType="numeric"
+                      />
+                    </View>
+
+                    <View style={styles.sectionBlock}>
+                      <Text style={styles.inputLabel}>
+                        How&apos;s your stress level today?
+                      </Text>
+                      <View style={styles.stressRow}>
+                        {[1, 2, 3, 4, 5].map((level) => {
+                          const active = stressLevel === level;
+                          return (
+                            <TouchableOpacity
+                              key={level}
+                              style={[styles.stressChip, active && styles.stressChipActive]}
+                              onPress={() => setStressLevel(level)}
+                            >
+                              <Text
+                                style={[
+                                  styles.stressChipText,
+                                  active && styles.stressChipTextActive,
+                                ]}
+                              >
+                                {level}
+                              </Text>
+                            </TouchableOpacity>
+                          );
+                        })}
+                      </View>
+                      <View style={styles.moodScaleLabels}>
+                        <Text style={styles.moodScaleText}>chill</Text>
+                        <Text style={styles.moodScaleText}>stressed</Text>
+                      </View>
+                    </View>
+
+                    <View style={styles.sectionBlock}>
+                      <TouchableOpacity
+                        style={styles.periodRow}
+                        onPress={() => setOnPeriod((v) => !v)}
+                        activeOpacity={0.8}
+                      >
+                        <Ionicons
+                          name={onPeriod ? 'checkbox' : 'square-outline'}
+                          size={20}
+                          color="#5F8575"
+                        />
+                        <Text style={styles.periodLabel}>On my period today</Text>
+                      </TouchableOpacity>
+                    </View>
                   </View>
                 )}
 
-                <Text style={styles.question}>how are you feeling about your skin today?</Text>
-                <View style={styles.moodRow}>
-                  {[
-                    { emoji: '😌', value: 'good' },
-                    { emoji: '😐', value: 'okay' },
-                    { emoji: '😟', value: 'discouraged' },
-                  ].map((mood) => (
-                    <TouchableOpacity
-                      key={mood.value}
-                      onPress={() => setMoodSelection(mood.value)}
-                      style={[styles.moodButton, moodSelection === mood.value ? styles.moodSelected : styles.moodUnselected]}
-                      activeOpacity={0.8}
-                    >
-                      <Text style={styles.moodEmoji}>{mood.emoji}</Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-
-                <Text style={styles.question}>anything affecting your skin?</Text>
-                <View style={styles.tagWrap}>
-                  {['sleep', 'stress', 'product change', 'period', 'weather'].map((tag) => (
-                    <TouchableOpacity
-                      key={tag}
-                      onPress={() => toggleContextTag(tag)}
-                      style={[styles.tag, contextTags.includes(tag) && styles.tagSelected]}
-                      activeOpacity={0.85}
-                    >
-                      <Text style={[styles.tagText, contextTags.includes(tag) && styles.tagTextSelected]}>
-                        {tag}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-
                 <TouchableOpacity
                   onPress={() => setOptionalFieldsExpanded((v) => !v)}
-                  style={styles.secondaryButton}
+                  style={styles.optionalToggle}
                   activeOpacity={0.85}
                 >
-                  <Text style={styles.secondaryButtonText}>add a note</Text>
+                  <Text style={styles.optionalToggleText}>Add a note</Text>
+                  <Ionicons
+                    name={optionalFieldsExpanded ? 'chevron-up' : 'chevron-down'}
+                    size={18}
+                    color="#2D4A3E"
+                  />
                 </TouchableOpacity>
 
                 {optionalFieldsExpanded && (
-                  <TextInput
-                    value={checkInNote}
-                    onChangeText={setCheckInNote}
-                    placeholder="add any additional notes..."
-                    placeholderTextColor="#8A9088"
-                    style={styles.noteInput}
-                    multiline
-                    numberOfLines={3}
-                    textAlignVertical="top"
-                  />
+                  <View style={styles.optionalBody}>
+                    <TextInput
+                      style={styles.noteInput}
+                      value={checkInNote}
+                      onChangeText={setCheckInNote}
+                      placeholder="add any additional notes..."
+                      placeholderTextColor="#8A9088"
+                      multiline
+                      numberOfLines={3}
+                      textAlignVertical="top"
+                    />
+                  </View>
+                )}
+
+                <View style={styles.sectionDivider} />
+                <Text style={styles.photoLabel}>Add a check-in photo (optional)</Text>
+                {checkInPhotoUrl ? (
+                  <View style={styles.photoPreviewWrapper}>
+                    <Image
+                      source={{ uri: checkInPhotoUrl }}
+                      style={styles.photoPreview}
+                      resizeMode="cover"
+                    />
+                    <TouchableOpacity
+                      style={styles.photoRemove}
+                      onPress={() => setCheckInPhotoUrl(null)}
+                      activeOpacity={0.85}
+                    >
+                      <Ionicons name="close" size={18} color="#6B8B7D" />
+                    </TouchableOpacity>
+                  </View>
+                ) : (
+                  <TouchableOpacity
+                    style={styles.photoPicker}
+                    onPress={() => {
+                      // Placeholder: integrate expo-image-picker in a later pass
+                    }}
+                    activeOpacity={0.8}
+                  >
+                    <Ionicons name="camera-outline" size={32} color="#5F8575" />
+                    <Text style={styles.photoPickerTitle}>Click to add photo</Text>
+                    <Text style={styles.photoPickerSubtitle}>
+                      Track your progress visually
+                    </Text>
+                  </TouchableOpacity>
                 )}
 
                 <TouchableOpacity
-                  onPress={() => {
-                    setCheckInCompleted(true);
-                    setCheckInExpanded(false);
-                  }}
-                  style={styles.saveButton}
+                  style={styles.saveCheckInButton}
+                  onPress={handleSaveCheckIn}
                   activeOpacity={0.9}
                 >
-                  <Text style={styles.saveButtonText}>save check-in</Text>
+                  <Text style={styles.saveCheckInText}>save check-in</Text>
                 </TouchableOpacity>
               </View>
             )}
           </View>
 
-          {/* Ask a question */}
-          <View style={styles.card}>
+          <View style={styles.askGiaCard}>
             <TouchableOpacity
               onPress={() => {
-                const newExpanded = !askExpanded;
-                setAskExpanded(newExpanded);
-                if (!newExpanded) {
+                const expanded = !askExpanded;
+                setAskExpanded(expanded);
+                if (!expanded) {
                   setAskQuestion('');
                   setChatMessages([]);
-                  setIsRecording(false);
-                  setRecordingTimer(0);
-                  if (recordingIntervalRef.current) {
-                    clearInterval(recordingIntervalRef.current);
-                    recordingIntervalRef.current = null;
-                  }
                 }
               }}
-              style={styles.expandHeader}
-              activeOpacity={0.85}
+              style={styles.askGiaHeader}
+              activeOpacity={0.9}
             >
-              <View style={styles.expandHeaderLeft}>
-                <View style={styles.helpIconCircle}>
-                  <Ionicons name="help-circle-outline" size={20} color="#5F8575" />
+              <View style={styles.askGiaHeaderInner}>
+                <View style={styles.askGiaIcon}>
+                  <Ionicons name="help-circle-outline" size={24} color="#FFFFFF" />
                 </View>
-                <View>
-                  <Text style={styles.expandTitle}>ask a question</Text>
-                  <Text style={styles.expandSubtitle}>aad-sourced answers</Text>
+                <View style={styles.askGiaTextBlock}>
+                  <Text style={styles.askGiaTitle}>Ask Gia</Text>
+                  <Text style={styles.askGiaSubtitle}>Have any doubts?</Text>
                 </View>
               </View>
-              <Ionicons name={askExpanded ? 'chevron-down' : 'chevron-forward'} size={20} color="#6B8B7D" />
+              <Ionicons
+                name={askExpanded ? 'chevron-down' : 'chevron-forward'}
+                size={20}
+                color="#FFFFFF"
+              />
             </TouchableOpacity>
 
             {askExpanded && (
-              <View style={styles.expandBody}>
-                <Text style={styles.commonLabel}>common questions</Text>
-                {[
-                  'is this irritation normal?',
-                  'what helps redness?',
-                  'when should i stop a product?',
-                ].map((q) => (
-                  <TouchableOpacity
-                    key={q}
-                    onPress={() => handleAskQuestion(q)}
-                    style={styles.commonButton}
-                    activeOpacity={0.85}
-                  >
-                    <Text style={styles.commonButtonText}>{q}</Text>
-                  </TouchableOpacity>
-                ))}
+              <View style={styles.askGiaBody}>
+                <Text style={styles.askGiaCommonLabel}>common questions</Text>
+                <TouchableOpacity
+                  style={styles.askGiaChip}
+                  onPress={() => handleCommonQuestion('is this irritation normal?')}
+                  activeOpacity={0.8}
+                >
+                  <Text style={styles.askGiaChipText}>is this irritation normal?</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.askGiaChip}
+                  onPress={() => handleCommonQuestion('what helps redness?')}
+                  activeOpacity={0.8}
+                >
+                  <Text style={styles.askGiaChipText}>what helps redness?</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.askGiaChip}
+                  onPress={() => handleCommonQuestion('when should i stop a product?')}
+                  activeOpacity={0.8}
+                >
+                  <Text style={styles.askGiaChipText}>when should i stop a product?</Text>
+                </TouchableOpacity>
 
-                <View style={styles.askBox}>
+                <View style={styles.askGiaInputBlock}>
                   <TextInput
+                    style={styles.askGiaInput}
                     value={askQuestion}
                     onChangeText={setAskQuestion}
                     placeholder="or ask your own question..."
                     placeholderTextColor="#8A9088"
-                    style={styles.askInput}
-                    returnKeyType="send"
                     onSubmitEditing={() => handleAskQuestion(askQuestion)}
+                    returnKeyType="send"
                   />
-                  <TouchableOpacity style={styles.askSubmit} onPress={() => handleAskQuestion(askQuestion)} activeOpacity={0.9}>
-                    <Text style={styles.askSubmitText}>ask</Text>
+                  <TouchableOpacity
+                    style={styles.askGiaButton}
+                    onPress={() => handleAskQuestion(askQuestion)}
+                    activeOpacity={0.9}
+                  >
+                    <Text style={styles.askGiaButtonText}>Ask Gia</Text>
                   </TouchableOpacity>
+                  <Text style={styles.askGiaFootnote}>
+                    *American Academy of Dermatology sourced answers
+                  </Text>
                 </View>
 
-                <TouchableOpacity
-                  onPress={handleVoiceRecording}
-                  style={[styles.voiceButton, isRecording && styles.voiceButtonRecording]}
-                  activeOpacity={0.9}
-                >
-                  <Ionicons name="mic-outline" size={18} color="#FFFFFF" />
-                  <Text style={styles.voiceButtonText}>
-                    {isRecording ? `recording... ${recordingTimer}s` : 'ask by voice'}
-                  </Text>
-                </TouchableOpacity>
-
-                {isRecording && <Text style={styles.voiceHint}>speak your question now...</Text>}
-
                 {chatMessages.length > 0 && (
-                  <View style={styles.answersBox}>
-                    <Text style={styles.answersTitle}>answers:</Text>
+                  <View style={styles.askGiaAnswerBlock}>
+                    <Text style={styles.askGiaAnswerLabel}>Answers:</Text>
                     {chatMessages.map((msg, idx) => (
-                      <View key={idx} style={styles.answerCard}>
-                        <Text style={styles.answerQ}>Q: {msg.question}</Text>
-                        <Text style={styles.answerA}>A: {msg.answer}</Text>
+                      <View key={idx} style={styles.askGiaAnswerBubble}>
+                        <Text style={styles.askGiaAnswerQuestion}>
+                          Q: {msg.question}
+                        </Text>
+                        <Text style={styles.askGiaAnswerText}>A: {msg.answer}</Text>
                       </View>
                     ))}
                   </View>
@@ -537,88 +1022,70 @@ export function HomeDashboard({
             )}
           </View>
 
-          {/* Garden */}
           <View style={styles.gardenCard}>
-            <View style={styles.gardenHeaderRow}>
+            <View style={styles.gardenHeader}>
               <View>
-                <Text style={styles.gardenTitle}>your garden</Text>
+                <Text style={styles.gardenTitle}>Your garden</Text>
                 <Text style={styles.gardenSubtitle}>
                   {morningRoutinesDone + eveningRoutinesDone} routines completed this week
                 </Text>
               </View>
+              {onOpenGarden && (
+                <TouchableOpacity
+                  style={styles.iconButton}
+                  onPress={onOpenGarden}
+                  activeOpacity={0.8}
+                >
+                  <Ionicons name="water-outline" size={20} color="#5F8575" />
+                </TouchableOpacity>
+              )}
             </View>
 
-            <View style={styles.pond}>
-              <View style={styles.flowerGrid}>
-                {Array.from({ length: Math.min(morningRoutinesDone + eveningRoutinesDone, 10) }).map((_, i) => (
-                  <View key={i} style={styles.flowerCell}>
-                    <Text style={styles.flowerEmoji}>🪷</Text>
-                  </View>
-                ))}
-              </View>
-
-              {(morningRoutinesDone + eveningRoutinesDone) === 0 && (
-                <View style={styles.noFlowers}>
-                  <Text style={styles.noFlowersText}>
-                    complete your first routine to plant a victoria regia 🪷
+            <View style={styles.gardenPond}>
+              {morningRoutinesDone + eveningRoutinesDone === 0 ? (
+                <View style={styles.gardenEmpty}>
+                  <Text style={styles.gardenEmptyText}>
+                    Complete your first routine to plant a Victoria regia 🪷
                   </Text>
+                </View>
+              ) : (
+                <View style={styles.gardenFlowerGrid}>
+                  {Array.from({
+                    length: morningRoutinesDone + eveningRoutinesDone,
+                  }).map((_, i) => (
+                    <View key={i} style={styles.gardenFlowerItem}>
+                      <Text style={styles.gardenFlowerEmoji}>🪷</Text>
+                    </View>
+                  ))}
                 </View>
               )}
             </View>
 
-            <View style={styles.statsRow}>
-              <View style={styles.statCard}>
-                <Text style={styles.statNumber}>{morningRoutinesDone + eveningRoutinesDone}</Text>
-                <Text style={styles.statLabel}>flowers</Text>
+            <View style={styles.gardenStatsRow}>
+              <View style={styles.gardenStatCard}>
+                <View style={styles.gardenStatIconCirclePink}>
+                  <Text style={styles.lotusIcon}>🪷</Text>
+                </View>
+                <Text style={styles.gardenStatValue}>
+                  {morningRoutinesDone + eveningRoutinesDone}
+                </Text>
+                <Text style={styles.gardenStatLabel}>flowers bloomed</Text>
               </View>
-              <View style={styles.statCard}>
-                <Text style={styles.statNumber}>{currentStreak}</Text>
-                <Text style={styles.statLabel}>day streak</Text>
+              <View style={styles.gardenStatCard}>
+                <View style={styles.gardenStatIconCircleFlame}>
+                  <Ionicons name="flame" size={20} color="#FFFFFF" />
+                </View>
+                <Text style={styles.gardenStatValue}>{currentStreak}</Text>
+                <Text style={styles.gardenStatLabel}>day streak</Text>
               </View>
-              <View style={styles.statCard}>
-                <Text style={styles.statNumber}>{weekCount}</Text>
-                <Text style={styles.statLabel}>weeks</Text>
+              <View style={styles.gardenStatCard}>
+                <View style={styles.gardenStatIconCircleCalendar}>
+                  <Ionicons name="calendar-outline" size={20} color="#FFFFFF" />
+                </View>
+                <Text style={styles.gardenStatValue}>{weekCount}</Text>
+                <Text style={styles.gardenStatLabel}>weeks active</Text>
               </View>
             </View>
-          </View>
-
-          {/* Reinforcement */}
-          <View style={styles.reinforcement}>
-            <Text style={styles.reinforcementTitle}>You've shown up {currentStreak} days in a row</Text>
-            <Text style={styles.reinforcementSubtitle}>Even small routines protect your skin barrier</Text>
-          </View>
-
-          {/* Fresh Starts & Tips */}
-          <Text style={styles.sectionTitle}>Fresh Starts & Tips</Text>
-          <View style={styles.seasonGrid}>
-            {seasons.map((season) => (
-              <TouchableOpacity
-                key={season.name}
-                onPress={() => setSelectedSeason(selectedSeason === season.name ? null : season.name)}
-                style={[styles.seasonButton, selectedSeason === season.name && styles.seasonButtonSelected]}
-                activeOpacity={0.85}
-              >
-                <Ionicons name={season.icon} size={24} color="#7B9B8C" />
-                <Text style={styles.seasonButtonText}>{season.name}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-          {selectedSeason && (
-            <View style={styles.seasonTipBox}>
-              <Text style={styles.seasonTipText}>
-                <Text style={styles.seasonTipLabel}>Seasonal Tip: </Text>
-                {seasons.find((s) => s.name === selectedSeason)?.tip}
-              </Text>
-            </View>
-          )}
-
-          {/* Remember */}
-          <View style={styles.rememberCard}>
-            <Text style={styles.rememberTitle}>Remember</Text>
-            <Text style={styles.rememberText}>
-              Flare days aren't failures — they're opportunities to tend to your garden with extra care.
-              Every season has its challenges, and every day is a chance to begin again.
-            </Text>
           </View>
         </View>
       </ScrollView>
@@ -626,122 +1093,840 @@ export function HomeDashboard({
   );
 }
 
+function generateAnswer(question: string): string {
+  const q = question.toLowerCase();
+  if (q.includes('irritation') || q.includes('normal')) {
+    return "Some irritation can be normal when starting new products, especially actives. If it persists beyond 2 weeks, becomes painful, or worsens, consider pausing the product and consulting your dermatologist.";
+  }
+  if (q.includes('redness') || q.includes('red')) {
+    return 'Redness can be managed with gentle, fragrance-free products. Look for ingredients like centella asiatica, niacinamide, or azelaic acid. Avoid hot water and harsh exfoliants.';
+  }
+  if (q.includes('stop') || q.includes('discontinue')) {
+    return 'Stop a product if you experience severe burning, blistering, significant swelling, or an allergic reaction. Mild tingling from actives like retinol is normal, but pain is not.';
+  }
+  if (q.includes('retinol') || q.includes('tretinoin')) {
+    return 'Start retinoids slowly — 2-3 times per week, gradually increasing. Use a pea-sized amount for whole face. Buffer with moisturizer if needed.';
+  }
+  if (q.includes('purge') || q.includes('purging')) {
+    return 'Purging typically happens with actives like retinoids or acids. It should only occur in areas where you normally break out and resolve within 4-6 weeks.';
+  }
+  return "That's a great question. Based on AAD guidelines, I'd recommend discussing this with your dermatologist for personalized advice. In the meantime, stick to gentle, fragrance-free products.";
+}
+
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F5F1ED' },
-  scroll: { flex: 1 },
-  scrollContent: { paddingHorizontal: 16, paddingVertical: 24, paddingBottom: 120 },
-  maxWidth: { width: '100%', maxWidth: 680, alignSelf: 'center' },
-
-  headerRow: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 16 },
-  headerText: { flex: 1, paddingRight: 12 },
-  greeting: { fontSize: 26, fontWeight: '600', color: '#2D4A3E', marginBottom: 4 },
-  headerSubtext: { fontSize: 13, color: '#6B8B7D' },
-  headerActions: { flexDirection: 'row', gap: 8 },
-  iconButton: { padding: 10, borderRadius: 999, backgroundColor: 'transparent' },
-
-  completionBanner: { backgroundColor: '#5F8575', borderRadius: 20, padding: 16, marginBottom: 16, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  completionBannerLeft: { flex: 1, paddingRight: 12 },
-  completionTitle: { color: '#FFFFFF', fontWeight: '700', fontStyle: 'italic', fontSize: 15, marginBottom: 4 },
-  completionSubtitle: { color: 'rgba(255,255,255,0.8)', fontSize: 13 },
-  completionIcon: { color: '#FFFFFF', fontSize: 22 },
-
-  primaryCta: { backgroundColor: '#5F8575', borderRadius: 20, paddingVertical: 18, paddingHorizontal: 18, marginBottom: 16 },
-  askGiaCta: { borderRadius: 20, paddingVertical: 18, paddingHorizontal: 18, marginBottom: 16, backgroundColor: '#7B9B8C' },
-  primaryCtaRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  askGiaLeft: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  primaryCtaText: { color: '#FFFFFF', fontSize: 16, fontStyle: 'italic', fontWeight: '600' },
-
-  card: { backgroundColor: '#FFFFFF', borderRadius: 20, overflow: 'hidden', marginBottom: 16, borderWidth: 1, borderColor: 'rgba(95,133,117,0.1)' },
-  expandHeader: { padding: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  expandHeaderLeft: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  statusDot: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
-  statusDotIdle: { backgroundColor: '#E8F5E9' },
-  statusDotDone: { backgroundColor: '#5F8575' },
-  statusDotText: { fontSize: 18, color: '#2D4A3E' },
-  statusDotTextDone: { color: '#FFFFFF' },
-  expandTitle: { color: '#2D4A3E', fontStyle: 'italic', fontSize: 16 },
-  expandSubtitle: { color: '#6B8B7D', fontSize: 13, marginTop: 2 },
-  expandBody: { borderTopWidth: 1, borderTopColor: 'rgba(95,133,117,0.1)', padding: 16, gap: 16 },
-  question: { color: '#2D4A3E', fontStyle: 'italic', fontSize: 15 },
-  twoColRow: { flexDirection: 'row', gap: 12 },
-  pillButton: { flex: 1, paddingVertical: 12, borderRadius: 16, borderWidth: 2, borderColor: 'rgba(95,133,117,0.2)', alignItems: 'center', backgroundColor: '#FFFFFF' },
-  pillButtonSelected: { backgroundColor: '#5F8575', borderColor: '#5F8575' },
-  pillButtonText: { color: '#6B8B7D', fontWeight: '700' },
-  pillButtonTextSelected: { color: '#FFFFFF' },
-  tagWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  tag: { paddingVertical: 8, paddingHorizontal: 14, borderRadius: 999, backgroundColor: '#E8F5E9' },
-  tagSelected: { backgroundColor: '#5F8575' },
-  tagText: { color: '#6B8B7D', fontWeight: '700' },
-  tagTextSelected: { color: '#FFFFFF' },
-  moodRow: { flexDirection: 'row', justifyContent: 'space-around' },
-  moodButton: { padding: 6 },
-  moodSelected: { opacity: 1 },
-  moodUnselected: { opacity: 0.45 },
-  moodEmoji: { fontSize: 44 },
-  secondaryButton: { backgroundColor: '#E8F5E9', paddingVertical: 12, borderRadius: 16, alignItems: 'center' },
-  secondaryButtonText: { color: '#2D4A3E', fontStyle: 'italic', fontWeight: '600' },
-  noteInput: { borderWidth: 1, borderColor: 'rgba(95,133,117,0.2)', borderRadius: 16, padding: 14, color: '#2D4A3E', backgroundColor: '#FFFFFF' },
-  saveButton: { backgroundColor: '#5F8575', paddingVertical: 14, borderRadius: 16, alignItems: 'center' },
-  saveButtonText: { color: '#FFFFFF', fontStyle: 'italic', fontWeight: '700' },
-
-  helpIconCircle: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#E8F5E9', alignItems: 'center', justifyContent: 'center' },
-  commonLabel: { fontSize: 11, color: '#6B8B7D', letterSpacing: 1, textTransform: 'uppercase' },
-  commonButton: { backgroundColor: '#E8F5E9', paddingVertical: 12, paddingHorizontal: 14, borderRadius: 16 },
-  commonButtonText: { color: '#2D4A3E', fontStyle: 'italic', fontWeight: '600' },
-  askBox: { gap: 10 },
-  askInput: { borderWidth: 1, borderColor: 'rgba(95,133,117,0.2)', borderRadius: 16, padding: 14, color: '#2D4A3E', backgroundColor: '#FFFFFF' },
-  askSubmit: { backgroundColor: '#5F8575', paddingVertical: 12, borderRadius: 16, alignItems: 'center' },
-  askSubmitText: { color: '#FFFFFF', fontStyle: 'italic', fontWeight: '700' },
-  voiceButton: { backgroundColor: '#5F8575', paddingVertical: 12, borderRadius: 16, flexDirection: 'row', gap: 10, alignItems: 'center', justifyContent: 'center' },
-  voiceButtonRecording: { backgroundColor: '#EF4444' },
-  voiceButtonText: { color: '#FFFFFF', fontStyle: 'italic', fontWeight: '700' },
-  voiceHint: { color: '#6B8B7D', fontSize: 12, textAlign: 'center', fontStyle: 'italic' },
-  answersBox: { marginTop: 6 },
-  answersTitle: { color: '#6B8B7D', marginBottom: 8 },
-  answerCard: { backgroundColor: '#F5F1ED', padding: 12, borderRadius: 14, marginBottom: 8 },
-  answerQ: { color: '#2D4A3E', fontStyle: 'italic', marginBottom: 4 },
-  answerA: { color: '#6B8B7D' },
-
-  gardenCard: { backgroundColor: '#FFFFFF', borderRadius: 24, padding: 16, borderWidth: 2, borderColor: '#D8D5CF', marginBottom: 16 },
-  gardenHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 },
-  gardenTitle: { color: '#7B9B8C', fontSize: 18, fontWeight: '600' },
-  gardenSubtitle: { color: '#6B7370', fontSize: 13, marginTop: 2 },
-  viewAll: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  viewAllText: { color: '#7B9B8C', fontSize: 13, fontWeight: '600' },
-  pond: { borderRadius: 18, padding: 16, minHeight: 180, backgroundColor: '#B8D8E8', overflow: 'hidden' },
-  flowerGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-  flowerCell: { width: '18%', alignItems: 'center' },
-  flowerEmoji: { fontSize: 28 },
-  noFlowers: { alignItems: 'center', justifyContent: 'center', paddingVertical: 24 },
-  noFlowersText: { color: '#6B7370', fontSize: 13, fontStyle: 'italic', textAlign: 'center' },
-  statsRow: { flexDirection: 'row', gap: 10, marginTop: 12 },
-  statCard: { flex: 1, backgroundColor: '#F5F1ED', borderRadius: 12, padding: 12, alignItems: 'center' },
-  statNumber: { fontSize: 20, color: '#7B9B8C', fontWeight: '700', marginBottom: 4 },
-  statLabel: { fontSize: 12, color: '#6B7370' },
-
-  reinforcement: { backgroundColor: '#D4E3DB', borderRadius: 18, padding: 16, borderWidth: 1, borderColor: '#D8D5CF' },
-  reinforcementTitle: { color: '#7B9B8C', fontSize: 16, textAlign: 'center', marginBottom: 4 },
-  reinforcementSubtitle: { color: '#6B7370', fontSize: 13, textAlign: 'center' },
-
-  sectionTitle: { fontSize: 18, fontWeight: '600', color: '#7B9B8C', marginTop: 24, marginBottom: 12 },
-  seasonGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginBottom: 16 },
-  seasonButton: { width: '47%', padding: 16, borderRadius: 16, borderWidth: 2, borderColor: '#D8D5CF', backgroundColor: '#FFFFFF', alignItems: 'center' },
-  seasonButtonSelected: { borderColor: '#7B9B8C', backgroundColor: 'rgba(212,227,219,0.2)' },
-  seasonButtonText: { fontSize: 14, color: '#7B9B8C', marginTop: 8, fontWeight: '600' },
-  seasonTipBox: { padding: 16, backgroundColor: '#F5F1ED', borderRadius: 16, borderWidth: 2, borderColor: '#D4E3DB', marginBottom: 16 },
-  seasonTipLabel: { fontWeight: '600', color: '#7B9B8C' },
-  seasonTipText: { fontSize: 14, color: '#6B7370', lineHeight: 22 },
-  rememberCard: { padding: 20, backgroundColor: '#FFFFFF', borderRadius: 16, borderWidth: 2, borderColor: '#D8D5CF' },
-  rememberTitle: { fontSize: 16, fontWeight: '600', color: '#7B9B8C', marginBottom: 8 },
-  rememberText: { fontSize: 14, color: '#6B7370', lineHeight: 22 },
-
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', alignItems: 'center', justifyContent: 'center', padding: 24 },
-  confettiCard: { width: '100%', maxWidth: 360, backgroundColor: '#FFFFFF', borderRadius: 24, padding: 28, borderWidth: 2, borderColor: '#7B9B8C', alignItems: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.15, shadowRadius: 24, elevation: 12 },
-  confettiEmoji: { fontSize: 56, marginBottom: 12 },
-  confettiTitle: { fontSize: 22, color: '#5A7A6B', fontStyle: 'italic', marginBottom: 8 },
-  confettiText: { fontSize: 14, color: '#6B7370', textAlign: 'center', marginBottom: 8 },
-  confettiSubtext: { fontSize: 13, color: '#7B9B8C', marginBottom: 20 },
-  confettiButton: { backgroundColor: '#5F8575', paddingVertical: 12, paddingHorizontal: 22, borderRadius: 999 },
-  confettiButtonText: { color: '#FFFFFF', fontWeight: '600', fontStyle: 'italic' },
+  root: {
+    flex: 1,
+    backgroundColor: '#E8F0DC',
+  },
+  scroll: {
+    flex: 1,
+  },
+  scrollContent: {
+    paddingHorizontal: 16,
+    paddingTop: 24,
+    paddingBottom: 40,
+  },
+  inner: {
+    maxWidth: 480,
+    width: '100%',
+    alignSelf: 'center',
+  },
+  headerRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 24,
+  },
+  headerTextBlock: {
+    flex: 1,
+    paddingRight: 8,
+  },
+  greeting: {
+    fontSize: 22,
+    color: '#2D4A3E',
+    marginBottom: 4,
+  },
+  greetingSub: {
+    fontSize: 13,
+    color: '#6B8B7D',
+  },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginLeft: 8,
+  },
+  helpButton: {
+    padding: 10,
+    borderRadius: 999,
+    backgroundColor: '#E8F5E9',
+    marginRight: 4,
+  },
+  iconButton: {
+    padding: 10,
+    borderRadius: 999,
+    backgroundColor: '#F0F3ED',
+    marginLeft: 4,
+  },
+  completionBanner: {
+    backgroundColor: '#5F8575',
+    borderRadius: 20,
+    padding: 16,
+    marginBottom: 16,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  completionBannerLeft: {
+    flex: 1,
+    paddingRight: 12,
+  },
+  completionBannerTitle: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontStyle: 'italic',
+    marginBottom: 4,
+  },
+  completionBannerSubtitle: {
+    color: 'rgba(255,255,255,0.8)',
+    fontSize: 13,
+  },
+  completionBannerIcon: {
+    fontSize: 24,
+    color: '#FFFFFF',
+  },
+  primaryCtaWrapper: {
+    marginBottom: 16,
+  },
+  primaryCta: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: '#E879B9',
+    borderRadius: 24,
+    paddingVertical: 18,
+    paddingHorizontal: 18,
+    shadowColor: '#000',
+    shadowOpacity: 0.18,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 4,
+  },
+  primaryCtaContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  primaryCtaIconCircle: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.3)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  primaryCtaTitle: {
+    color: '#FFFFFF',
+    fontSize: 17,
+    fontWeight: '600',
+    fontStyle: 'italic',
+  },
+  primaryCtaSubtitle: {
+    color: 'rgba(255,255,255,0.95)',
+    fontSize: 12,
+  },
+  checkInCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 24,
+    overflow: 'hidden',
+    marginBottom: 16,
+    borderWidth: 1.5,
+    borderColor: 'rgba(123,155,140,0.3)',
+    shadowColor: '#000',
+    shadowOpacity: 0.12,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 3,
+  },
+  checkInHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+  },
+  checkInHeaderLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  checkInStatusCircle: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+    shadowColor: '#000',
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 2,
+  },
+  checkInStatusCircleComplete: {
+    backgroundColor: '#6B9B6E',
+  },
+  checkInStatusCirclePending: {
+    backgroundColor: '#F4C8DE',
+  },
+  checkInStatusIcon: {
+    fontSize: 20,
+    color: '#2D4A3E',
+  },
+  checkInStatusIconComplete: {
+    color: '#FFFFFF',
+  },
+  checkInTitle: {
+    fontSize: 16,
+    color: '#2D4A3E',
+    fontStyle: 'italic',
+  },
+  checkInDuration: {
+    fontSize: 13,
+    color: '#6B8B7D',
+  },
+  checkInBody: {
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(95,133,117,0.15)',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+  },
+  sectionBlock: {
+    marginBottom: 16,
+  },
+  sectionTitle: {
+    fontSize: 15,
+    color: '#2D4A3E',
+    marginBottom: 8,
+    fontStyle: 'italic',
+  },
+  rowGap: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  flareToggle: {
+    flex: 1,
+    borderRadius: 16,
+    borderWidth: 2,
+    borderColor: 'rgba(95,133,117,0.3)',
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    alignItems: 'center',
+    marginRight: 8,
+  },
+  flareToggleActive: {
+    backgroundColor: '#5F8575',
+    borderColor: '#5F8575',
+  },
+  flareToggleText: {
+    fontSize: 15,
+    color: '#6B8B7D',
+    fontWeight: '600',
+  },
+  flareToggleTextActive: {
+    color: '#FFFFFF',
+  },
+  chipRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginTop: 8,
+  },
+  chip: {
+    borderRadius: 999,
+    backgroundColor: '#E8F5E9',
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    marginRight: 8,
+    marginBottom: 8,
+  },
+  chipActive: {
+    backgroundColor: '#5F8575',
+  },
+  chipText: {
+    color: '#6B8B7D',
+    fontWeight: '600',
+    fontSize: 13,
+  },
+  chipTextActive: {
+    color: '#FFFFFF',
+  },
+  moodRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  moodItem: {
+    alignItems: 'center',
+    flex: 1,
+  },
+  moodFaceCircle: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOpacity: 0.12,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 2,
+  },
+  moodFaceCircleActive: {
+    backgroundColor: '#F49EC4',
+  },
+  moodFaceCircleInactive: {
+    backgroundColor: '#F4C8DE',
+    opacity: 0.4,
+  },
+  moodFaceEmoji: {
+    fontSize: 24,
+    color: '#FFFFFF',
+  },
+  moodLabel: {
+    fontSize: 11,
+    color: '#6B8B7D',
+    marginTop: 4,
+  },
+  moodScaleLabels: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 4,
+  },
+  moodScaleText: {
+    fontSize: 11,
+    color: '#6B8B7D',
+    fontStyle: 'italic',
+  },
+  sectionDivider: {
+    height: 1,
+    backgroundColor: 'rgba(95,133,117,0.12)',
+    marginVertical: 12,
+  },
+  wearablesToggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#E8F5E9',
+    borderRadius: 16,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    marginBottom: 8,
+  },
+  rowCenter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  wearablesToggleText: {
+    fontSize: 14,
+    color: '#2D4A3E',
+    fontStyle: 'italic',
+    marginLeft: 6,
+  },
+  wearablesBody: {
+    marginTop: 8,
+  },
+  wearablesHint: {
+    fontSize: 13,
+    color: '#6B8B7D',
+    fontStyle: 'italic',
+    marginBottom: 10,
+  },
+  wearablesConnectBlock: {
+    marginBottom: 10,
+  },
+  wearablesConnectButton: {
+    borderWidth: 2,
+    borderColor: 'rgba(95,133,117,0.3)',
+    borderRadius: 12,
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FFFFFF',
+  },
+  wearablesConnectText: {
+    fontSize: 13,
+    color: '#5F8575',
+  },
+  wearablesOrText: {
+    textAlign: 'center',
+    fontSize: 11,
+    color: '#6B8B7D',
+    marginTop: 4,
+    fontStyle: 'italic',
+  },
+  wearablesConnected: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#E8F5E9',
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    marginBottom: 10,
+  },
+  wearablesConnectedText: {
+    fontSize: 13,
+    color: '#5F8575',
+    marginLeft: 6,
+  },
+  inputLabel: {
+    fontSize: 13,
+    color: '#6B8B7D',
+    marginBottom: 6,
+    fontStyle: 'italic',
+  },
+  textInput: {
+    borderWidth: 1,
+    borderColor: 'rgba(95,133,117,0.3)',
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 14,
+    color: '#2D4A3E',
+    backgroundColor: '#FFFFFF',
+  },
+  stressRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 4,
+  },
+  stressChip: {
+    flex: 1,
+    marginHorizontal: 3,
+    borderRadius: 8,
+    backgroundColor: '#E8F5E9',
+    paddingVertical: 6,
+    alignItems: 'center',
+  },
+  stressChipActive: {
+    backgroundColor: '#5F8575',
+  },
+  stressChipText: {
+    fontSize: 13,
+    color: '#6B8B7D',
+  },
+  stressChipTextActive: {
+    color: '#FFFFFF',
+  },
+  periodRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  periodLabel: {
+    marginLeft: 8,
+    fontSize: 13,
+    color: '#6B8B7D',
+    fontStyle: 'italic',
+  },
+  optionalToggle: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: '#F5E6F0',
+    borderRadius: 16,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    marginTop: 4,
+  },
+  optionalToggleText: {
+    fontSize: 14,
+    color: '#2D4A3E',
+    fontStyle: 'italic',
+  },
+  optionalBody: {
+    marginTop: 8,
+  },
+  noteInput: {
+    borderWidth: 1,
+    borderColor: 'rgba(95,133,117,0.3)',
+    borderRadius: 16,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    minHeight: 80,
+    fontSize: 14,
+    color: '#2D4A3E',
+    backgroundColor: '#FFFFFF',
+    textAlignVertical: 'top',
+  },
+  photoLabel: {
+    fontSize: 13,
+    color: '#6B8B7D',
+    fontStyle: 'italic',
+    marginBottom: 8,
+  },
+  photoPicker: {
+    borderWidth: 2,
+    borderStyle: 'dashed',
+    borderColor: 'rgba(149,201,142,0.6)',
+    borderRadius: 16,
+    paddingVertical: 16,
+    paddingHorizontal: 12,
+    alignItems: 'center',
+    backgroundColor: '#E8F0DC',
+    marginBottom: 12,
+  },
+  photoPickerTitle: {
+    fontSize: 14,
+    color: '#2D4A3E',
+    marginTop: 4,
+    fontStyle: 'italic',
+  },
+  photoPickerSubtitle: {
+    fontSize: 11,
+    color: '#6B8B7D',
+    marginTop: 2,
+    fontStyle: 'italic',
+  },
+  photoPreviewWrapper: {
+    borderRadius: 16,
+    overflow: 'hidden',
+    marginBottom: 12,
+  },
+  photoPreview: {
+    width: '100%',
+    height: 180,
+  },
+  photoRemove: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    padding: 6,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 999,
+    shadowColor: '#000',
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 2,
+  },
+  saveCheckInButton: {
+    backgroundColor: '#5F8575',
+    borderRadius: 16,
+    paddingVertical: 14,
+    alignItems: 'center',
+    marginTop: 4,
+  },
+  saveCheckInText: {
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontStyle: 'italic',
+    fontWeight: '600',
+  },
+  askGiaCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(95,133,117,0.15)',
+    overflow: 'hidden',
+  },
+  askGiaHeader: {
+    padding: 16,
+    backgroundColor: '#7B9B8C',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  askGiaHeaderInner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  askGiaIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 16,
+    backgroundColor: 'rgba(255,255,255,0.18)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  askGiaTextBlock: {
+    flex: 1,
+  },
+  askGiaTitle: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
+    fontStyle: 'italic',
+  },
+  askGiaSubtitle: {
+    color: 'rgba(255,255,255,0.85)',
+    fontSize: 12,
+    fontStyle: 'italic',
+  },
+  askGiaBody: {
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+  },
+  askGiaCommonLabel: {
+    fontSize: 11,
+    color: '#6B8B7D',
+    marginBottom: 8,
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+  },
+  askGiaChip: {
+    backgroundColor: '#E8F5E9',
+    borderRadius: 16,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    marginBottom: 6,
+  },
+  askGiaChipText: {
+    fontSize: 14,
+    color: '#2D4A3E',
+    fontStyle: 'italic',
+  },
+  askGiaInputBlock: {
+    marginTop: 8,
+  },
+  askGiaInput: {
+    borderWidth: 1,
+    borderColor: 'rgba(95,133,117,0.3)',
+    borderRadius: 16,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    fontSize: 14,
+    color: '#2D4A3E',
+    backgroundColor: '#FFFFFF',
+  },
+  askGiaButton: {
+    marginTop: 8,
+    backgroundColor: '#5F8575',
+    borderRadius: 16,
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  askGiaButtonText: {
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontStyle: 'italic',
+    fontWeight: '600',
+  },
+  askGiaFootnote: {
+    marginTop: 4,
+    fontSize: 11,
+    color: '#6B8B7D',
+    fontStyle: 'italic',
+  },
+  askGiaAnswerBlock: {
+    marginTop: 10,
+  },
+  askGiaAnswerLabel: {
+    fontSize: 13,
+    color: '#6B8B7D',
+    marginBottom: 4,
+  },
+  askGiaAnswerBubble: {
+    backgroundColor: '#F5F1ED',
+    borderRadius: 14,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    marginBottom: 6,
+  },
+  askGiaAnswerQuestion: {
+    fontSize: 13,
+    color: '#2D4A3E',
+    fontStyle: 'italic',
+    marginBottom: 2,
+  },
+  askGiaAnswerText: {
+    fontSize: 13,
+    color: '#6B8B7D',
+  },
+  gardenCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 24,
+    padding: 16,
+    borderWidth: 2,
+    borderColor: '#D8D5CF',
+    marginBottom: 12,
+  },
+  gardenHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  gardenTitle: {
+    fontSize: 15,
+    color: '#7B9B8C',
+    marginBottom: 2,
+  },
+  gardenSubtitle: {
+    fontSize: 13,
+    color: '#6B7370',
+  },
+  gardenPond: {
+    borderRadius: 18,
+    padding: 14,
+    backgroundColor: '#D4F1F9',
+    justifyContent: 'center',
+    alignItems: 'center',
+    minHeight: 220,
+  },
+  gardenEmpty: {
+    paddingHorizontal: 20,
+  },
+  gardenEmptyText: {
+    fontSize: 13,
+    color: '#6B8B7D',
+    textAlign: 'center',
+    fontStyle: 'italic',
+  },
+  gardenFlowerGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+  },
+  gardenFlowerItem: {
+    width: '20%',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  gardenFlowerEmoji: {
+    fontSize: 30,
+  },
+  gardenStatsRow: {
+    flexDirection: 'row',
+    marginTop: 12,
+  },
+  gardenStatCard: {
+    flex: 1,
+    borderRadius: 18,
+    paddingVertical: 10,
+    paddingHorizontal: 8,
+    backgroundColor: '#F5F1ED',
+    marginHorizontal: 4,
+    alignItems: 'center',
+  },
+  gardenStatIconCirclePink: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#F4C8DE',
+    marginBottom: 6,
+  },
+  gardenStatIconCircleFlame: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#F49EC4',
+    marginBottom: 6,
+  },
+  gardenStatIconCircleCalendar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#95C98E',
+    marginBottom: 6,
+  },
+  lotusIcon: {
+    fontSize: 20,
+    color: '#FFFFFF',
+  },
+  gardenStatValue: {
+    fontSize: 18,
+    color: '#2D4A3E',
+    fontWeight: '700',
+    fontStyle: 'italic',
+  },
+  gardenStatLabel: {
+    fontSize: 11,
+    color: '#6B7370',
+    fontStyle: 'italic',
+  },
+  reminderToastContainer: {
+    position: 'absolute',
+    top: 12,
+    left: 16,
+    right: 16,
+    zIndex: 20,
+  },
+  reminderToast: {
+    backgroundColor: '#5F8575',
+    borderRadius: 16,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  reminderTextWrapper: {
+    flex: 1,
+    paddingRight: 8,
+  },
+  reminderTitle: {
+    fontSize: 13,
+    color: '#FFFFFF',
+    fontWeight: '600',
+    marginBottom: 2,
+  },
+  reminderMessage: {
+    fontSize: 12,
+    color: 'rgba(255,255,255,0.9)',
+  },
+  reminderClose: {
+    padding: 4,
+  },
+  confettiOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 30,
+    backgroundColor: 'rgba(0,0,0,0.2)',
+  },
+  confettiInner: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 24,
+    paddingHorizontal: 24,
+    paddingVertical: 22,
+    borderWidth: 2,
+    borderColor: '#7B9B8C',
+    alignItems: 'center',
+    width: '80%',
+    maxWidth: 360,
+  },
+  confettiEmoji: {
+    fontSize: 40,
+    marginBottom: 8,
+  },
+  confettiTitle: {
+    fontSize: 20,
+    color: '#5A7A6B',
+    fontStyle: 'italic',
+    marginBottom: 6,
+  },
+  confettiSubtitle: {
+    fontSize: 14,
+    color: '#6B7370',
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+  confettiButton: {
+    marginTop: 4,
+    backgroundColor: '#5F8575',
+    borderRadius: 999,
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+  },
+  confettiButtonText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '600',
+  },
 });
+
 
