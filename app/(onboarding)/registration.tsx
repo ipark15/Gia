@@ -3,7 +3,7 @@ import Slider from '@react-native-community/slider';
 import { router } from 'expo-router';
 import React, { useState } from 'react';
 import {
-  Dimensions,
+  Modal,
   ScrollView,
   StyleSheet,
   Text,
@@ -13,9 +13,6 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { DermatologistPlanUpload } from '../../components/DermatologistPlanUpload';
-import { TreatmentProducts } from '../../components/TreatmentProducts';
-
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 interface DermatologistProduct {
   id: string;
@@ -33,17 +30,18 @@ interface TreatmentPlan {
   amSteps: string[];
   pmSteps: string[];
   frequency: string;
-  note?: string;
 }
 
 interface FormData {
+  name: string;
+  email: string;
+  password: string;
+  termsAccepted: boolean;
   conditions: string[];
   otherCondition: string;
-  skinGoals: string;
-  skinGoalsMethod: 'type' | 'video' | 'audio' | null;
   hasDermatologistPlan: boolean | null;
   dermatologistProducts: DermatologistProduct[];
-  selectedTreatmentPlan: string | null;
+  selectedTreatmentPlans: { [condition: string]: string };
   conditionSeverity: string | null;
   skinSatisfaction: number | null;
   daysPerWeek: number;
@@ -51,127 +49,75 @@ interface FormData {
 }
 
 export default function Registration() {
-  const [step, setStep] = useState(1);
+  const [step, setStep] = useState<number | 3.4 | 3.5>(1);
+  const [showTermsModal, setShowTermsModal] = useState(false);
+
   const [formData, setFormData] = useState<FormData>({
+    name: '',
+    email: '',
+    password: '',
+    termsAccepted: false,
     conditions: [],
     otherCondition: '',
-    skinGoals: '',
-    skinGoalsMethod: null,
     hasDermatologistPlan: null,
     dermatologistProducts: [],
-    selectedTreatmentPlan: null,
+    selectedTreatmentPlans: {},
     conditionSeverity: null,
     skinSatisfaction: null,
     daysPerWeek: 3,
     timesOfDay: [],
   });
 
-  // Treatment plan recommendations based on condition
-  const getTreatmentPlans = (): TreatmentPlan[] => {
-    const conditions = formData.conditions.map(c => c.toLowerCase()).sort();
-
-    // Multi-condition plans
-    if (conditions.length > 1) {
-      const conditionKey = conditions.join('+');
-
-      const multiPlans: { [key: string]: TreatmentPlan[] } = {
-        'acne+rosacea': [
-          {
-            id: 'acne-rosacea-gentle',
-            name: 'Gentle Dual-Action Care',
-            description: 'Balanced routine for acne-prone, sensitive skin',
-            amSteps: ['Gentle, fragrance-free cleanser', 'Niacinamide serum', 'Lightweight, non-comedogenic moisturizer', 'Mineral sunscreen SPF 30+'],
-            pmSteps: ['Gentle, fragrance-free cleanser', 'Azelaic acid 10% (treats both conditions)', 'Lightweight, non-comedogenic moisturizer'],
-            frequency: 'Twice daily',
-            note: 'Azelaic acid is ideal for both acne and rosacea'
-          },
-          {
-            id: 'acne-rosacea-barrier',
-            name: 'Barrier-Focused Protocol',
-            description: 'Prioritizes skin barrier while managing breakouts',
-            amSteps: ['Micellar water or splash with water', 'Niacinamide serum', 'Ceramide moisturizer', 'Mineral sunscreen'],
-            pmSteps: ['Cream cleanser', 'Azelaic acid treatment', 'Spot treat active acne with salicylic acid (avoid rosacea zones)', 'Ceramide moisturizer'],
-            frequency: 'Twice daily',
-            note: 'Gentle approach that minimizes irritation'
-          }
-        ],
-        'acne+eczema': [
-          {
-            id: 'acne-eczema-balanced',
-            name: 'Hydrating Acne Care',
-            description: 'Manages breakouts without drying eczema',
-            amSteps: ['Gentle cream cleanser or water rinse', 'Niacinamide serum', 'Rich ceramide moisturizer', 'Mineral sunscreen'],
-            pmSteps: ['Gentle cream cleanser', 'Lightweight salicylic acid (acne zones only)', 'Rich ceramide moisturizer'],
-            frequency: 'Twice daily',
-            note: 'Zone-based treatment to protect eczema areas'
-          }
-        ],
-        'eczema+rosacea': [
-          {
-            id: 'eczema-rosacea-ultra-gentle',
-            name: 'Ultra-Gentle Soothing Care',
-            description: 'Maximum sensitivity support',
-            amSteps: ['Micellar water or water rinse', 'Rich ceramide cream', 'Tinted mineral sunscreen'],
-            pmSteps: ['Micellar water or cleansing milk', 'Centella asiatica or colloidal oatmeal serum', 'Rich ceramide cream', 'Occlusive balm on dry patches'],
-            frequency: 'Twice daily',
-            note: 'Focus on calming and barrier repair'
-          }
-        ],
-        'acne+eczema+rosacea': [
-          {
-            id: 'triple-minimal',
-            name: 'Minimalist Multi-Condition Care',
-            description: 'Streamlined routine for complex skin',
-            amSteps: ['Water rinse or gentle cleanser', 'Niacinamide serum', 'Ceramide moisturizer', 'Mineral sunscreen SPF 30+'],
-            pmSteps: ['Ultra-gentle cream cleanser', 'Azelaic acid 10% (treats acne + rosacea)', 'Ceramide moisturizer'],
-            frequency: 'Twice daily',
-            note: 'Simple, multi-tasking ingredients'
-          }
-        ]
-      };
-
-      return multiPlans[conditionKey] || [];
-    }
-
-    // Single condition plans
-    const primaryCondition = conditions[0];
-
+  const treatmentPlansByCondition = (): { [condition: string]: TreatmentPlan[] } => {
     const plans: { [key: string]: TreatmentPlan[] } = {
       acne: [
         {
           id: 'acne-basic',
           name: 'Basic Acne Care',
-          description: 'Gentle cleansing and targeted treatment',
+          description: 'Gentle cleansing routine',
           amSteps: ['Gentle cleanser', 'Oil-free moisturizer', 'Non-comedogenic sunscreen'],
-          pmSteps: ['Gentle cleanser', 'Salicylic acid or benzoyl peroxide treatment', 'Oil-free moisturizer'],
-          frequency: 'Twice daily'
+          pmSteps: ['Gentle cleanser', 'Oil-free moisturizer'],
+          frequency: 'Twice daily',
         },
         {
           id: 'acne-moderate',
-          name: 'Moderate Acne Protocol',
+          name: 'Moderate Acne Care',
           description: 'More comprehensive acne management',
-          amSteps: ['Gentle cleanser', 'Niacinamide serum', 'Lightweight moisturizer', 'Broad-spectrum SPF 30+'],
-          pmSteps: ['Gentle cleanser', 'Adapalene 0.1% (Differin)', 'Benzoyl peroxide 2.5% (if tolerated)', 'Lightweight moisturizer'],
-          frequency: 'Twice daily'
-        }
+          amSteps: [
+            'Gentle cleanser',
+            'Niacinamide serum',
+            'Lightweight moisturizer',
+            'Broad-spectrum SPF 30+',
+          ],
+          pmSteps: ['Gentle cleanser', 'Niacinamide serum', 'Lightweight moisturizer'],
+          frequency: 'Twice daily',
+        },
       ],
       rosacea: [
         {
           id: 'rosacea-basic',
-          name: 'Gentle Rosacea Care',
+          name: 'Basic Rosacea Care',
           description: 'Soothing, anti-inflammatory routine',
-          amSteps: ['Fragrance-free gentle cleanser or water rinse', 'Niacinamide serum', 'Calming moisturizer with ceramides', 'Mineral sunscreen SPF 30+'],
-          pmSteps: ['Fragrance-free gentle cleanser', 'Azelaic acid', 'Calming moisturizer with ceramides'],
-          frequency: 'Twice daily'
+          amSteps: [
+            'Fragrance-free gentle cleanser or water rinse',
+            'Niacinamide serum',
+            'Calming moisturizer with ceramides',
+            'Mineral sunscreen SPF 30+',
+          ],
+          pmSteps: [
+            'Fragrance-free gentle cleanser',
+            'Calming moisturizer with ceramides',
+          ],
+          frequency: 'Twice daily',
         },
         {
           id: 'rosacea-sensitive',
-          name: 'Sensitive Rosacea Protocol',
+          name: 'Moderate Rosacea Care',
           description: 'Ultra-gentle barrier support',
           amSteps: ['Water rinse or micellar water', 'Rich barrier repair cream', 'Tinted mineral sunscreen'],
           pmSteps: ['Micellar water or cream cleanser', 'Centella or green tea serum', 'Rich barrier repair cream'],
-          frequency: 'Twice daily'
-        }
+          frequency: 'Twice daily',
+        },
       ],
       eczema: [
         {
@@ -179,37 +125,69 @@ export default function Registration() {
           name: 'Basic Eczema Care',
           description: 'Barrier protection and hydration',
           amSteps: ['Water rinse or gentle splash', 'Thick barrier cream with ceramides', 'Mineral sunscreen'],
-          pmSteps: ['Fragrance-free cream cleanser', 'Hydrating serum (hyaluronic acid)', 'Thick barrier cream with ceramides'],
-          frequency: 'Twice daily'
+          pmSteps: [
+            'Fragrance-free cream cleanser',
+            'Hydrating serum (hyaluronic acid)',
+            'Thick barrier cream with ceramides',
+          ],
+          frequency: 'Twice daily',
         },
         {
           id: 'eczema-intensive',
-          name: 'Intensive Eczema Protocol',
+          name: 'Moderate Eczema',
           description: 'Enhanced moisture barrier support',
           amSteps: ['Water rinse', 'Ceramide-rich moisturizer', 'Mineral sunscreen'],
-          pmSteps: ['Gentle cleansing oil or cream', 'Colloidal oatmeal treatment', 'Ceramide-rich moisturizer', 'Occlusive balm'],
-          frequency: 'Twice daily'
-        }
-      ]
+          pmSteps: [
+            'Gentle cleansing oil or cream',
+            'Colloidal oatmeal serum',
+            'Ceramide-rich moisturizer',
+            'Occlusive balm',
+          ],
+          frequency: 'Twice daily',
+        },
+      ],
+      'other inflammatory skin conditions': [
+        {
+          id: 'inflammatory-basic',
+          name: 'Basic Gentle Care',
+          description: 'Soothing and protecting',
+          amSteps: ['Water rinse or gentle cleanser', 'Calming serum', 'Moisturizer', 'Mineral sunscreen'],
+          pmSteps: ['Gentle cleanser', 'Calming serum', 'Moisturizer'],
+          frequency: 'Twice daily',
+        },
+        {
+          id: 'inflammatory-moderate',
+          name: 'Moderate Barrier Support',
+          description: 'Enhanced barrier repair focus',
+          amSteps: [
+            'Gentle cleanser or water rinse',
+            'Niacinamide or centella serum',
+            'Barrier repair cream',
+            'Mineral sunscreen SPF 30+',
+          ],
+          pmSteps: ['Gentle cream cleanser', 'Soothing serum', 'Rich barrier repair cream'],
+          frequency: 'Twice daily',
+        },
+      ],
     };
 
-    return plans[primaryCondition] || plans.acne;
+    const result: { [condition: string]: TreatmentPlan[] } = {};
+    formData.conditions.forEach((condition) => {
+      const key = condition.toLowerCase();
+      if (plans[key]) {
+        result[condition] = plans[key];
+      }
+    });
+    return result;
   };
 
   const handleConditionToggle = (condition: string) => {
-    setFormData((prev) => {
-      if (condition === 'Other') {
-        if (prev.conditions.includes('Other')) {
-          return { ...prev, conditions: prev.conditions.filter(c => c !== 'Other'), otherCondition: '' };
-        }
-      }
-      return {
-        ...prev,
-        conditions: prev.conditions.includes(condition)
-          ? prev.conditions.filter((c) => c !== condition)
-          : [...prev.conditions, condition],
-      };
-    });
+    setFormData((prev) => ({
+      ...prev,
+      conditions: prev.conditions.includes(condition)
+        ? prev.conditions.filter((c) => c !== condition)
+        : [...prev.conditions, condition],
+    }));
   };
 
   const handleTimeToggle = (time: string) => {
@@ -221,57 +199,65 @@ export default function Registration() {
     }));
   };
 
-  const canProceed = (): boolean => {
+  const canProceed = () => {
     switch (step) {
-      case 1: return formData.conditions.length > 0;
-      case 2: return formData.conditionSeverity !== null;
-      case 3: return formData.hasDermatologistPlan !== null;
-      case 3.4: return formData.dermatologistProducts.length > 0;
-      case 3.5: return formData.selectedTreatmentPlan !== null;
-      case 3.6: return true;
-      case 4: return formData.skinSatisfaction !== null;
-      case 5: return true;
-      case 6: return formData.daysPerWeek > 0;
-      case 7: return formData.timesOfDay.length > 0;
-      default: return false;
+      case 1:
+        return (
+          formData.name.trim() !== '' &&
+          formData.email.trim() !== '' &&
+          formData.email.includes('@') &&
+          formData.password.length >= 6 &&
+          formData.termsAccepted
+        );
+      case 2:
+        return formData.conditions.length > 0;
+      case 3:
+        return formData.hasDermatologistPlan !== null;
+      case 3.4:
+        return formData.dermatologistProducts.length > 0;
+      case 3.5:
+        return Object.values(formData.selectedTreatmentPlans).some((planId) => planId !== '');
+      case 4:
+        return formData.skinSatisfaction !== null;
+      case 5:
+        return formData.daysPerWeek > 0;
+      case 6:
+        return formData.timesOfDay.length > 0;
+      default:
+        return false;
     }
-  };
-
-  const handleComplete = () => {
-    console.log('Registration complete:', formData);
-    router.replace('/(tabs)');
   };
 
   const handleNext = () => {
     if (step === 1) setStep(2);
     else if (step === 2) setStep(3);
-    else if (step === 3 && formData.hasDermatologistPlan === true) setStep(3.4);
-    else if (step === 3 && formData.hasDermatologistPlan === false) setStep(3.5);
-    else if (step === 3.4) setStep(4);
-    else if (step === 3.5) setStep(3.6);
-    else if (step === 3.6) setStep(4);
+    else if (step === 3) {
+      if (formData.hasDermatologistPlan === true) setStep(3.4);
+      else if (formData.hasDermatologistPlan === false) setStep(3.5);
+    } else if (step === 3.4 || step === 3.5) setStep(4);
     else if (step === 4) setStep(5);
     else if (step === 5) setStep(6);
-    else if (step === 6) setStep(7);
-    else if (step === 7) handleComplete();
-    else setStep(step + 1);
+    else if (step === 6) {
+      // For now, just finish registration and go to tabs
+      router.replace('/(tabs)');
+    }
   };
 
   const handleBack = () => {
-    if (step === 3.6) setStep(3.5);
-    else if (step === 3.5) setStep(3);
-    else if (step === 3.4) setStep(3);
-    else if (step === 4 && formData.hasDermatologistPlan === true) setStep(3.4);
-    else if (step === 4 && formData.hasDermatologistPlan === false) setStep(3.6);
-    else if (step === 4) setStep(3);
+    if (step === 3.5 || step === 3.4) setStep(3);
     else if (step === 3) setStep(2);
     else if (step === 2) setStep(1);
+    else if (step === 4) {
+      if (formData.hasDermatologistPlan === true) setStep(3.4);
+      else if (formData.hasDermatologistPlan === false) setStep(3.5);
+      else setStep(3);
+    } else if (step === 5) setStep(4);
+    else if (step === 6) setStep(5);
     else if (step === 1) router.back();
-    else if (step > 3) setStep(step - 1);
   };
 
   const getCurrentStep = () => {
-    if (step === 3.4 || step === 3.5 || step === 3.6) return 3;
+    if (step === 3 || step === 3.4 || step === 3.5) return 3;
     return step;
   };
 
@@ -297,7 +283,7 @@ export default function Registration() {
         {/* Progress Indicator */}
         <View style={styles.progressContainer}>
           <View style={styles.progressBars}>
-            {[1, 2, 3, 4, 5, 6, 7].map((i) => (
+            {[1, 2, 3, 4, 5, 6].map((i) => (
               <View
                 key={i}
                 style={[
@@ -307,94 +293,137 @@ export default function Registration() {
               />
             ))}
           </View>
-          <Text style={styles.progressText}>Step {getCurrentStep()} of 7</Text>
+          <Text style={styles.progressText}>Step {getCurrentStep()} of 6</Text>
         </View>
 
-        {/* Step Content */}
         <View style={styles.content}>
-          {/* Step 1: Skin Condition */}
+          {/* Step 1: Account */}
           {step === 1 && (
+            <View>
+              <Text style={styles.title}>Create your account</Text>
+              <Text style={styles.subtitle}>Let's get started with the basics</Text>
+
+              <View style={styles.card}>
+                <View style={styles.field}>
+                  <Text style={styles.label}>Your name</Text>
+                  <TextInput
+                    style={styles.input}
+                    value={formData.name}
+                    onChangeText={(text) => setFormData({ ...formData, name: text })}
+                    placeholder="Enter your name"
+                    placeholderTextColor="#8A9088"
+                  />
+                </View>
+                <View style={styles.field}>
+                  <Text style={styles.label}>Email address</Text>
+                  <TextInput
+                    style={styles.input}
+                    value={formData.email}
+                    onChangeText={(text) => setFormData({ ...formData, email: text })}
+                    keyboardType="email-address"
+                    autoCapitalize="none"
+                    placeholder="your@email.com"
+                    placeholderTextColor="#8A9088"
+                  />
+                </View>
+                <View style={styles.field}>
+                  <Text style={styles.label}>Password</Text>
+                  <TextInput
+                    style={styles.input}
+                    value={formData.password}
+                    onChangeText={(text) => setFormData({ ...formData, password: text })}
+                    secureTextEntry
+                    placeholder="At least 6 characters"
+                    placeholderTextColor="#8A9088"
+                  />
+                  {formData.password.length > 0 && formData.password.length < 6 && (
+                    <Text style={styles.errorText}>
+                      Password must be at least 6 characters
+                    </Text>
+                  )}
+                </View>
+                <View style={styles.field}>
+                  <Text style={styles.label}>Terms of Service</Text>
+                  <View style={styles.termsRow}>
+                    <TouchableOpacity
+                      style={[
+                        styles.checkbox,
+                        formData.termsAccepted && styles.checkboxChecked,
+                      ]}
+                      onPress={() =>
+                        setFormData((prev) => ({
+                          ...prev,
+                          termsAccepted: !prev.termsAccepted,
+                        }))
+                      }
+                    >
+                      {formData.termsAccepted && (
+                        <Ionicons name="checkmark" size={16} color="#FFFFFF" />
+                      )}
+                    </TouchableOpacity>
+                    <Text style={styles.termsText}>
+                      I agree to the{' '}
+                      <Text
+                        style={styles.termsLink}
+                        onPress={() => setShowTermsModal(true)}
+                      >
+                        terms of service
+                      </Text>
+                    </Text>
+                  </View>
+                </View>
+              </View>
+              <Text style={styles.footerNote}>
+                By creating an account, you agree to our terms of service.
+              </Text>
+            </View>
+          )}
+
+          {/* Step 2: Conditions */}
+          {step === 2 && (
             <View>
               <Text style={styles.title}>What brings you here?</Text>
               <Text style={styles.subtitle}>
                 Select the skin condition(s) you're managing
               </Text>
               <View style={styles.optionsContainer}>
-                {['Acne', 'Rosacea', 'Eczema', 'Other'].map((condition) => (
-                  <TouchableOpacity
-                    key={condition}
-                    onPress={() => handleConditionToggle(condition)}
-                    style={[
-                      styles.optionButton,
-                      formData.conditions.includes(condition) && styles.optionButtonSelected,
-                    ]}
-                    activeOpacity={0.7}
-                  >
-                    <Text style={styles.optionText}>{condition}</Text>
-                    {formData.conditions.includes(condition) && (
-                      <Text style={styles.checkmark}>✓</Text>
-                    )}
-                  </TouchableOpacity>
-                ))}
-              </View>
-              {formData.conditions.includes('Other') && (
-                <View style={styles.otherInputContainer}>
-                  <Text style={styles.inputLabel}>Please specify your condition:</Text>
-                  <TextInput
-                    style={styles.textInput}
-                    value={formData.otherCondition}
-                    onChangeText={(text) => setFormData({ ...formData, otherCondition: text })}
-                    placeholder="e.g., Psoriasis, Melasma..."
-                    placeholderTextColor="#8A9088"
-                  />
-                </View>
-              )}
-            </View>
-          )}
-
-          {/* Step 2: Condition Severity */}
-          {step === 2 && (
-            <View>
-              <Text style={styles.title}>How would you rate your condition?</Text>
-              <Text style={styles.subtitle}>
-                This helps us personalize your experience
-              </Text>
-              <View style={styles.optionsContainer}>
-                {['Light', 'Moderate', 'Severe'].map((severity) => (
-                  <TouchableOpacity
-                    key={severity}
-                    onPress={() => setFormData({ ...formData, conditionSeverity: severity })}
-                    style={[
-                      styles.optionButton,
-                      formData.conditionSeverity === severity && styles.optionButtonSelected,
-                    ]}
-                    activeOpacity={0.7}
-                  >
-                    <Text style={styles.optionText}>{severity}</Text>
-                    {formData.conditionSeverity === severity && (
-                      <Text style={styles.checkmark}>✓</Text>
-                    )}
-                  </TouchableOpacity>
-                ))}
+                {['Acne', 'Rosacea', 'Eczema', 'Other inflammatory skin conditions'].map(
+                  (condition) => (
+                    <TouchableOpacity
+                      key={condition}
+                      onPress={() => handleConditionToggle(condition)}
+                      style={[
+                        styles.optionButton,
+                        formData.conditions.includes(condition) && styles.optionButtonSelected,
+                      ]}
+                      activeOpacity={0.8}
+                    >
+                      <Text style={styles.optionText}>{condition}</Text>
+                      {formData.conditions.includes(condition) && (
+                        <Text style={styles.checkmark}>✓</Text>
+                      )}
+                    </TouchableOpacity>
+                  )
+                )}
               </View>
             </View>
           )}
 
-          {/* Step 3: Dermatologist Plan */}
+          {/* Step 3: Dermatologist plan */}
           {step === 3 && (
             <View>
               <Text style={styles.title}>Do you have a dermatologist plan?</Text>
-              <Text style={styles.subtitle}>
-                We can help you follow your prescribed routine
-              </Text>
+              <Text style={styles.subtitle}>This helps us customize your routine</Text>
               <View style={styles.optionsContainer}>
                 <TouchableOpacity
-                  onPress={() => setFormData({ ...formData, hasDermatologistPlan: true })}
+                  onPress={() =>
+                    setFormData((prev) => ({ ...prev, hasDermatologistPlan: true }))
+                  }
                   style={[
                     styles.optionButton,
                     formData.hasDermatologistPlan === true && styles.optionButtonSelected,
                   ]}
-                  activeOpacity={0.7}
+                  activeOpacity={0.8}
                 >
                   <Text style={styles.optionText}>Yes, I have a plan</Text>
                   {formData.hasDermatologistPlan === true && (
@@ -402,12 +431,14 @@ export default function Registration() {
                   )}
                 </TouchableOpacity>
                 <TouchableOpacity
-                  onPress={() => setFormData({ ...formData, hasDermatologistPlan: false })}
+                  onPress={() =>
+                    setFormData((prev) => ({ ...prev, hasDermatologistPlan: false }))
+                  }
                   style={[
                     styles.optionButton,
                     formData.hasDermatologistPlan === false && styles.optionButtonSelected,
                   ]}
-                  activeOpacity={0.7}
+                  activeOpacity={0.8}
                 >
                   <Text style={styles.optionText}>No, not yet</Text>
                   {formData.hasDermatologistPlan === false && (
@@ -418,202 +449,191 @@ export default function Registration() {
             </View>
           )}
 
-          {/* Step 3.4: Dermatologist Plan Upload */}
+          {/* Step 3.4: Dermatologist plan upload */}
           {step === 3.4 && (
             <DermatologistPlanUpload
               onBack={() => setStep(3)}
               onContinue={() => setStep(4)}
-              onUpload={(products) => setFormData({ ...formData, dermatologistProducts: products })}
+              onUpload={(products) =>
+                setFormData((prev) => ({ ...prev, dermatologistProducts: products }))
+              }
             />
           )}
 
-          {/* Step 3.5: Treatment Plan Selection */}
+          {/* Step 3.5: Treatment plan selection */}
           {step === 3.5 && (
             <View>
               <Text style={styles.title}>Choose a starter routine</Text>
               <Text style={styles.subtitle}>
-                {formData.conditions.length > 1
-                  ? `Recommended routines for ${formData.conditions.join(' + ')}`
-                  : `Recommended routines for ${formData.conditions[0]}`
-                }
+                Select at least one plan
+                {formData.conditions.length > 1 ? ' for your conditions' : ''}
               </Text>
-
-              {/* Info banner */}
-              <View style={styles.infoBanner}>
-                <Ionicons name="information-circle-outline" size={20} color="#7B9B8C" />
-                <Text style={styles.infoBannerText}>
-                  {formData.conditions.length > 1
-                    ? "These routines address multiple conditions. For personalized treatment, consult a dermatologist."
-                    : "These are general recommendations. For personalized treatment, consult a dermatologist."
-                  }
-                </Text>
-              </View>
-
               <View style={styles.plansContainer}>
-                {getTreatmentPlans().map((plan) => (
-                  <TouchableOpacity
-                    key={plan.id}
-                    onPress={() => setFormData({ ...formData, selectedTreatmentPlan: plan.id })}
-                    style={[
-                      styles.planCard,
-                      formData.selectedTreatmentPlan === plan.id && styles.planCardSelected,
-                    ]}
-                    activeOpacity={0.7}
-                  >
-                    <View style={styles.planHeader}>
-                      <View style={styles.planHeaderText}>
-                        <Text style={styles.planName}>{plan.name}</Text>
-                        <Text style={styles.planDescription}>{plan.description}</Text>
-                        {plan.note && (
-                          <Text style={styles.planNote}>💡 {plan.note}</Text>
-                        )}
-                      </View>
-                      {formData.selectedTreatmentPlan === plan.id && (
-                        <Text style={styles.checkmark}>✓</Text>
-                      )}
-                    </View>
+                {Object.entries(treatmentPlansByCondition()).map(([condition, plans]) => (
+                  <View key={condition} style={styles.planGroup}>
+                    <Text style={styles.planGroupTitle}>{condition}</Text>
+                    {plans.map((plan) => {
+                      const getProductTypes = (steps: string[]) => {
+                        const types = steps.map((stepText) => {
+                          const lower = stepText.toLowerCase();
+                          if (lower.includes('cleanser') || lower.includes('cleansing')) return 'cleanser';
+                          if (lower.includes('toner') || lower.includes('micellar')) return 'toner';
+                          if (
+                            lower.includes('serum') ||
+                            lower.includes('niacinamide') ||
+                            lower.includes('hyaluronic') ||
+                            lower.includes('centella') ||
+                            lower.includes('vitamin') ||
+                            lower.includes('arbutin')
+                          )
+                            return 'serum';
+                          if (
+                            lower.includes('moisturizer') ||
+                            lower.includes('cream') ||
+                            lower.includes('barrier')
+                          )
+                            return 'moisturizer';
+                          if (lower.includes('sunscreen') || lower.includes('spf')) return 'sunscreen';
+                          if (
+                            lower.includes('occlusive') ||
+                            lower.includes('balm') ||
+                            lower.includes('ointment')
+                          )
+                            return 'occlusive';
+                          return 'other';
+                        });
+                        return Array.from(new Set(types)).filter((t) => t !== 'other');
+                      };
 
-                    <Text style={styles.planFrequency}>{plan.frequency}</Text>
+                      const amTypes = getProductTypes(plan.amSteps);
+                      const pmTypes = getProductTypes(plan.pmSteps);
+                      const allTypes = Array.from(new Set([...amTypes, ...pmTypes]));
 
-                    <View style={styles.planSteps}>
-                      <Text style={styles.planStepsTitle}>☀️ MORNING (AM)</Text>
-                      {plan.amSteps.map((stepItem, idx) => (
-                        <View key={idx} style={styles.planStepRow}>
-                          <Text style={styles.planStepNumber}>{idx + 1}.</Text>
-                          <Text style={styles.planStepText}>{stepItem}</Text>
-                        </View>
-                      ))}
-                    </View>
+                      const selectedPlanId = formData.selectedTreatmentPlans[condition] || '';
 
-                    <View style={styles.planSteps}>
-                      <Text style={styles.planStepsTitle}>🌙 EVENING (PM)</Text>
-                      {plan.pmSteps.map((stepItem, idx) => (
-                        <View key={idx} style={styles.planStepRow}>
-                          <Text style={styles.planStepNumber}>{idx + 1}.</Text>
-                          <Text style={styles.planStepText}>{stepItem}</Text>
-                        </View>
-                      ))}
-                    </View>
-                  </TouchableOpacity>
+                      return (
+                        <TouchableOpacity
+                          key={plan.id}
+                          onPress={() =>
+                            setFormData((prev) => ({
+                              ...prev,
+                              selectedTreatmentPlans: {
+                                ...prev.selectedTreatmentPlans,
+                                [condition]: selectedPlanId === plan.id ? '' : plan.id,
+                              },
+                            }))
+                          }
+                          style={[
+                            styles.planCard,
+                            selectedPlanId === plan.id && styles.planCardSelected,
+                          ]}
+                          activeOpacity={0.9}
+                        >
+                          <View style={styles.planHeader}>
+                            <View style={styles.planHeaderText}>
+                              <Text style={styles.planName}>{plan.name}</Text>
+                              <Text style={styles.planDescription}>{plan.description}</Text>
+                              <Text style={styles.planStepsMeta}>
+                                AM: {plan.amSteps.length} steps • PM: {plan.pmSteps.length} steps
+                              </Text>
+                              <View style={styles.planTagsRow}>
+                                {allTypes.map((type) => (
+                                  <View key={type} style={styles.planTag}>
+                                    <Text style={styles.planTagText}>{type}</Text>
+                                  </View>
+                                ))}
+                              </View>
+                            </View>
+                            {selectedPlanId === plan.id && (
+                              <Text style={styles.checkmark}>✓</Text>
+                            )}
+                          </View>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
                 ))}
               </View>
             </View>
           )}
 
-          {/* Step 3.6: Product Recommendations */}
-          {step === 3.6 && formData.selectedTreatmentPlan && (
-            <TreatmentProducts
-              planId={formData.selectedTreatmentPlan}
-              onBack={() => setStep(3.5)}
-              onContinue={() => setStep(4)}
-            />
-          )}
-
-          {/* Step 4: Skin Satisfaction */}
+          {/* Step 4: Skin satisfaction */}
           {step === 4 && (
             <View>
               <Text style={styles.title}>How satisfied are you with your skin?</Text>
               <Text style={styles.subtitle}>
                 Rate from 1 (not satisfied) to 5 (very satisfied)
               </Text>
-              <View style={styles.ratingContainer}>
-                {[1, 2, 3, 4, 5].map((rating) => (
-                  <TouchableOpacity
-                    key={rating}
-                    onPress={() => setFormData({ ...formData, skinSatisfaction: rating })}
-                    style={[
-                      styles.ratingButton,
-                      formData.skinSatisfaction === rating && styles.ratingButtonSelected,
-                    ]}
-                    activeOpacity={0.7}
-                  >
-                    <Text style={styles.ratingText}>{rating}</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-              <View style={styles.ratingLabels}>
-                <Text style={styles.ratingLabel}>Not satisfied</Text>
-                <Text style={styles.ratingLabel}>Very satisfied</Text>
-              </View>
-            </View>
-          )}
 
-          {/* Step 5: Skin Goals */}
-          {step === 5 && (
-            <View>
-              <Text style={styles.title}>What are your skin goals?</Text>
-              <Text style={styles.subtitle}>
-                Share what you'd like to achieve
-              </Text>
-
-              <View style={styles.methodOptions}>
-                <TouchableOpacity
-                  onPress={() => setFormData({ ...formData, skinGoalsMethod: 'type' })}
-                  style={[
-                    styles.methodButton,
-                    formData.skinGoalsMethod === 'type' && styles.methodButtonSelected,
-                  ]}
-                >
-                  <Ionicons name="create-outline" size={24} color="#7B9B8C" />
-                  <Text style={styles.methodButtonText}>Type</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  onPress={() => setFormData({ ...formData, skinGoalsMethod: 'video' })}
-                  style={[
-                    styles.methodButton,
-                    formData.skinGoalsMethod === 'video' && styles.methodButtonSelected,
-                  ]}
-                >
-                  <Ionicons name="videocam-outline" size={24} color="#7B9B8C" />
-                  <Text style={styles.methodButtonText}>Video</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  onPress={() => setFormData({ ...formData, skinGoalsMethod: 'audio' })}
-                  style={[
-                    styles.methodButton,
-                    formData.skinGoalsMethod === 'audio' && styles.methodButtonSelected,
-                  ]}
-                >
-                  <Ionicons name="mic-outline" size={24} color="#7B9B8C" />
-                  <Text style={styles.methodButtonText}>Audio</Text>
-                </TouchableOpacity>
-              </View>
-
-              {formData.skinGoalsMethod === 'type' && (
-                <TextInput
-                  style={styles.goalsTextArea}
-                  value={formData.skinGoals}
-                  onChangeText={(text) => setFormData({ ...formData, skinGoals: text })}
-                  placeholder="Share your skin goals... (e.g., I want to reduce acne scars, achieve even skin tone, and minimize breakouts)"
-                  placeholderTextColor="#8A9088"
-                  multiline
-                  numberOfLines={5}
-                  textAlignVertical="top"
-                />
-              )}
-
-              {(formData.skinGoalsMethod === 'video' || formData.skinGoalsMethod === 'audio') && (
-                <View style={styles.recordingPlaceholder}>
-                  <Ionicons
-                    name={formData.skinGoalsMethod === 'audio' ? 'mic' : 'videocam'}
-                    size={32}
-                    color="#7B9B8C"
-                  />
-                  <Text style={styles.uploadPlaceholderText}>
-                    {formData.skinGoalsMethod === 'audio' ? 'Audio' : 'Video'} recording coming soon
+              <View style={styles.satisfactionCard}>
+                <View style={styles.satisfactionDisplay}>
+                  <Text style={styles.satisfactionNumber}>
+                    {formData.skinSatisfaction || '-'}
+                  </Text>
+                  <Text style={styles.satisfactionLabel}>
+                    {formData.skinSatisfaction === 1 && 'Not satisfied'}
+                    {formData.skinSatisfaction === 2 && 'Somewhat dissatisfied'}
+                    {formData.skinSatisfaction === 3 && 'Neutral'}
+                    {formData.skinSatisfaction === 4 && 'Satisfied'}
+                    {formData.skinSatisfaction === 5 && 'Very satisfied'}
+                    {!formData.skinSatisfaction && 'Select a rating'}
                   </Text>
                 </View>
-              )}
+
+                <View style={styles.satisfactionSliderWrap}>
+                  <View style={styles.satisfactionTrackBackground} />
+                  <View
+                    style={[
+                      styles.satisfactionTrackActive,
+                      {
+                        width: `${((formData.skinSatisfaction || 1) - 1) * 25}%`,
+                      },
+                    ]}
+                  />
+                  <View style={styles.satisfactionButtonsRow}>
+                    {[1, 2, 3, 4, 5].map((value) => (
+                      <TouchableOpacity
+                        key={value}
+                        onPress={() =>
+                          setFormData((prev) => ({ ...prev, skinSatisfaction: value }))
+                        }
+                        style={[
+                          styles.satisfactionButton,
+                          formData.skinSatisfaction === value &&
+                            styles.satisfactionButtonActive,
+                        ]}
+                        activeOpacity={0.9}
+                      >
+                        <Text
+                          style={[
+                            styles.satisfactionButtonText,
+                            formData.skinSatisfaction === value &&
+                              styles.satisfactionButtonTextActive,
+                          ]}
+                        >
+                          {value}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </View>
+
+                <View style={styles.satisfactionLabelsRow}>
+                  <Text style={styles.satisfactionEdgeLabel}>not satisfied</Text>
+                  <Text style={styles.satisfactionEdgeLabel}>very satisfied</Text>
+                </View>
+              </View>
             </View>
           )}
 
-          {/* Step 6: Days per Week */}
-          {step === 6 && (
+          {/* Step 5: Days per week */}
+          {step === 5 && (
             <View>
               <Text style={styles.title}>How many days per week?</Text>
               <Text style={styles.subtitle}>
                 Set a realistic goal for implementing your routine
               </Text>
+
               <View style={styles.sliderCard}>
                 <View style={styles.sliderValue}>
                   <Text style={styles.sliderNumber}>{formData.daysPerWeek}</Text>
@@ -625,7 +645,9 @@ export default function Registration() {
                   maximumValue={7}
                   step={1}
                   value={formData.daysPerWeek}
-                  onValueChange={(value) => setFormData({ ...formData, daysPerWeek: value })}
+                  onValueChange={(value) =>
+                    setFormData((prev) => ({ ...prev, daysPerWeek: value }))
+                  }
                   minimumTrackTintColor="#7B9B8C"
                   maximumTrackTintColor="#D8D5CF"
                   thumbTintColor="#7B9B8C"
@@ -635,14 +657,12 @@ export default function Registration() {
                   <Text style={styles.sliderLabel}>7</Text>
                 </View>
               </View>
-              <Text style={styles.helperText}>
-                You can always adjust this later
-              </Text>
+              <Text style={styles.helperText}>You can always adjust this later</Text>
             </View>
           )}
 
-          {/* Step 7: Times of Day */}
-          {step === 7 && (
+          {/* Step 6: Times of day */}
+          {step === 6 && (
             <View>
               <Text style={styles.title}>When do you want reminders?</Text>
               <Text style={styles.subtitle}>
@@ -655,13 +675,14 @@ export default function Registration() {
                     onPress={() => handleTimeToggle(time.value)}
                     style={[
                       styles.optionButton,
-                      formData.timesOfDay.includes(time.value) && styles.optionButtonSelected,
+                      formData.timesOfDay.includes(time.value) &&
+                        styles.optionButtonSelected,
                     ]}
-                    activeOpacity={0.7}
+                    activeOpacity={0.9}
                   >
                     <View style={styles.timeOptionContent}>
                       <View style={styles.timeIconContainer}>
-                        <Ionicons name={time.icon} size={20} color="#7B9B8C" />
+                        <Ionicons name={time.icon} size={20} color="#5F8575" />
                       </View>
                       <Text style={styles.optionText}>{time.label}</Text>
                     </View>
@@ -683,7 +704,7 @@ export default function Registration() {
             <TouchableOpacity
               onPress={handleBack}
               style={styles.backButton}
-              activeOpacity={0.7}
+              activeOpacity={0.85}
             >
               <Ionicons name="chevron-back" size={20} color="#7B9B8C" />
               <Text style={styles.backButtonText}>Back</Text>
@@ -697,15 +718,17 @@ export default function Registration() {
               step === 1 && styles.nextButtonFull,
               !canProceed() && styles.nextButtonDisabled,
             ]}
-            activeOpacity={0.7}
+            activeOpacity={0.85}
           >
-            <Text style={[
-              styles.nextButtonText,
-              !canProceed() && styles.nextButtonTextDisabled,
-            ]}>
-              {step === 7 ? 'Complete' : 'Next'}
+            <Text
+              style={[
+                styles.nextButtonText,
+                !canProceed() && styles.nextButtonTextDisabled,
+              ]}
+            >
+              {step === 6 ? 'Complete' : 'Next'}
             </Text>
-            {step < 7 && (
+            {step < 6 && (
               <Ionicons
                 name="chevron-forward"
                 size={20}
@@ -715,6 +738,55 @@ export default function Registration() {
           </TouchableOpacity>
         </View>
       </View>
+
+      {/* Terms of Service Modal */}
+      <Modal
+        visible={showTermsModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowTermsModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Terms of Service</Text>
+              <Text style={styles.modalSubtitle}>Last updated: March 2, 2026</Text>
+            </View>
+            <ScrollView style={styles.modalBody} showsVerticalScrollIndicator>
+              <Text style={styles.modalSectionTitle}>1. Acceptance of Terms</Text>
+              <Text style={styles.modalText}>
+                By creating an account and using Gia, you agree to these Terms of Service.
+                If you do not agree to these terms, please do not use the app.
+              </Text>
+              <Text style={styles.modalSectionTitle}>2. Medical Disclaimer</Text>
+              <Text style={styles.modalText}>
+                Gia is a skincare tracking and routine management tool. It is not a
+                substitute for professional medical advice, diagnosis, or treatment.
+                Always seek the advice of your physician or dermatologist with any
+                questions you may have regarding a medical condition.
+              </Text>
+              <Text style={styles.modalSectionTitle}>3. User Responsibilities</Text>
+              <Text style={styles.modalText}>
+                You agree to provide accurate and complete information, keep your account
+                credentials secure, and use the app in accordance with applicable laws.
+              </Text>
+              <Text style={styles.modalSectionTitle}>4. Privacy & Data</Text>
+              <Text style={styles.modalText}>
+                We collect and use your personal information as described in our Privacy
+                Policy. We prioritize your privacy and will never sell your personal
+                health data to third parties.
+              </Text>
+            </ScrollView>
+            <TouchableOpacity
+              style={styles.modalCloseButton}
+              onPress={() => setShowTermsModal(false)}
+              activeOpacity={0.9}
+            >
+              <Text style={styles.modalCloseButtonText}>Close</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -770,14 +842,77 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 24,
     fontWeight: '600',
-    color: '#7B9B8C',
+    color: '#2D4A3E',
     marginBottom: 8,
   },
   subtitle: {
     fontSize: 16,
-    color: '#6B7370',
+    color: '#6B8B7D',
     marginBottom: 24,
     lineHeight: 24,
+  },
+  card: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    padding: 20,
+    borderWidth: 2,
+    borderColor: 'rgba(149, 201, 142, 0.3)',
+    marginBottom: 8,
+  },
+  field: {
+    marginBottom: 16,
+  },
+  label: {
+    fontSize: 14,
+    color: '#5F8575',
+    marginBottom: 8,
+  },
+  input: {
+    borderWidth: 2,
+    borderColor: 'rgba(149, 201, 142, 0.4)',
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    fontSize: 16,
+    color: '#2D4A3E',
+    backgroundColor: '#FFFFFF',
+  },
+  errorText: {
+    marginTop: 4,
+    fontSize: 12,
+    color: '#EF4444',
+  },
+  termsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  checkbox: {
+    width: 22,
+    height: 22,
+    borderRadius: 6,
+    borderWidth: 2,
+    borderColor: '#95C98E',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FFFFFF',
+  },
+  checkboxChecked: {
+    backgroundColor: '#95C98E',
+  },
+  termsText: {
+    marginLeft: 8,
+    fontSize: 14,
+    color: '#2D4A3E',
+  },
+  termsLink: {
+    color: '#5F8575',
+    textDecorationLine: 'underline',
+  },
+  footerNote: {
+    marginTop: 8,
+    textAlign: 'center',
+    fontSize: 12,
+    color: '#6B8B7D',
   },
   optionsContainer: {
     gap: 12,
@@ -787,79 +922,52 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     padding: 16,
-    borderRadius: 12,
+    borderRadius: 16,
     borderWidth: 2,
     borderColor: '#D8D5CF',
     backgroundColor: '#FFFFFF',
   },
   optionButtonSelected: {
-    borderColor: '#7B9B8C',
-    backgroundColor: 'rgba(212, 227, 219, 0.2)',
+    borderColor: '#95C98E',
+    backgroundColor: 'rgba(212, 227, 219, 0.3)',
   },
   optionText: {
     fontSize: 16,
-    color: '#7B9B8C',
-    fontWeight: '500',
+    color: '#2D4A3E',
   },
   checkmark: {
     fontSize: 18,
     color: '#7B9B8C',
     fontWeight: '600',
   },
-  otherInputContainer: {
-    marginTop: 16,
-    paddingTop: 16,
-    borderTopWidth: 1,
-    borderTopColor: '#D8D5CF',
-  },
-  inputLabel: {
-    fontSize: 14,
-    color: '#6B7370',
-    marginBottom: 8,
-  },
-  textInput: {
-    padding: 16,
-    borderRadius: 12,
-    borderWidth: 2,
-    borderColor: '#D8D5CF',
-    backgroundColor: '#FFFFFF',
-    fontSize: 16,
-    color: '#7B9B8C',
-  },
-  infoBanner: {
-    flexDirection: 'row',
-    gap: 12,
-    padding: 16,
-    backgroundColor: 'rgba(212, 227, 219, 0.3)',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: 'rgba(123, 155, 140, 0.3)',
-    marginBottom: 24,
-  },
-  infoBannerText: {
-    flex: 1,
-    fontSize: 14,
-    color: '#6B7370',
-    lineHeight: 20,
-  },
   plansContainer: {
     gap: 16,
   },
+  planGroup: {
+    marginBottom: 16,
+  },
+  planGroupTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#5F8575',
+    marginBottom: 8,
+  },
   planCard: {
     padding: 16,
-    borderRadius: 12,
+    borderRadius: 16,
     borderWidth: 2,
     borderColor: '#D8D5CF',
     backgroundColor: '#FFFFFF',
+    marginBottom: 8,
   },
   planCardSelected: {
-    borderColor: '#7B9B8C',
-    backgroundColor: 'rgba(212, 227, 219, 0.2)',
+    borderColor: '#95C98E',
+    backgroundColor: 'rgba(232, 240, 220, 0.7)',
   },
   planHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 12,
+    alignItems: 'flex-start',
   },
   planHeaderText: {
     flex: 1,
@@ -867,172 +975,116 @@ const styles = StyleSheet.create({
   planName: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#7B9B8C',
+    color: '#2D4A3E',
     marginBottom: 4,
   },
   planDescription: {
     fontSize: 14,
     color: '#6B7370',
-    marginBottom: 8,
-  },
-  planNote: {
-    fontSize: 12,
-    color: '#7B9B8C',
-    fontStyle: 'italic',
-  },
-  planFrequency: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#7B9B8C',
-    textTransform: 'uppercase',
-    letterSpacing: 1,
-    marginBottom: 12,
-  },
-  planSteps: {
-    marginTop: 12,
-  },
-  planStepsTitle: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#7B9B8C',
-    marginBottom: 8,
-  },
-  planStepRow: {
-    flexDirection: 'row',
-    gap: 8,
     marginBottom: 4,
   },
-  planStepNumber: {
-    fontSize: 14,
-    color: '#6B7370',
-  },
-  planStepText: {
-    flex: 1,
-    fontSize: 14,
-    color: '#6B7370',
-  },
-  uploadPlaceholder: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 48,
-    borderRadius: 12,
-    borderWidth: 2,
-    borderColor: '#D8D5CF',
-    borderStyle: 'dashed',
-    backgroundColor: '#FFFFFF',
-  },
-  productPlaceholder: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 48,
-    borderRadius: 12,
-    borderWidth: 2,
-    borderColor: '#D8D5CF',
-    backgroundColor: '#FFFFFF',
-  },
-  uploadPlaceholderText: {
-    fontSize: 16,
-    color: '#7B9B8C',
-    marginTop: 16,
-    textAlign: 'center',
-  },
-  uploadPlaceholderSubtext: {
-    fontSize: 14,
-    color: '#8A9088',
-    marginTop: 8,
-    textAlign: 'center',
-  },
-  skipButton: {
-    marginTop: 24,
-    padding: 16,
-    alignItems: 'center',
-  },
-  skipButtonText: {
-    fontSize: 16,
-    color: '#7B9B8C',
-    textDecorationLine: 'underline',
-  },
-  ratingContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    gap: 12,
-  },
-  ratingButton: {
-    flex: 1,
-    aspectRatio: 1,
-    borderRadius: 12,
-    borderWidth: 2,
-    borderColor: '#D8D5CF',
-    backgroundColor: '#FFFFFF',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  ratingButtonSelected: {
-    borderColor: '#7B9B8C',
-    backgroundColor: 'rgba(212, 227, 219, 0.2)',
-  },
-  ratingText: {
-    fontSize: 24,
-    color: '#7B9B8C',
-    fontWeight: '600',
-  },
-  ratingLabels: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: 8,
-  },
-  ratingLabel: {
+  planStepsMeta: {
     fontSize: 12,
-    color: '#6B7370',
+    color: '#5F8575',
+    marginBottom: 4,
   },
-  methodOptions: {
+  planTagsRow: {
     flexDirection: 'row',
-    gap: 12,
+    flexWrap: 'wrap',
+    gap: 6,
+  },
+  planTag: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 999,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: 'rgba(149, 201, 142, 0.4)',
+  },
+  planTagText: {
+    fontSize: 12,
+    color: '#5F8575',
+  },
+  satisfactionCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    padding: 24,
+    borderWidth: 2,
+    borderColor: 'rgba(149, 201, 142, 0.3)',
+  },
+  satisfactionDisplay: {
+    alignItems: 'center',
     marginBottom: 24,
   },
-  methodButton: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 16,
-    borderRadius: 12,
-    borderWidth: 2,
-    borderColor: '#D8D5CF',
-    backgroundColor: '#FFFFFF',
+  satisfactionNumber: {
+    fontSize: 48,
+    fontWeight: '700',
+    color: '#5F8575',
+    marginBottom: 4,
   },
-  methodButtonSelected: {
-    borderColor: '#7B9B8C',
-    backgroundColor: 'rgba(212, 227, 219, 0.2)',
-  },
-  methodButtonText: {
+  satisfactionLabel: {
     fontSize: 14,
-    color: '#7B9B8C',
-    marginTop: 8,
+    color: '#6B8B7D',
   },
-  goalsTextArea: {
-    padding: 16,
-    borderRadius: 12,
-    borderWidth: 2,
-    borderColor: '#D8D5CF',
-    backgroundColor: '#FFFFFF',
-    fontSize: 16,
-    color: '#7B9B8C',
-    minHeight: 150,
+  satisfactionSliderWrap: {
+    marginBottom: 16,
   },
-  recordingPlaceholder: {
+  satisfactionTrackBackground: {
+    position: 'absolute',
+    left: 4,
+    right: 4,
+    top: 20,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: 'rgba(212, 227, 219, 0.5)',
+  },
+  satisfactionTrackActive: {
+    position: 'absolute',
+    left: 4,
+    top: 20,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#7B9B8C',
+  },
+  satisfactionButtonsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  satisfactionButton: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    borderWidth: 3,
+    borderColor: '#C9CBD5',
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 32,
-    borderRadius: 12,
-    borderWidth: 2,
-    borderColor: '#D8D5CF',
-    borderStyle: 'dashed',
     backgroundColor: '#FFFFFF',
+  },
+  satisfactionButtonActive: {
+    backgroundColor: '#7B9B8C',
+    borderColor: '#FFFFFF',
+  },
+  satisfactionButtonText: {
+    fontSize: 18,
+    color: '#5F8575',
+    fontWeight: '600',
+  },
+  satisfactionButtonTextActive: {
+    color: '#FFFFFF',
+  },
+  satisfactionLabelsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  satisfactionEdgeLabel: {
+    fontSize: 12,
+    color: '#6B8B7D',
   },
   sliderCard: {
     backgroundColor: '#FFFFFF',
+    borderRadius: 20,
     padding: 24,
-    borderRadius: 12,
     borderWidth: 2,
     borderColor: '#D8D5CF',
   },
@@ -1043,14 +1095,14 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   sliderNumber: {
-    fontSize: 48,
+    fontSize: 40,
     fontWeight: '600',
-    color: '#7B9B8C',
+    color: '#5F8575',
   },
   sliderUnit: {
     fontSize: 16,
     color: '#6B7370',
-    marginLeft: 12,
+    marginLeft: 8,
   },
   slider: {
     width: '100%',
@@ -1059,17 +1111,16 @@ const styles = StyleSheet.create({
   sliderLabels: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginTop: 8,
   },
   sliderLabel: {
     fontSize: 14,
     color: '#6B7370',
   },
   helperText: {
-    textAlign: 'center',
     fontSize: 14,
-    color: '#6B7370',
-    marginTop: 16,
+    color: '#6B8B7D',
+    textAlign: 'center',
+    marginTop: 12,
   },
   timeOptionContent: {
     flexDirection: 'row',
@@ -1141,4 +1192,63 @@ const styles = StyleSheet.create({
   nextButtonTextDisabled: {
     color: '#6B7370',
   },
+  modalCard: {
+    width: '90%',
+    maxWidth: 480,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 24,
+    overflow: 'hidden',
+  },
+  modalHeader: {
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    backgroundColor: '#E8F0DC',
+    borderBottomWidth: 1,
+    borderBottomColor: '#D8D5CF',
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: '#2D4A3E',
+    marginBottom: 4,
+  },
+  modalSubtitle: {
+    fontSize: 12,
+    color: '#6B8B7D',
+  },
+  modalBody: {
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    maxHeight: 320,
+  },
+  modalSectionTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#2D4A3E',
+    marginBottom: 4,
+    marginTop: 8,
+  },
+  modalText: {
+    fontSize: 13,
+    color: '#6B7370',
+    marginBottom: 8,
+  },
+  modalCloseButton: {
+    paddingVertical: 14,
+    alignItems: 'center',
+    backgroundColor: '#7B9B8C',
+  },
+  modalCloseButtonText: {
+    fontSize: 16,
+    color: '#FFFFFF',
+    fontWeight: '600',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 24,
+  },
 });
+
