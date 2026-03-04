@@ -225,15 +225,13 @@ export function Insights({
           </View>
         )}
 
-        {/* Executive summary button */}
-        {hasDermatologistPlan && (
-          <TouchableOpacity style={styles.execSummaryBtn} onPress={() => setShowExecutiveSummary(true)} activeOpacity={0.85}>
-            <View style={styles.execSummaryIcon}>
-              <Ionicons name="document-text-outline" size={20} color="#FFFFFF" />
-            </View>
-            <Text style={styles.execSummaryText}>generate provider summary</Text>
-          </TouchableOpacity>
-        )}
+        {/* Executive summary button — opens Executive Summary modal when tapped */}
+        <TouchableOpacity style={styles.execSummaryBtn} onPress={() => setShowExecutiveSummary(true)} activeOpacity={0.85}>
+          <View style={styles.execSummaryIcon}>
+            <Ionicons name="document-text-outline" size={20} color="#FFFFFF" />
+          </View>
+          <Text style={styles.execSummaryText}>generate provider summary</Text>
+        </TouchableOpacity>
 
         {/* Filters toggle */}
         <TouchableOpacity style={styles.filtersToggle} onPress={() => setShowFilters(!showFilters)} activeOpacity={0.85}>
