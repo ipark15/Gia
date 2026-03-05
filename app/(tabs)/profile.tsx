@@ -28,7 +28,14 @@ export default function ProfileScreen() {
         registrationData={DEMO_REGISTRATION}
         onEdit={() => router.push('/(onboarding)/registration')}
         currentStreak={7}
-        onManageRules={() => { }}
+        onManageRules={() => {}}
+        treatmentPlanId="demo-plan"
+        onViewTreatmentPlan={() => {}}
+        nextDermAppointment="2026-03-15"
+        ownedProducts={[]}
+        onOpenInventory={() => {}}
+        accountData={{ name: 'User', email: 'user@example.com', password: '••••••••' }}
+        onUpdateAccount={() => {}}
       />
     </SafeAreaView>
   );

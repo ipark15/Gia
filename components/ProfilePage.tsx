@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import React, { useMemo, useState } from 'react';
+import React, { useState } from 'react';
 import {
   ScrollView,
   StyleSheet,
@@ -7,11 +7,21 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { AccountManagementSection } from './AccountManagementSection';
+import { EmergencyHelp } from './EmergencyHelp';
 
 export interface CompletedDay {
   date: string;
   stepsCompleted: number;
   totalSteps: number;
+}
+
+export interface OwnedProduct {
+  id: string;
+  brand: string;
+  name: string;
+  category: string;
+  dateAdded: string;
 }
 
 export interface RegistrationData {
@@ -24,85 +34,55 @@ export interface RegistrationData {
 }
 
 export interface ProfilePageProps {
-  completedDays: CompletedDay[];
+  completedDays: Array<{ date: string; stepsCompleted: number; totalSteps: number }>;
   registrationData: RegistrationData;
   onEdit: () => void;
-  currentStreak?: number;
+  currentStreak: number;
   onManageRules?: () => void;
+  treatmentPlanId?: string;
+  onViewTreatmentPlan?: () => void;
+  nextDermAppointment?: string;
+  ownedProducts?: OwnedProduct[];
+  onOpenInventory?: () => void;
+  accountData?: {
+    name: string;
+    email: string;
+    password: string;
+  };
+  onUpdateAccount?: (data: { name: string; email: string; password: string }) => void;
 }
-
-const SEVERITY_LABELS: Record<string, string> = {
-  mild: 'Mild',
-  moderate: 'Moderate',
-  severe: 'Severe',
-  Light: 'Light',
-  Moderate: 'Moderate',
-  Severe: 'Severe',
-};
-
-const COMMITMENT_LABELS: Record<string, string> = {
-  '1-2': '1-2 days per week',
-  '3-4': '3-4 days per week',
-  '5-7': '5-7 days per week',
-  '1 days/week': '1 day per week',
-  '2 days/week': '2 days per week',
-  '3 days/week': '3 days per week',
-  '4 days/week': '4 days per week',
-  '5 days/week': '5 days per week',
-  '6 days/week': '6 days per week',
-  '7 days/week': '7 days per week',
-};
-
-const MOTIVATIONAL_PROMPTS = [
-  "You've shown up more times than you think.",
-  "Even partial days helped your skin settle.",
-  "Consistency is protecting your skin barrier — even on quiet days.",
-];
 
 export function ProfilePage({
   completedDays,
   registrationData,
   onEdit,
-  currentStreak = 7,
+  currentStreak,
   onManageRules,
+  treatmentPlanId = '',
+  onViewTreatmentPlan,
+  nextDermAppointment,
+  ownedProducts = [],
+  onOpenInventory,
+  accountData,
+  onUpdateAccount,
 }: ProfilePageProps) {
-  const [currentDate, setCurrentDate] = useState(new Date());
-  const [activeTab, setActiveTab] = useState<'overview' | 'progress' | 'streaks'>('overview');
-  const [feedback, setFeedback] = useState<'helpful' | 'neutral' | 'not-helpful' | null>(null);
-  const [currentPrompt] = useState(() => MOTIVATIONAL_PROMPTS[Math.floor(Math.random() * MOTIVATIONAL_PROMPTS.length)]);
+  const [showHelpModal, setShowHelpModal] = useState(false);
 
-  const { daysInMonth, startingDayOfWeek } = useMemo(() => {
-    const year = currentDate.getFullYear();
-    const month = currentDate.getMonth();
-    const firstDay = new Date(year, month, 1);
-    const lastDay = new Date(year, month + 1, 0);
-    return {
-      daysInMonth: lastDay.getDate(),
-      startingDayOfWeek: firstDay.getDay(),
-    };
-  }, [currentDate]);
+  const totalCompletedDays = completedDays.length;
+  const completionRate =
+    completedDays.length > 0
+      ? Math.round(
+          (completedDays.filter((d) => d.stepsCompleted === d.totalSteps).length / completedDays.length) * 100
+        )
+      : 0;
 
-  const getCompletionForDate = (day: number) => {
-    const dateString = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-    return completedDays.find((d) => d.date === dateString);
+  const satisfactionLabels: Record<number, string> = {
+    1: 'Not satisfied',
+    2: 'Slightly satisfied',
+    3: 'Moderately satisfied',
+    4: 'Satisfied',
+    5: 'Very satisfied',
   };
-
-  const previousMonth = () => {
-    setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1));
-  };
-
-  const nextMonth = () => {
-    setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1));
-  };
-
-  const monthName = currentDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
-  const today = new Date();
-  const isCurrentMonth = today.getMonth() === currentDate.getMonth() && today.getFullYear() === currentDate.getFullYear();
-
-  const daysShowedUp = completedDays.length;
-  const weeklyRhythm = Math.floor(daysShowedUp / 7);
-
-  const DAY_LABELS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 
   return (
     <View style={styles.container}>
@@ -113,398 +93,511 @@ export function ProfilePage({
       >
         {/* Header */}
         <View style={styles.header}>
+          <View style={styles.headerSpacer} />
           <View style={styles.avatarWrap}>
-            <Ionicons name="person" size={40} color="#7B9B8C" />
+            <Ionicons name="person" size={40} color="#FFFFFF" />
           </View>
-          <Text style={styles.title}>My Profile</Text>
-          <Text style={styles.subtitle}>Your journey and personalized settings</Text>
-        </View>
-
-        {/* Tabs */}
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.tabScroll} contentContainerStyle={styles.tabRow}>
-          {(['overview', 'progress', 'streaks'] as const).map((tab) => (
+          <View style={styles.headerActions}>
             <TouchableOpacity
-              key={tab}
-              onPress={() => setActiveTab(tab)}
-              style={[styles.tab, activeTab === tab && styles.tabActive]}
+              style={styles.iconBtn}
+              onPress={() => setShowHelpModal(true)}
+              accessibilityLabel="Emergency & medical help"
               activeOpacity={0.8}
             >
-              <Text style={[styles.tabText, activeTab === tab && styles.tabTextActive]}>
-                {tab.charAt(0).toUpperCase() + tab.slice(1)}
-              </Text>
+              <Ionicons name="help-circle-outline" size={20} color="#7B9B8C" />
             </TouchableOpacity>
-          ))}
-        </ScrollView>
+            <TouchableOpacity style={styles.iconBtn} onPress={onEdit} accessibilityLabel="Settings" activeOpacity={0.8}>
+              <Ionicons name="settings-outline" size={20} color="#7B9B8C" />
+            </TouchableOpacity>
+          </View>
+        </View>
+        <Text style={styles.title}>Your profile</Text>
+        <Text style={styles.subtitle}>Track your journey, celebrate progress</Text>
 
-        {activeTab === 'overview' && (
-          <View style={styles.tabContent}>
-            <View style={styles.statsRow}>
-              <View style={styles.statCard}>
-                <Text style={styles.statNumber}>{currentStreak}</Text>
-                <Text style={styles.statLabel}>Day Streak</Text>
-              </View>
-              <View style={styles.statCard}>
-                <Text style={styles.statNumber}>{daysShowedUp}</Text>
-                <Text style={styles.statLabel}>Total Days</Text>
-              </View>
+        {showHelpModal && <EmergencyHelp onClose={() => setShowHelpModal(false)} />}
+
+        {/* Quick Stats */}
+        <View style={styles.statsGrid}>
+          <View style={styles.statCard}>
+            <View style={[styles.statIconWrap, styles.statIconFlame]}>
+              <Ionicons name="flame" size={20} color="#FFFFFF" />
             </View>
+            <Text style={styles.statValue}>{currentStreak}</Text>
+            <Text style={styles.statLabel}>day streak</Text>
+          </View>
+          <View style={styles.statCard}>
+            <View style={[styles.statIconWrap, styles.statIconCheck]}>
+              <Ionicons name="checkmark-circle" size={20} color="#FFFFFF" />
+            </View>
+            <Text style={styles.statValue}>{totalCompletedDays}</Text>
+            <Text style={styles.statLabel}>days tracked</Text>
+          </View>
+          <View style={styles.statCard}>
+            <View style={[styles.statIconWrap, styles.statIconTrend]}>
+              <Ionicons name="trending-up" size={20} color="#FFFFFF" />
+            </View>
+            <Text style={styles.statValue}>{completionRate}%</Text>
+            <Text style={styles.statLabel}>completion</Text>
+          </View>
+        </View>
 
-            <View style={styles.card}>
-              <View style={styles.cardTitleRow}>
-                <Ionicons name="settings-outline" size={20} color="#7B9B8C" />
-                <Text style={styles.cardTitle}>Routine rules</Text>
-              </View>
-              <Text style={styles.cardSubtitle}>How your routine adapts to real life</Text>
-              <TouchableOpacity style={styles.primaryButton} onPress={onManageRules} activeOpacity={0.9}>
-                <Text style={styles.primaryButtonText}>Manage rules</Text>
+        {/* Content */}
+        <View style={styles.content}>
+          {/* Skin Profile */}
+          <View style={styles.card}>
+            <View style={styles.cardHeaderRow}>
+              <Text style={styles.cardTitle}>Skin profile</Text>
+              <TouchableOpacity style={styles.editIconBtn} onPress={onEdit} activeOpacity={0.8}>
+                <Ionicons name="pencil" size={18} color="#7B9B8C" />
               </TouchableOpacity>
             </View>
 
-            <View style={styles.card}>
-              <View style={styles.cardTitleRow}>
-                <Ionicons name="trending-up-outline" size={20} color="#7B9B8C" />
-                <Text style={styles.cardTitle}>Consistency tracking</Text>
-              </View>
-              <Text style={styles.cardSubtitle}>Your streaks are designed to support you — not pressure you.</Text>
-              <View style={styles.bulletList}>
-                <View style={styles.bulletRow}>
-                  <Text style={styles.bullet}>•</Text>
-                  <Text style={styles.bulletText}>Streaks reward showing up</Text>
-                </View>
-                <View style={styles.bulletRow}>
-                  <Text style={styles.bullet}>•</Text>
-                  <Text style={styles.bulletText}>Gentler days still count</Text>
-                </View>
-              </View>
-            </View>
-
-            <View style={styles.card}>
-              <View style={styles.cardTitleRow}>
-                <Ionicons name="alert-circle-outline" size={20} color="#7B9B8C" />
-                <Text style={styles.cardTitle}>Skin Conditions</Text>
-              </View>
-              <Text style={styles.cardHint}>Used to tailor your routine and tips</Text>
+            <View style={styles.skinProfileContent}>
+              <Text style={styles.uppercaseLabel}>Primary Concerns</Text>
               <View style={styles.tagRow}>
-                {registrationData.conditions.map((c) => (
-                  <View key={c} style={styles.tag}>
-                    <Text style={styles.tagText}>{c}</Text>
+                {registrationData.conditions.map((condition, i) => (
+                  <View key={i} style={styles.conditionTag}>
+                    <Text style={styles.conditionTagText}>{condition}</Text>
                   </View>
                 ))}
               </View>
-            </View>
 
-            <View style={styles.card}>
-              <View style={styles.cardTitleRow}>
-                <Ionicons name="heart-outline" size={20} color="#7B9B8C" />
-                <Text style={styles.cardTitle}>
-                  {registrationData.hasDermatologist ? 'Dermatologist-guided routine' : 'Self-managing skincare'}
-                </Text>
+              <Text style={styles.uppercaseLabel}>Care</Text>
+              <View style={styles.careRow}>
+                {registrationData.hasDermatologist ? (
+                  <>
+                    <Ionicons name="checkmark-circle" size={16} color="#5F8575" />
+                    <Text style={styles.careText}>Working with a dermatologist</Text>
+                  </>
+                ) : (
+                  <>
+                    <Ionicons name="alert-circle-outline" size={16} color="#6B8B7D" />
+                    <Text style={styles.careTextMuted}>Self-managing care</Text>
+                  </>
+                )}
               </View>
-              <Text style={styles.cardSubtitle}>
-                {registrationData.hasDermatologist
-                  ? 'Gia adapts without overriding medical care'
-                  : 'Managing your routine independently'}
-              </Text>
-            </View>
 
-            <View style={styles.card}>
-              <View style={styles.cardTitleRow}>
-                <Ionicons name="flag-outline" size={20} color="#7B9B8C" />
-                <Text style={styles.cardTitle}>Condition Severity</Text>
-              </View>
-              <Text style={styles.cardValue}>{SEVERITY_LABELS[registrationData.severity] || registrationData.severity}</Text>
-            </View>
+              <Text style={styles.uppercaseLabel}>Routine Commitment</Text>
+              <Text style={styles.bodyText}>{registrationData.commitment}</Text>
 
-            <View style={styles.card}>
-              <View style={styles.cardTitleRow}>
-                <Ionicons name="heart-outline" size={20} color="#7B9B8C" />
-                <Text style={styles.cardTitle}>Skin Satisfaction</Text>
+              <Text style={styles.uppercaseLabel}>Preferred Reminders Times</Text>
+              <View style={styles.tagRow}>
+                {registrationData.preferredTimes.map((time, i) => (
+                  <View key={i} style={styles.timeTag}>
+                    <Text style={styles.timeTagText}>{time}</Text>
+                  </View>
+                ))}
               </View>
+
+              <Text style={styles.uppercaseLabel}>Skin Satisfaction</Text>
               <View style={styles.satisfactionRow}>
-                <View style={styles.satisfactionTrack}>
-                  <View style={[styles.satisfactionFill, { width: `${registrationData.satisfaction * 20}%` }]} />
-                </View>
-                <Text style={styles.satisfactionValue}>{registrationData.satisfaction}/5</Text>
-              </View>
-              <Text style={styles.cardHint}>
-                This helps Gia adjust tone and expectations.{'\n'}No trend. No comparison. No judgment.
-              </Text>
-            </View>
-
-            <View style={styles.card}>
-              <View style={styles.cardTitleRow}>
-                <Ionicons name="calendar-outline" size={20} color="#7B9B8C" />
-                <Text style={styles.cardTitle}>Routine frequency</Text>
-              </View>
-              <Text style={styles.cardHint}>Manage via routine rules</Text>
-              <Text style={styles.cardValue}>{COMMITMENT_LABELS[registrationData.commitment] || registrationData.commitment}</Text>
-            </View>
-
-            <View style={styles.card}>
-              <View style={styles.cardTitleRow}>
-                <Ionicons name="time-outline" size={20} color="#7B9B8C" />
-                <Text style={styles.cardTitle}>Preferred Times</Text>
-              </View>
-              <Text style={styles.cardHint}>Manage via routine rules</Text>
-              <View style={styles.tagRow}>
-                {registrationData.preferredTimes.map((time) => (
-                  <View key={time} style={styles.tag}>
-                    <Text style={styles.tagText}>{time}</Text>
-                  </View>
-                ))}
-              </View>
-            </View>
-
-            <TouchableOpacity style={styles.editButton} onPress={onEdit} activeOpacity={0.85}>
-              <Text style={styles.editButtonText}>Edit Profile Settings</Text>
-            </TouchableOpacity>
-          </View>
-        )}
-
-        {activeTab === 'progress' && (
-          <View style={styles.tabContent}>
-            <View style={styles.promptCard}>
-              <Text style={styles.promptText}>"{currentPrompt}"</Text>
-            </View>
-
-            <View style={styles.card}>
-              <View style={styles.calendarHeader}>
-                <TouchableOpacity onPress={previousMonth} style={styles.calendarNav} hitSlop={12}>
-                  <Ionicons name="chevron-back" size={22} color="#7B9B8C" />
-                </TouchableOpacity>
-                <Text style={styles.calendarMonthTitle}>{monthName}</Text>
-                <TouchableOpacity
-                  onPress={nextMonth}
-                  style={styles.calendarNav}
-                  hitSlop={12}
-                  disabled={isCurrentMonth}
-                >
-                  <Ionicons name="chevron-forward" size={22} color={isCurrentMonth ? '#D8D5CF' : '#7B9B8C'} />
-                </TouchableOpacity>
-              </View>
-
-              <View style={styles.calendarGrid}>
-                {DAY_LABELS.map((d, i) => (
-                  <View key={`h-${i}`} style={styles.calendarDayHeader}>
-                    <Text style={styles.calendarDayHeaderText}>{d}</Text>
-                  </View>
-                ))}
-                {Array.from({ length: startingDayOfWeek }).map((_, i) => (
-                  <View key={`empty-${i}`} style={styles.calendarCell} />
-                ))}
-                {Array.from({ length: daysInMonth }).map((_, i) => {
-                  const day = i + 1;
-                  const completion = getCompletionForDate(day);
-                  const isToday = isCurrentMonth && day === today.getDate();
-                  const isComplete = completion && completion.stepsCompleted === completion.totalSteps;
-                  const isPartial = completion && completion.stepsCompleted < completion.totalSteps;
-                  return (
+                <View style={styles.starsRow}>
+                  {[1, 2, 3, 4, 5].map((star) => (
                     <View
-                      key={day}
+                      key={star}
                       style={[
-                        styles.calendarCell,
-                        styles.calendarCellDay,
-                        isComplete && styles.calendarCellComplete,
-                        isPartial && styles.calendarCellPartial,
-                        isToday && styles.calendarCellToday,
+                        styles.starCircle,
+                        star <= registrationData.satisfaction ? styles.starCircleFilled : styles.starCircleEmpty,
                       ]}
                     >
                       <Text
                         style={[
-                          styles.calendarCellText,
-                          isPartial && styles.calendarCellTextFilled,
-                          isComplete && styles.calendarCellTextComplete,
+                          styles.starEmoji,
+                          star <= registrationData.satisfaction ? styles.starEmojiFilled : styles.starEmojiEmpty,
                         ]}
                       >
-                        {day}
+                        🪷
                       </Text>
                     </View>
-                  );
-                })}
+                  ))}
+                </View>
+                <Text style={styles.bodyText}>
+                  {satisfactionLabels[registrationData.satisfaction] ?? '—'}
+                </Text>
               </View>
             </View>
+          </View>
 
-            <View style={styles.legendCard}>
-              <View style={styles.legendRow}>
-                <View style={[styles.legendDot, styles.legendDotComplete]} />
-                <Text style={styles.legendText}>Complete</Text>
-              </View>
-              <View style={styles.legendRow}>
-                <View style={[styles.legendDot, styles.legendDotPartial]} />
-                <Text style={styles.legendText}>Partial</Text>
-              </View>
-              <View style={styles.legendRow}>
-                <View style={[styles.legendDot, styles.legendDotSkipped]} />
-                <Text style={styles.legendText}>Skipped</Text>
-              </View>
-            </View>
-
+          {/* Treatment Plan */}
+          {treatmentPlanId ? (
             <View style={styles.card}>
-              <Text style={styles.feedbackQuestion}>Was this insight helpful?</Text>
-              <View style={styles.feedbackRow}>
-                <TouchableOpacity
-                  onPress={() => setFeedback('helpful')}
-                  style={[styles.feedbackBtn, feedback === 'helpful' && styles.feedbackBtnActive]}
-                  activeOpacity={0.8}
-                >
-                  <Ionicons name="thumbs-up-outline" size={22} color={feedback === 'helpful' ? '#FFFFFF' : '#7B9B8C'} />
-                </TouchableOpacity>
-                <TouchableOpacity
-                  onPress={() => setFeedback('neutral')}
-                  style={[styles.feedbackBtn, feedback === 'neutral' && styles.feedbackBtnActive]}
-                  activeOpacity={0.8}
-                >
-                  <Ionicons name="remove-outline" size={22} color={feedback === 'neutral' ? '#FFFFFF' : '#7B9B8C'} />
-                </TouchableOpacity>
-                <TouchableOpacity
-                  onPress={() => setFeedback('not-helpful')}
-                  style={[styles.feedbackBtn, feedback === 'not-helpful' && styles.feedbackBtnActive]}
-                  activeOpacity={0.8}
-                >
-                  <Ionicons name="thumbs-down-outline" size={22} color={feedback === 'not-helpful' ? '#FFFFFF' : '#7B9B8C'} />
-                </TouchableOpacity>
+              <View style={styles.planHeader}>
+                <View style={styles.planIconWrap}>
+                  <Ionicons name="document-text" size={26} color="#FFFFFF" />
+                </View>
+                <Text style={styles.cardTitle}>My treatment plan</Text>
               </View>
+              <View style={styles.planStatsRow}>
+                <View style={styles.planStatBox}>
+                  <Text style={styles.uppercaseLabel}>Morning</Text>
+                  <Text style={styles.planStatValue}>5 steps</Text>
+                </View>
+                <View style={styles.planStatBox}>
+                  <Text style={styles.uppercaseLabel}>Evening</Text>
+                  <Text style={styles.planStatValue}>6 steps</Text>
+                </View>
+              </View>
+              {onViewTreatmentPlan ? (
+                <TouchableOpacity style={styles.primaryButton} onPress={onViewTreatmentPlan} activeOpacity={0.9}>
+                  <Text style={styles.primaryButtonText}>View full plan</Text>
+                  <Ionicons name="chevron-forward" size={18} color="#FFFFFF" />
+                </TouchableOpacity>
+              ) : null}
             </View>
+          ) : null}
+
+          {/* Inventory */}
+          <View style={styles.card}>
+            <View style={styles.inventoryHeader}>
+              <View style={styles.inventoryTitleRow}>
+                <View style={styles.inventoryIconWrap}>
+                  <Ionicons name="cube-outline" size={20} color="#FFFFFF" />
+                </View>
+                <Text style={styles.cardTitle}>My inventory</Text>
+              </View>
+              {onOpenInventory ? (
+                <TouchableOpacity onPress={onOpenInventory} activeOpacity={0.8}>
+                  <Text style={styles.viewAllLink}>View all</Text>
+                </TouchableOpacity>
+              ) : null}
+            </View>
+
+            {ownedProducts.length === 0 ? (
+              <View style={styles.emptyInventory}>
+                <Ionicons name="cube-outline" size={48} color="#C9CBD5" />
+                <Text style={styles.emptyInventoryText}>No products yet</Text>
+                {onOpenInventory ? (
+                  <TouchableOpacity style={styles.addProductsBtn} onPress={onOpenInventory} activeOpacity={0.9}>
+                    <Text style={styles.addProductsBtnText}>Add products</Text>
+                  </TouchableOpacity>
+                ) : null}
+              </View>
+            ) : (
+              <>
+                <View style={styles.productList}>
+                  {ownedProducts.slice(0, 3).map((product) => (
+                    <View key={product.id} style={styles.productCard}>
+                      <Text style={styles.productBrand}>{product.brand}</Text>
+                      <Text style={styles.productName}>{product.name}</Text>
+                      <Text style={styles.productCategory}>{product.category}</Text>
+                    </View>
+                  ))}
+                </View>
+                {ownedProducts.length > 3 ? (
+                  <Text style={styles.moreProductsText}>
+                    +{ownedProducts.length - 3} more product{ownedProducts.length - 3 !== 1 ? 's' : ''}
+                  </Text>
+                ) : null}
+                {onOpenInventory ? (
+                  <TouchableOpacity style={styles.manageInventoryBtn} onPress={onOpenInventory} activeOpacity={0.9}>
+                    <Text style={styles.manageInventoryBtnText}>Manage inventory</Text>
+                    <Ionicons name="chevron-forward" size={16} color="#FFFFFF" />
+                  </TouchableOpacity>
+                ) : null}
+              </>
+            )}
           </View>
-        )}
 
-        {activeTab === 'streaks' && (
-          <View style={styles.tabContent}>
-            <View style={styles.streakHero}>
-              <Text style={styles.streakEmoji}>🔥</Text>
-              <Text style={styles.streakNumber}>{currentStreak}</Text>
-              <Text style={styles.streakLabel}>Day Current Streak</Text>
-            </View>
+          {/* Account Management */}
+          <AccountManagementSection
+            accountData={accountData ?? { name: 'User', email: 'user@example.com', password: 'password123' }}
+            onUpdateAccount={onUpdateAccount}
+          />
 
-            <View style={styles.statsRow}>
-              <View style={styles.statCard}>
-                <Text style={styles.statNumber}>{daysShowedUp}</Text>
-                <Text style={styles.statLabel}>Days Showed Up</Text>
-              </View>
-              <View style={styles.statCard}>
-                <Text style={styles.statNumber}>{weeklyRhythm}</Text>
-                <Text style={styles.statLabel}>Weekly Rhythm</Text>
-              </View>
-            </View>
+          {/* Manage routine rules */}
+          {onManageRules ? (
+            <TouchableOpacity style={styles.manageRulesBtn} onPress={onManageRules} activeOpacity={0.9}>
+              <Ionicons name="flag" size={20} color="#FFFFFF" />
+              <Text style={styles.manageRulesBtnText}>Manage routine rules</Text>
+            </TouchableOpacity>
+          ) : null}
+        </View>
 
-            <View style={styles.philosophyCard}>
-              <Text style={styles.philosophyTitle}>How streaks work in Gia</Text>
-              <View style={styles.bulletList}>
-                <View style={styles.bulletRow}>
-                  <Text style={styles.bullet}>•</Text>
-                  <Text style={styles.bulletText}>Partial routines keep your streak alive</Text>
-                </View>
-                <View style={styles.bulletRow}>
-                  <Text style={styles.bullet}>•</Text>
-                  <Text style={styles.bulletText}>Greenhouse mode days still count</Text>
-                </View>
-                <View style={styles.bulletRow}>
-                  <Text style={styles.bullet}>•</Text>
-                  <Text style={styles.bulletText}>Fresh starts don't reset your progress</Text>
-                </View>
-                <View style={styles.bulletRow}>
-                  <Text style={styles.bullet}>•</Text>
-                  <Text style={styles.bulletText}>We celebrate showing up, not perfection</Text>
-                </View>
-              </View>
-            </View>
-
-            <View style={styles.encouragementCard}>
-              <Text style={styles.encouragementText}>"Every day you show up for your skin is a day worth counting."</Text>
-            </View>
-          </View>
-        )}
-
-        <View style={{ height: 32 }} />
+        <View style={{ height: 48 }} />
       </ScrollView>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F5F1ED' },
+  container: {
+    flex: 1,
+    backgroundColor: '#E8EDE8',
+  },
   scroll: { flex: 1 },
-  scrollContent: { paddingHorizontal: 24, paddingTop: 24, paddingBottom: 120 },
-  header: { alignItems: 'center', marginBottom: 24 },
-  avatarWrap: { width: 80, height: 80, borderRadius: 40, backgroundColor: '#D4E3DB', alignItems: 'center', justifyContent: 'center', marginBottom: 16 },
-  title: { fontSize: 22, fontWeight: '600', color: '#7B9B8C', marginBottom: 4 },
-  subtitle: { fontSize: 14, color: '#6B7370' },
-
-  tabScroll: { marginBottom: 24 },
-  tabRow: { flexDirection: 'row', gap: 8 },
-  tab: { paddingVertical: 10, paddingHorizontal: 16, borderRadius: 999, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#D8D5CF' },
-  tabActive: { backgroundColor: '#7B9B8C', borderColor: '#7B9B8C' },
-  tabText: { fontSize: 14, color: '#7B9B8C' },
-  tabTextActive: { color: '#FFFFFF' },
-
-  tabContent: { gap: 16 },
-  statsRow: { flexDirection: 'row', gap: 16 },
-  statCard: { flex: 1, backgroundColor: '#FFFFFF', borderRadius: 20, padding: 20, borderWidth: 1, borderColor: '#D8D5CF', alignItems: 'center' },
-  statNumber: { fontSize: 28, fontWeight: '700', color: '#7B9B8C', marginBottom: 4 },
-  statLabel: { fontSize: 14, color: '#6B7370' },
-
-  card: { backgroundColor: '#FFFFFF', borderRadius: 20, padding: 20, borderWidth: 1, borderColor: '#D8D5CF' },
-  cardTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 },
-  cardTitle: { fontSize: 16, fontWeight: '600', color: '#5A7A6B' },
-  cardSubtitle: { fontSize: 14, color: '#6B7370', marginBottom: 12 },
-  cardHint: { fontSize: 12, color: '#6B7370', marginBottom: 12 },
-  cardValue: { fontSize: 15, color: '#3A3A3A' },
-  primaryButton: { backgroundColor: '#7B9B8C', paddingVertical: 12, borderRadius: 999, alignItems: 'center', marginTop: 4 },
-  primaryButtonText: { fontSize: 14, color: '#FFFFFF', fontWeight: '600' },
-  bulletList: { gap: 8 },
-  bulletRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 8 },
-  bullet: { fontSize: 14, color: '#7B9B8C' },
-  bulletText: { fontSize: 14, color: '#3A3A3A' },
+  scrollContent: {
+    paddingHorizontal: 24,
+    paddingTop: 24,
+    maxWidth: 672,
+    alignSelf: 'center',
+    width: '100%',
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 16,
+  },
+  headerSpacer: { flex: 1 },
+  avatarWrap: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: '#7B9B8C',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  headerActions: {
+    flex: 1,
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: 8,
+  },
+  iconBtn: {
+    padding: 10,
+    borderRadius: 999,
+  },
+  title: {
+    fontSize: 24,
+    color: '#2D4A3E',
+    fontStyle: 'italic',
+    textAlign: 'center',
+    marginBottom: 4,
+  },
+  subtitle: {
+    fontSize: 14,
+    color: '#6B8B7D',
+    textAlign: 'center',
+    marginBottom: 32,
+  },
+  statsGrid: {
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 24,
+  },
+  statCard: {
+    flex: 1,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(123, 155, 140, 0.2)',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 3,
+    elevation: 2,
+  },
+  statIconWrap: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 8,
+  },
+  statIconFlame: { backgroundColor: '#F49EC4' },
+  statIconCheck: { backgroundColor: '#7B9B8C' },
+  statIconTrend: { backgroundColor: '#95C98E' },
+  statValue: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: '#2D4A3E',
+  },
+  statLabel: {
+    fontSize: 12,
+    color: '#6B8B7D',
+    fontStyle: 'italic',
+  },
+  content: { gap: 24 },
+  card: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 24,
+    padding: 24,
+    borderWidth: 2,
+    borderColor: 'rgba(123, 155, 140, 0.3)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 3,
+  },
+  cardHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 16,
+  },
+  cardTitle: {
+    fontSize: 16,
+    color: '#2D4A3E',
+    fontStyle: 'italic',
+    fontWeight: '600',
+  },
+  editIconBtn: { padding: 8, borderRadius: 999 },
+  skinProfileContent: { gap: 4 },
+  uppercaseLabel: {
+    fontSize: 11,
+    color: '#6B8B7D',
+    textTransform: 'uppercase',
+    letterSpacing: 1.2,
+    marginTop: 12,
+    marginBottom: 8,
+  },
   tagRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  tag: { paddingVertical: 6, paddingHorizontal: 12, backgroundColor: '#D4E3DB', borderRadius: 999 },
-  tagText: { fontSize: 14, color: '#5A7A6B', textTransform: 'capitalize' },
-
-  satisfactionRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 12 },
-  satisfactionTrack: { flex: 1, height: 8, backgroundColor: '#D4E3DB', borderRadius: 4, overflow: 'hidden' },
-  satisfactionFill: { height: '100%', backgroundColor: '#7B9B8C', borderRadius: 4 },
-  satisfactionValue: { fontSize: 15, color: '#3A3A3A', minWidth: 28, textAlign: 'right' },
-
-  editButton: { backgroundColor: '#FFFFFF', borderWidth: 2, borderColor: '#7B9B8C', paddingVertical: 14, borderRadius: 999, alignItems: 'center', marginTop: 8 },
-  editButtonText: { fontSize: 16, color: '#7B9B8C', fontWeight: '600' },
-
-  promptCard: { backgroundColor: '#D4E3DB', borderRadius: 20, padding: 24, borderWidth: 1, borderColor: '#7B9B8C' },
-  promptText: { fontSize: 16, color: '#5A7A6B', fontStyle: 'italic', textAlign: 'center' },
-
-  calendarHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 },
-  calendarNav: { padding: 8 },
-  calendarMonthTitle: { fontSize: 16, fontWeight: '600', color: '#5A7A6B' },
-  calendarGrid: { flexDirection: 'row', flexWrap: 'wrap' },
-  calendarDayHeader: { width: '14.28%', alignItems: 'center', paddingVertical: 8 },
-  calendarDayHeaderText: { fontSize: 12, color: '#6B7370', fontWeight: '600' },
-  calendarCell: { width: '14.28%', aspectRatio: 1, alignItems: 'center', justifyContent: 'center', borderRadius: 10, marginBottom: 4 },
-  calendarCellDay: {},
-  calendarCellComplete: { backgroundColor: '#7B9B8C' },
-  calendarCellPartial: { backgroundColor: '#D4E3DB' },
-  calendarCellToday: { borderWidth: 2, borderColor: '#7B9B8C' },
-  calendarCellText: { fontSize: 13, color: '#6B7370' },
-  calendarCellTextFilled: { color: '#5A7A6B', fontWeight: '600' },
-  calendarCellTextComplete: { color: '#FFFFFF', fontWeight: '600' },
-
-  legendCard: { flexDirection: 'row', justifyContent: 'space-around', backgroundColor: '#FFFFFF', borderRadius: 20, padding: 16, borderWidth: 1, borderColor: '#D8D5CF' },
-  legendRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  legendDot: { width: 16, height: 16, borderRadius: 4 },
-  legendDotComplete: { backgroundColor: '#7B9B8C' },
-  legendDotPartial: { backgroundColor: '#D4E3DB' },
-  legendDotSkipped: { backgroundColor: 'transparent', borderWidth: 1, borderColor: '#D8D5CF' },
-  legendText: { fontSize: 14, color: '#6B7370' },
-
-  feedbackQuestion: { fontSize: 14, color: '#6B7370', textAlign: 'center', marginBottom: 12 },
-  feedbackRow: { flexDirection: 'row', justifyContent: 'center', gap: 12 },
-  feedbackBtn: { padding: 14, borderRadius: 12, backgroundColor: '#F5F1ED' },
-  feedbackBtnActive: { backgroundColor: '#7B9B8C' },
-
-  streakHero: { backgroundColor: '#FFFFFF', borderRadius: 20, padding: 32, borderWidth: 1, borderColor: '#D8D5CF', alignItems: 'center', marginBottom: 16 },
-  streakEmoji: { fontSize: 48, marginBottom: 8 },
-  streakNumber: { fontSize: 36, fontWeight: '700', color: '#7B9B8C', marginBottom: 4 },
-  streakLabel: { fontSize: 14, color: '#6B7370' },
-
-  philosophyCard: { backgroundColor: '#FFF9F5', borderRadius: 20, padding: 24, borderWidth: 1, borderColor: '#D8D5CF' },
-  philosophyTitle: { fontSize: 16, fontWeight: '600', color: '#5A7A6B', marginBottom: 12 },
-  encouragementCard: { backgroundColor: '#FFFFFF', borderRadius: 20, padding: 20, borderWidth: 1, borderColor: '#D8D5CF', alignItems: 'center' },
-  encouragementText: { fontSize: 14, color: '#6B7370', fontStyle: 'italic', textAlign: 'center' },
+  conditionTag: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 999,
+    backgroundColor: '#E8F5E9',
+    borderWidth: 1,
+    borderColor: 'rgba(123, 155, 140, 0.2)',
+  },
+  conditionTagText: { fontSize: 14, color: '#2D4A3E', fontStyle: 'italic' },
+  careRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 4 },
+  careText: { fontSize: 14, color: '#2D4A3E', fontStyle: 'italic' },
+  careTextMuted: { fontSize: 14, color: '#6B8B7D', fontStyle: 'italic' },
+  bodyText: { fontSize: 14, color: '#2D4A3E', fontStyle: 'italic', marginTop: 2 },
+  timeTag: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 999,
+    backgroundColor: '#E8F0DC',
+    borderWidth: 1,
+    borderColor: 'rgba(123, 155, 140, 0.2)',
+  },
+  timeTagText: { fontSize: 12, color: '#2D4A3E', fontStyle: 'italic' },
+  satisfactionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginTop: 8,
+  },
+  starsRow: { flexDirection: 'row', gap: 6 },
+  starCircle: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  starCircleFilled: { backgroundColor: '#F49EC4' },
+  starCircleEmpty: { backgroundColor: '#E8E8E8' },
+  starEmoji: { fontSize: 14 },
+  starEmojiFilled: {},
+  starEmojiEmpty: { opacity: 0.5 },
+  planHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+    marginBottom: 16,
+  },
+  planIconWrap: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: '#7B9B8C',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  planStatsRow: { flexDirection: 'row', gap: 12, marginBottom: 16 },
+  planStatBox: {
+    flex: 1,
+    backgroundColor: '#E8F5E9',
+    borderRadius: 12,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(123, 155, 140, 0.2)',
+  },
+  planStatValue: { fontSize: 18, fontWeight: '600', color: '#2D4A3E', marginTop: 4 },
+  primaryButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: '#5F8575',
+    paddingVertical: 16,
+    paddingHorizontal: 24,
+    borderRadius: 20,
+  },
+  primaryButtonText: { fontSize: 16, color: '#FFFFFF', fontStyle: 'italic', fontWeight: '600' },
+  inventoryHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 16,
+  },
+  inventoryTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  inventoryIconWrap: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#95C98E',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  viewAllLink: { fontSize: 12, color: '#7B9B8C', fontStyle: 'italic' },
+  emptyInventory: {
+    alignItems: 'center',
+    paddingVertical: 32,
+  },
+  emptyInventoryText: { fontSize: 14, color: '#6B8B7D', fontStyle: 'italic', marginBottom: 12 },
+  addProductsBtn: {
+    backgroundColor: '#5F8575',
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+  },
+  addProductsBtnText: { fontSize: 14, color: '#FFFFFF', fontStyle: 'italic', fontWeight: '600' },
+  productList: { gap: 8, marginBottom: 16 },
+  productCard: {
+    padding: 12,
+    borderRadius: 12,
+    backgroundColor: '#E8F5E9',
+    borderWidth: 1,
+    borderColor: 'rgba(123, 155, 140, 0.2)',
+  },
+  productBrand: { fontSize: 14, fontWeight: '600', color: '#2D4A3E' },
+  productName: { fontSize: 12, color: '#6B8B7D', fontStyle: 'italic', marginTop: 2 },
+  productCategory: { fontSize: 10, color: '#6B8B7D', marginTop: 4 },
+  moreProductsText: {
+    fontSize: 12,
+    color: '#6B8B7D',
+    fontStyle: 'italic',
+    textAlign: 'center',
+    marginBottom: 16,
+  },
+  manageInventoryBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: '#5F8575',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+  },
+  manageInventoryBtnText: { fontSize: 14, color: '#FFFFFF', fontStyle: 'italic', fontWeight: '600' },
+  manageRulesBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 12,
+    backgroundColor: '#E879B9',
+    paddingVertical: 16,
+    paddingHorizontal: 24,
+    borderRadius: 20,
+  },
+  manageRulesBtnText: { fontSize: 16, color: '#FFFFFF', fontStyle: 'italic', fontWeight: '600' },
 });
