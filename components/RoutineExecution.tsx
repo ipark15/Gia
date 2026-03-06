@@ -16,6 +16,14 @@ export interface RoutineExecutionProps {
   onSwitchToGentler: () => void;
   onBack?: () => void;
   planId?: string;
+  dermatologistProducts?: Array<{
+    id: string;
+    name: string;
+    brand: string;
+    instructions?: string;
+    timeOfDay: 'am' | 'pm' | 'both';
+    step: string;
+  }>;
 }
 
 function getProductUrl(product: { brand: string; name: string; amazonUrl?: string }): string {
@@ -29,6 +37,7 @@ export function RoutineExecution({
   onSwitchToGentler,
   onBack,
   planId = 'acne-basic',
+  dermatologistProducts,
 }: RoutineExecutionProps) {
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
   const [showProducts, setShowProducts] = useState(false);
@@ -41,7 +50,37 @@ export function RoutineExecution({
     () => getProductRecommendations(planId || 'acne-basic'),
     [planId]
   );
-  const routine = isEvening ? pmRoutine : amRoutine;
+
+  let routine: any[] = [];
+
+  if (dermatologistProducts && dermatologistProducts.length > 0) {
+    routine = dermatologistProducts
+      .filter(
+        (p: {
+          timeOfDay: 'am' | 'pm' | 'both';
+          step: string;
+          name: string;
+          brand: string;
+          instructions?: string;
+        }) =>
+          p.timeOfDay === 'both' ||
+          p.timeOfDay === (isEvening ? 'pm' : 'am')
+      )
+      .map((p) => ({
+        step: p.step,
+        description: p.instructions || `Apply ${p.name}`,
+        products: [
+          {
+            brand: p.brand || '',
+            name: p.name,
+            category: p.step,
+            keyIngredient: p.instructions || 'Prescribed by dermatologist',
+          },
+        ],
+      }));
+  } else {
+    routine = isEvening ? pmRoutine : amRoutine;
+  }
 
   const fallbackRoutine =
     routine.length === 0
@@ -72,8 +111,14 @@ export function RoutineExecution({
     }
   };
 
-  const openProduct = (product: { brand: string; name: string; amazonUrl?: string }) => {
-    Linking.openURL(getProductUrl(product));
+  const openProduct = (product: { brand?: string; name: string; amazonUrl?: string }) => {
+    Linking.openURL(
+      getProductUrl({
+        brand: product.brand ?? '',
+        name: product.name,
+        amazonUrl: product.amazonUrl,
+      })
+    );
   };
 
   if (!currentStep) {
@@ -84,7 +129,10 @@ export function RoutineExecution({
     );
   }
 
-  const productList = currentStep.products?.filter((p) => p.brand !== 'N/A') ?? [];
+  const productList =
+    currentStep.products?.filter(
+      (p: { brand?: string }) => p.brand !== 'N/A' && p.brand !== ''
+    ) ?? [];
 
   return (
     <View style={styles.container}>
@@ -143,39 +191,50 @@ export function RoutineExecution({
 
                 {showProducts && (
                   <View style={styles.productsList}>
-                    {productList.map((product, idx) => (
-                      <View
-                        key={idx}
-                        style={[
-                          styles.productItem,
-                          idx === productList.length - 1 && styles.productItemLast,
-                        ]}
-                      >
-                        <View style={styles.productMain}>
-                          <View style={styles.productInfo}>
-                            <Text style={styles.productBrand}>{product.brand}</Text>
-                            <Text style={styles.productName}>{product.name}</Text>
-                            <Text style={styles.productKey}>
-                              <Text style={styles.productKeyLabel}>Key:</Text> {product.keyIngredient}
-                            </Text>
-                            {product.explanation && (
-                              <Text style={styles.productExplanation}> {product.explanation}</Text>
-                            )}
+                    {productList.map(
+                      (
+                        product: {
+                          brand?: string;
+                          name: string;
+                          keyIngredient?: string;
+                          explanation?: string;
+                          amazonUrl?: string;
+                          note?: string;
+                        },
+                        idx: number
+                      ) => (
+                        <View
+                          key={idx}
+                          style={[
+                            styles.productItem,
+                            idx === productList.length - 1 && styles.productItemLast,
+                          ]}
+                        >
+                          <View style={styles.productMain}>
+                            <View style={styles.productInfo}>
+                              <Text style={styles.productBrand}>{product.brand}</Text>
+                              <Text style={styles.productName}>{product.name}</Text>
+                              <Text style={styles.productKey}>
+                                <Text style={styles.productKeyLabel}>Key:</Text> {product.keyIngredient}
+                              </Text>
+                              {product.explanation && (
+                                <Text style={styles.productExplanation}> {product.explanation}</Text>
+                              )}
+                            </View>
+                            <TouchableOpacity
+                              style={styles.buyButton}
+                              onPress={() => openProduct(product)}
+                              activeOpacity={0.9}
+                            >
+                              <Ionicons name="cart" size={12} color="#FFFFFF" />
+                              <Text style={styles.buyButtonText}>Buy</Text>
+                            </TouchableOpacity>
                           </View>
-                          <TouchableOpacity
-                            style={styles.buyButton}
-                            onPress={() => openProduct(product)}
-                            activeOpacity={0.9}
-                          >
-                            <Ionicons name="cart" size={12} color="#FFFFFF" />
-                            <Text style={styles.buyButtonText}>Buy</Text>
-                          </TouchableOpacity>
+                          {product.note && (
+                            <Text style={styles.productNote}> {product.note}</Text>
+                          )}
                         </View>
-                        {product.note && (
-                          <Text style={styles.productNote}> {product.note}</Text>
-                        )}
-                      </View>
-                    ))}
+                      ))}
                   </View>
                 )}
               </View>

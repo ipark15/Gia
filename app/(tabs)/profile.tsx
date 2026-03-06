@@ -33,11 +33,15 @@ export default function ProfileScreen() {
         onEdit={() => router.push('/(onboarding)/registration')}
         currentStreak={7}
         onManageRules={() => { }}
-        treatmentPlanId="demo-plan"
-        onViewTreatmentPlan={() => { }}
+        treatmentPlanId="acne-basic"
+        onViewTreatmentPlan={() =>
+          router.push({ pathname: '/treatment-plan', params: { planId: 'acne-basic' } })
+        }
         nextDermAppointment="2026-03-15"
         ownedProducts={[]}
-        onOpenInventory={() => { }}
+        onOpenInventory={() =>
+          router.push({ pathname: '/inventory', params: { planId: 'acne-basic' } })
+        }
         accountData={{ name: 'User', email: 'user@example.com', password: '••••••••' }}
         onUpdateAccount={() => { }}
       />

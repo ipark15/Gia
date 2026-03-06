@@ -461,7 +461,7 @@ export function Insights({
                   </View>
                 ))}
                 {Array.from({ length: firstDay }).map((_, i) => (
-                  <View key={`e-${i}`} style={styles.calendarCellEmpty} />
+                  <View key={`e-${i}`} style={[styles.calendarCell, styles.calendarCellEmpty]} />
                 ))}
                 {Array.from({ length: daysInMonth }).map((_, i) => {
                   const day = i + 1;
@@ -542,13 +542,17 @@ export function Insights({
           <View style={styles.chartLegend}>
             <View style={styles.chartLegendItem}>
               <View style={styles.chartLegendDotConsistency} />
-              <Text style={styles.chartLegendTitle}>Routine Consistency</Text>
-              <Text style={styles.chartLegendDesc}>% of prescribed skincare routine completed daily</Text>
+              <View style={styles.chartLegendTextWrap}>
+                <Text style={styles.chartLegendTitle}>Routine Consistency</Text>
+                <Text style={styles.chartLegendDesc}>% of prescribed skincare routine completed daily</Text>
+              </View>
             </View>
-            <View style={styles.chartLegendItem}>
+            <View style={[styles.chartLegendItem, styles.chartLegendItemSatisfaction]}>
               <View style={styles.chartLegendDotSatisfaction} />
-              <Text style={styles.chartLegendTitle}>Skin Satisfaction</Text>
-              <Text style={styles.chartLegendDesc}>Self-reported satisfaction score (1-5 scale)</Text>
+              <View style={styles.chartLegendTextWrap}>
+                <Text style={styles.chartLegendTitle}>Skin Satisfaction</Text>
+                <Text style={styles.chartLegendDesc}>Self-reported satisfaction score (1-5 scale)</Text>
+              </View>
             </View>
           </View>
         </View>
@@ -756,10 +760,10 @@ const styles = StyleSheet.create({
   calendarNavCenter: { alignItems: 'center' },
   calendarMonthTitle: { fontSize: 16, color: '#2D4A3E', fontStyle: 'italic' },
   calendarMonthSubtitle: { fontSize: 11, color: '#6B8B7D', marginTop: 2 },
-  calendarGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
-  calendarDayLabel: { width: '13%', alignItems: 'center', paddingVertical: 6 },
+  calendarGrid: { flexDirection: 'row', flexWrap: 'wrap' },
+  calendarDayLabel: { width: '14.28%', alignItems: 'center', paddingVertical: 6 },
   calendarDayLabelText: { fontSize: 12, color: '#6B8B7D', fontWeight: '600' },
-  calendarCell: { width: '13%', aspectRatio: 1, maxWidth: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  calendarCell: { width: '14.28%', aspectRatio: 1, borderRadius: 12, alignItems: 'center', justifyContent: 'center', marginBottom: 4 },
   calendarCellEmpty: { backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#D8D5CF' },
   calendarCellComplete: { backgroundColor: '#7B9B8C', borderWidth: 1, borderColor: 'transparent' },
   calendarCellPartial: { backgroundColor: '#F49EC4', borderWidth: 1, borderColor: 'transparent' },
@@ -793,10 +797,12 @@ const styles = StyleSheet.create({
   chartSatisfactionText: { fontSize: 11, color: '#F49EC4', fontWeight: '600' },
   chartDayLabel: { fontSize: 11, color: '#6B8B7D', marginTop: 4 },
   chartLegend: { paddingTop: 16, borderTopWidth: 1, borderTopColor: '#D8D5CF', gap: 12 },
-  chartLegendItem: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'flex-start', gap: 10, padding: 12, borderRadius: 12, backgroundColor: '#E8F5E9' },
+  chartLegendItem: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, padding: 12, borderRadius: 12, backgroundColor: '#E8F5E9' },
+  chartLegendItemSatisfaction: { backgroundColor: '#F5E6F0' },
   chartLegendDotConsistency: { width: 12, height: 12, borderRadius: 6, backgroundColor: '#95C98E', marginTop: 2 },
   chartLegendDotSatisfaction: { width: 12, height: 12, borderRadius: 6, backgroundColor: '#F49EC4', marginTop: 2 },
-  chartLegendTitle: { fontSize: 12, color: '#2D4A3E', fontStyle: 'italic', fontWeight: '600', flex: 1 },
+  chartLegendTextWrap: { flex: 1 },
+  chartLegendTitle: { fontSize: 12, color: '#2D4A3E', fontStyle: 'italic', fontWeight: '600' },
   chartLegendDesc: { fontSize: 10, color: '#6B8B7D', marginTop: 2 },
 
   timelineTitle: { fontSize: 12, color: '#6B7370', textTransform: 'uppercase', letterSpacing: 1.2, marginBottom: 16 },

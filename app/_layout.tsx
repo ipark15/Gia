@@ -55,6 +55,8 @@ function RootLayoutNav() {
           <Stack.Screen name="(onboarding)" />
           <Stack.Screen name="(tabs)" />
           <Stack.Screen name="routine-execution" />
+          <Stack.Screen name="treatment-plan" />
+          <Stack.Screen name="inventory" />
         </Stack>
       </RoutineCompletionProvider>
     </ThemeProvider>
