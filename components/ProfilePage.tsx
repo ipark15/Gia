@@ -72,8 +72,8 @@ export function ProfilePage({
   const completionRate =
     completedDays.length > 0
       ? Math.round(
-          (completedDays.filter((d) => d.stepsCompleted === d.totalSteps).length / completedDays.length) * 100
-        )
+        (completedDays.filter((d) => d.stepsCompleted === d.totalSteps).length / completedDays.length) * 100
+      )
       : 0;
 
   const satisfactionLabels: Record<number, string> = {

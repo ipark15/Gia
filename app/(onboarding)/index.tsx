@@ -1,4 +1,5 @@
 import { router } from 'expo-router';
+import { StatusBar } from 'expo-status-bar';
 import React from 'react';
 import {
   Image,
@@ -28,7 +29,8 @@ export default function FrontPage(_props: FrontPageProps) {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top']}>
+      <StatusBar style="dark" backgroundColor="#D4F1F9" />
       <View style={styles.overlay}>
         <View style={styles.content}>
           {/* Logo */}

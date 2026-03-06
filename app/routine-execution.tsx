@@ -1,4 +1,5 @@
 import { router, useLocalSearchParams } from 'expo-router';
+import { StatusBar } from 'expo-status-bar';
 import { useCallback } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { RoutineExecution } from '../components/RoutineExecution';
@@ -27,8 +28,10 @@ export default function RoutineExecutionScreen() {
     router.back();
   };
 
+  const ROUTINE_BG = '#F5F1ED';
   return (
-    <SafeAreaView style={{ flex: 1 }} edges={['top']}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: ROUTINE_BG }} edges={['top']}>
+      <StatusBar style="dark" backgroundColor={ROUTINE_BG} />
       <RoutineExecution
         planId={planId}
         onComplete={handleComplete}

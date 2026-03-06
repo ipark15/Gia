@@ -1,8 +1,11 @@
 import { router } from 'expo-router';
+import { StatusBar } from 'expo-status-bar';
 import React, { useEffect, useState } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { HomeDashboard } from '../../components/HomeDashboard';
 import { useRoutineCompletion } from '../../context/RoutineCompletionContext';
+
+const HOME_BG = '#E8F0DC';
 
 export default function HomeScreen() {
   const userCondition = 'acne';
@@ -38,7 +41,8 @@ export default function HomeScreen() {
   };
 
   return (
-    <SafeAreaView style={{ flex: 1 }} edges={['top']}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: HOME_BG }} edges={['top']}>
+      <StatusBar style="dark" backgroundColor={HOME_BG} />
       <HomeDashboard
         onStartRoutine={handleStartRoutine}
         onActivateGreenhouse={() => { }}

@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import {
+  Modal,
   ScrollView,
   StyleSheet,
   Text,
@@ -8,17 +9,21 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { ExecutiveSummary } from './ExecutiveSummary';
+import { EmergencyHelp } from './EmergencyHelp';
 
 export interface TimelineEntry {
   id: string;
   date: string;
   routineCompleted: boolean;
   flareTags?: string[];
-  mood?: '😌' | '😐' | '😟';
+  mood?: 'happy' | 'neutral' | 'sad';
+  skinFeeling?: number;
   contextTags?: string[];
   photo?: string;
   note?: string;
+  sleepHours?: number;
+  stressLevel?: number;
+  onPeriod?: boolean;
 }
 
 export interface InsightsProps {
@@ -28,37 +33,29 @@ export interface InsightsProps {
   nextDermAppointment?: string;
   onUpdateDermAppointment?: (date: string) => void;
   userCondition?: string;
+  onOpenSettings?: () => void;
+  onViewTreatmentPlan?: () => void;
+  onManageRules?: () => void;
+  completedDays?: Array<{ date: string; stepsCompleted: number; totalSteps: number }>;
+  onboardingSatisfaction?: number;
 }
 
 const MOCK_ENTRIES: TimelineEntry[] = [
-  {
-    id: '1',
-    date: '2026-02-09',
-    routineCompleted: true,
-    mood: '😌',
-    contextTags: ['sleep'],
-    note: 'Skin felt calm today',
-  },
-  {
-    id: '2',
-    date: '2026-02-08',
-    routineCompleted: true,
-    flareTags: ['redness', 'itch'],
-    mood: '😟',
-    contextTags: ['stress', 'weather'],
-  },
-  {
-    id: '3',
-    date: '2026-02-07',
-    routineCompleted: false,
-    mood: '😐',
-    contextTags: ['sleep'],
-    note: 'Missed routine but moisturized',
-  },
+  { id: '1', date: '2026-02-09', routineCompleted: true, mood: 'happy', contextTags: ['sleep'], note: 'Skin felt calm today' },
+  { id: '2', date: '2026-02-08', routineCompleted: true, flareTags: ['redness', 'itch'], mood: 'sad', contextTags: ['stress', 'weather'] },
+  { id: '3', date: '2026-02-07', routineCompleted: false, mood: 'neutral', contextTags: ['sleep'], note: 'Missed routine but moisturized' },
 ];
 
 const SYMPTOM_FILTERS = ['itch', 'redness', 'dryness', 'breakout', 'pain'];
 const CONTEXT_FILTERS = ['sleep', 'stress', 'product change', 'weather', 'period'];
+
+const MOOD_EMOJI: Record<number, string> = { 1: '😢', 2: '😕', 3: '😐', 4: '🙂', 5: '😄' };
+const DAY_LABELS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
+
+function parseLocalDate(dateStr: string): Date {
+  const [y, m, d] = dateStr.split('-').map(Number);
+  return new Date(y, m - 1, d);
+}
 
 export function Insights({
   entries = [],
@@ -67,61 +64,176 @@ export function Insights({
   nextDermAppointment = '',
   onUpdateDermAppointment,
   userCondition = 'acne',
+  onOpenSettings,
+  onViewTreatmentPlan,
+  onManageRules,
+  completedDays = [],
+  onboardingSatisfaction = 3,
 }: InsightsProps) {
   const [showFilters, setShowFilters] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
   const [selectedSymptoms, setSelectedSymptoms] = useState<string[]>([]);
   const [selectedContext, setSelectedContext] = useState<string[]>([]);
-  const [selectedMood, setSelectedMood] = useState<string | null>(null);
+  const [selectedMood, setSelectedMood] = useState<number | null>(null);
   const [showSummary, setShowSummary] = useState(false);
   const [isEditingAppointment, setIsEditingAppointment] = useState(false);
-  const [appointmentDate, setAppointmentDate] = useState(nextDermAppointment);
-  const [showExecutiveSummary, setShowExecutiveSummary] = useState(false);
+  const [appointmentDate, setAppointmentDate] = useState(nextDermAppointment || '');
+  const [showHelpModal, setShowHelpModal] = useState(false);
+  const [currentDate, setCurrentDate] = useState(new Date());
+  const [askExpanded, setAskExpanded] = useState(false);
+  const [askQuestion, setAskQuestion] = useState('');
+  const [chatMessages, setChatMessages] = useState<Array<{ question: string; answer: string }>>([]);
+  const [isRecording, setIsRecording] = useState(false);
+  const [recordingTimer, setRecordingTimer] = useState(0);
+  const [timelineExpanded, setTimelineExpanded] = useState(false);
+  const recordingTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const displayEntries = entries.length > 0 ? entries : MOCK_ENTRIES;
 
   const filteredEntries = useMemo(() => {
-    return displayEntries.filter((entry) => {
-      if (searchQuery) {
-        const q = searchQuery.toLowerCase();
-        const entryDate = new Date(entry.date);
-        const monthDay = entryDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }).toLowerCase();
-        const monthDayLong = entryDate.toLocaleDateString('en-US', { month: 'long', day: 'numeric' }).toLowerCase();
-        const numericDate = entryDate.toLocaleDateString('en-US', { month: 'numeric', day: 'numeric' }).toLowerCase();
-        const yearDate = entryDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }).toLowerCase();
-        const fullDateWithDay = entryDate.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' }).toLowerCase();
-        const noteMatch = entry.note?.toLowerCase().includes(q);
-        const flareMatch = entry.flareTags?.some((t) => t.toLowerCase().includes(q));
-        const contextMatch = entry.contextTags?.some((t) => t.toLowerCase().includes(q));
-        const dateMatch = monthDay.includes(q) || monthDayLong.includes(q) || numericDate.includes(q) || yearDate.includes(q) || fullDateWithDay.includes(q) || entry.date.toLowerCase().includes(q);
-        if (!noteMatch && !flareMatch && !contextMatch && !dateMatch) return false;
-      }
-      if (selectedSymptoms.length > 0) {
-        const hasSymptom = selectedSymptoms.some((s) => entry.flareTags?.some((t) => t.toLowerCase() === s.toLowerCase()));
-        if (!hasSymptom) return false;
-      }
-      if (selectedContext.length > 0) {
-        const hasCtx = selectedContext.some((c) => entry.contextTags?.some((t) => t.toLowerCase() === c.toLowerCase()));
-        if (!hasCtx) return false;
-      }
-      if (selectedMood && entry.mood !== selectedMood) return false;
-      return true;
-    });
-  }, [displayEntries, searchQuery, selectedSymptoms, selectedContext, selectedMood]);
-
-  const daysUntilAppointment = useMemo(() => {
-    if (!appointmentDate) return null;
-    const today = new Date();
-    const appt = new Date(appointmentDate);
-    const diff = Math.ceil((appt.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-    return diff;
-  }, [appointmentDate]);
+    return [...displayEntries]
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+      .filter((entry) => {
+        if (selectedSymptoms.length > 0) {
+          const has = selectedSymptoms.some((s) =>
+            entry.flareTags?.some((t) => t.toLowerCase() === s.toLowerCase())
+          );
+          if (!has) return false;
+        }
+        if (selectedContext.length > 0) {
+          const has = selectedContext.some((c) =>
+            entry.contextTags?.some((t) => t.toLowerCase() === c.toLowerCase())
+          );
+          if (!has) return false;
+        }
+        if (selectedMood != null && entry.skinFeeling !== selectedMood) return false;
+        return true;
+      });
+  }, [displayEntries, selectedSymptoms, selectedContext, selectedMood]);
 
   const toggleFilter = (filter: string, type: 'symptom' | 'context') => {
     if (type === 'symptom') {
-      setSelectedSymptoms((prev) => (prev.includes(filter) ? prev.filter((f) => f !== filter) : [...prev, filter]));
+      setSelectedSymptoms((p) => (p.includes(filter) ? p.filter((f) => f !== filter) : [...p, filter]));
     } else {
-      setSelectedContext((prev) => (prev.includes(filter) ? prev.filter((f) => f !== filter) : [...prev, filter]));
+      setSelectedContext((p) => (p.includes(filter) ? p.filter((f) => f !== filter) : [...p, filter]));
+    }
+  };
+
+  const clearAllFilters = () => {
+    setSelectedSymptoms([]);
+    setSelectedContext([]);
+    setSelectedMood(null);
+  };
+
+  const activeFilterCount = selectedSymptoms.length + selectedContext.length + (selectedMood != null ? 1 : 0);
+
+  const getWeeklyData = () => {
+    const today = new Date();
+    const weekData: Array<{
+      day: string;
+      date: string;
+      consistency: number | null;
+      satisfaction: number | null;
+      routineCompleted: boolean;
+      flareReported: boolean;
+    }> = [];
+    const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    const hasAnyCompleted = completedDays.some((d) => d.stepsCompleted > 0);
+    const hasAnyRealCheckIns = entries.length > 0;
+    const isNewUser = !hasAnyCompleted && !hasAnyRealCheckIns;
+
+    for (let i = 6; i >= 0; i--) {
+      const date = new Date(today);
+      date.setDate(date.getDate() - i);
+      const dateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+      const entriesForDay = displayEntries.filter((e) => e.date === dateStr);
+
+      let completedCount = 0;
+      for (let j = 0; j < 7; j++) {
+        const look = new Date(date);
+        look.setDate(look.getDate() - j);
+        const lookStr = `${look.getFullYear()}-${String(look.getMonth() + 1).padStart(2, '0')}-${String(look.getDate()).padStart(2, '0')}`;
+        const d = completedDays.find((x) => x.date === lookStr);
+        if (d && d.stepsCompleted === d.totalSteps) completedCount++;
+      }
+      const consistency = isNewUser && completedCount === 0 ? 75 : Math.round((completedCount / 7) * 100);
+
+      const skinFeelings = entriesForDay
+        .map((e) => e.skinFeeling)
+        .filter((sf): sf is number => sf != null);
+      let satisfaction: number | null = skinFeelings.length > 0 ? skinFeelings[skinFeelings.length - 1] : null;
+      if (satisfaction == null && isNewUser && onboardingSatisfaction) satisfaction = onboardingSatisfaction;
+
+      weekData.push({
+        day: dayNames[date.getDay()],
+        date: dateStr,
+        consistency,
+        satisfaction,
+        routineCompleted: !!completedDays.find((d) => d.date === dateStr && d.stepsCompleted === d.totalSteps),
+        flareReported: entriesForDay.some((e) => e.flareTags && e.flareTags.length > 0),
+      });
+    }
+    return weekData;
+  };
+
+  const weeklyData = useMemo(() => getWeeklyData(), [completedDays, displayEntries, entries.length, onboardingSatisfaction]);
+  const hasRealData = weeklyData.some((d) => (d.consistency != null && d.consistency > 0) || d.satisfaction != null);
+  const displayWeeklyData = hasRealData
+    ? weeklyData
+    : [
+      { day: 'Mon', date: '2026-03-03', consistency: 85, satisfaction: 4, routineCompleted: true, flareReported: false },
+      { day: 'Tue', date: '2026-03-04', consistency: 95, satisfaction: 5, routineCompleted: true, flareReported: false },
+      { day: 'Wed', date: '2026-03-05', consistency: 78, satisfaction: 3, routineCompleted: false, flareReported: true },
+      { day: 'Thu', date: '2026-03-06', consistency: 88, satisfaction: 4, routineCompleted: true, flareReported: false },
+      { day: 'Fri', date: '2026-03-07', consistency: 96, satisfaction: 5, routineCompleted: true, flareReported: false },
+      { day: 'Sat', date: '2026-03-08', consistency: 70, satisfaction: 3, routineCompleted: false, flareReported: false },
+      { day: 'Sun', date: '2026-03-09', consistency: 82, satisfaction: 4, routineCompleted: true, flareReported: false },
+    ];
+
+  const generateProgressAnswer = (question: string): string => {
+    const q = question.toLowerCase();
+    if (q.includes('progress') || q.includes('doing') || q.includes('going')) return "Looking good! 7 routines this month. Your skin's calmer when you stick with it. Keep going.";
+    if (q.includes('pattern') || q.includes('notice') || q.includes('trend')) return "Here's what I see: stress and weather changes trigger flare-ups. Better sleep means better skin. Simple as that.";
+    if (q.includes('month') || q.includes('february') || q.includes('week')) return "This month: 7 routines, 3 flare days. You're showing up way more than before. Nice work.";
+    if (q.includes('improve') || q.includes('better') || q.includes('help')) return "Stay consistent with your routine. Manage stress when you can. Your skin responds well to regular care.";
+    if (q.includes('flare') || q.includes('breakout')) return "3 flare days this month. Usually after stress or weather changes. Now you know what to watch for.";
+    if (q.includes('sleep') || q.includes('stress')) return "Sleep and stress are major for you. Better rest equals calmer skin. Your data proves it.";
+    return "You're building solid habits. Keep logging your check-ins. The patterns will keep getting clearer.";
+  };
+
+  const handleAskQuestion = (q: string) => {
+    if (!q.trim()) return;
+    const answer = generateProgressAnswer(q);
+    setChatMessages([{ question: q, answer }]);
+    setAskQuestion('');
+  };
+
+  const handleVoiceRecording = () => {
+    if (isRecording) {
+      setIsRecording(false);
+      setRecordingTimer(0);
+      if (recordingTimerRef.current) {
+        clearInterval(recordingTimerRef.current);
+        recordingTimerRef.current = null;
+      }
+      const questions = ['how is my progress going?', 'what patterns do you notice?', 'how has my skin been this month?', 'what helps my skin most?', 'when do my flares happen?'];
+      handleAskQuestion(questions[Math.floor(Math.random() * questions.length)]);
+    } else {
+      setIsRecording(true);
+      setRecordingTimer(0);
+      let t = 0;
+      recordingTimerRef.current = setInterval(() => {
+        t += 1;
+        if (t > 5) {
+          if (recordingTimerRef.current) clearInterval(recordingTimerRef.current);
+          recordingTimerRef.current = null;
+          setIsRecording(false);
+          setRecordingTimer(0);
+          const questions = ['how is my progress going?', 'what patterns do you notice?'];
+          handleAskQuestion(questions[Math.floor(Math.random() * questions.length)]);
+          return;
+        }
+        setRecordingTimer(t);
+      }, 1000);
     }
   };
 
@@ -132,132 +244,146 @@ export function Insights({
     }
   };
 
-  const clearAllFilters = () => {
-    setSearchQuery('');
-    setSelectedSymptoms([]);
-    setSelectedContext([]);
-    setSelectedMood(null);
+  const prevMonth = () => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1));
+  const nextMonth = () => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1));
+
+  const year = currentDate.getFullYear();
+  const month = currentDate.getMonth();
+  const firstDay = new Date(year, month, 1).getDay();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const today = new Date();
+  const isCurrentMonth = today.getMonth() === month && today.getFullYear() === year;
+
+  const getCompletionForDate = (day: number) => {
+    const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+    return completedDays.find((d) => d.date === dateStr);
   };
 
-  const activeFilterCount = selectedSymptoms.length + selectedContext.length + (selectedMood ? 1 : 0);
+  let apptDay: number | null = null;
+  let apptMonth: number | null = null;
+  let apptYear: number | null = null;
+  if (appointmentDate) {
+    const [y, m, d] = appointmentDate.split('-').map(Number);
+    apptYear = y;
+    apptMonth = m - 1;
+    apptDay = d;
+  }
+
+  const displayedTimelineEntries = timelineExpanded ? filteredEntries : filteredEntries.slice(0, 4);
+  const moodLabel = (m: 'happy' | 'neutral' | 'sad') => (m === 'happy' ? 'feeling good about skin' : m === 'neutral' ? 'feeling okay' : 'feeling discouraged');
 
   return (
     <View style={styles.container}>
-      <ScrollView
-        style={styles.scroll}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
+      <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         {/* Header */}
         <View style={styles.header}>
-          <View style={styles.headerCenter}>
-            <Text style={styles.title}>Insights</Text>
-            <Text style={styles.subtitle}>Your skin history — searchable, reflective, yours</Text>
+          <View style={styles.headerSpacer} />
+          <View style={styles.headerIconWrap}>
+            <Ionicons name="document-text" size={40} color="#FFFFFF" />
           </View>
           <View style={styles.headerActions}>
-            <TouchableOpacity style={styles.iconBtn} onPress={() => { }}>
-              <Ionicons name="help-circle-outline" size={24} color="#7B9B8C" />
+            <TouchableOpacity style={styles.iconBtn} onPress={() => setShowHelpModal(true)} accessibilityLabel="Help">
+              <Ionicons name="help-circle-outline" size={20} color="#7B9B8C" />
             </TouchableOpacity>
-            {onCustomizeRoutine && (
-              <TouchableOpacity style={styles.iconBtn} onPress={onCustomizeRoutine}>
-                <Ionicons name="settings-outline" size={24} color="#7B9B8C" />
+            {onManageRules && (
+              <TouchableOpacity style={styles.iconBtn} onPress={onManageRules} accessibilityLabel="Settings">
+                <Ionicons name="settings-outline" size={20} color="#7B9B8C" />
               </TouchableOpacity>
             )}
           </View>
         </View>
+        <Text style={styles.title}>Insights</Text>
+        <Text style={styles.subtitle}>Monitor your journey and gain insights</Text>
 
-        {/* Search */}
-        <View style={styles.searchWrap}>
-          <Ionicons name="search-outline" size={20} color="#6B7370" style={styles.searchIcon} />
-          <TextInput
-            style={styles.searchInput}
-            placeholder="Search notes, tags, dates..."
-            placeholderTextColor="#8A9088"
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-          />
-        </View>
+        {showHelpModal && <EmergencyHelp onClose={() => setShowHelpModal(false)} />}
 
-        {/* Derm appointment */}
-        {hasDermatologistPlan && (
-          <View style={styles.section}>
-            {!isEditingAppointment ? (
-              <View style={[styles.apptCard, daysUntilAppointment !== null && daysUntilAppointment <= 7 && daysUntilAppointment >= 0 && styles.apptCardHighlight]}>
-                <View style={styles.apptRow}>
-                  <Ionicons name="calendar-outline" size={18} color="#5F8575" />
-                  <Text style={styles.apptLabel}>
-                    next dermatology appt:{' '}
-                    {appointmentDate ? (
-                      <Text style={styles.apptValue}>
-                        {new Date(appointmentDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                        {daysUntilAppointment !== null && daysUntilAppointment >= 0 && daysUntilAppointment <= 7 && (
-                          <Text style={styles.apptDays}>
-                            {' '}({daysUntilAppointment === 0 ? 'today!' : daysUntilAppointment === 1 ? 'tomorrow' : `${daysUntilAppointment}d`})
-                          </Text>
-                        )}
-                      </Text>
-                    ) : (
-                      <Text style={styles.apptMuted}>not set</Text>
-                    )}
-                  </Text>
-                </View>
-                <TouchableOpacity onPress={() => setIsEditingAppointment(true)} style={styles.editBtn}>
-                  <Ionicons name="create-outline" size={16} color="#6B7370" />
-                </TouchableOpacity>
-              </View>
-            ) : (
-              <View style={styles.apptEditCard}>
-                <TextInput
-                  style={styles.dateInput}
-                  value={appointmentDate}
-                  onChangeText={setAppointmentDate}
-                  placeholder="YYYY-MM-DD"
-                  placeholderTextColor="#8A9088"
-                />
-                <TouchableOpacity style={[styles.saveApptBtn, !appointmentDate && styles.saveApptBtnDisabled]} onPress={handleSaveAppointment} disabled={!appointmentDate}>
-                  <Ionicons name="checkmark" size={18} color="#FFFFFF" />
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.cancelApptBtn} onPress={() => { setAppointmentDate(nextDermAppointment); setIsEditingAppointment(false); }}>
-                  <Ionicons name="close" size={18} color="#6B7370" />
-                </TouchableOpacity>
-              </View>
-            )}
+        {/* Ask Gia */}
+        <TouchableOpacity style={styles.askGiaBtn} onPress={() => setAskExpanded(true)} activeOpacity={0.9}>
+          <View style={styles.askGiaIconWrap}>
+            <Ionicons name="mic" size={24} color="#FFFFFF" />
           </View>
+          <View style={styles.askGiaTextWrap}>
+            <Text style={styles.askGiaTitle}>Ask Gia</Text>
+            <Text style={styles.askGiaSubtitle}>Get AI insights about your skin journey</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={20} color="rgba(255,255,255,0.8)" />
+        </TouchableOpacity>
+
+        {/* Ask Gia Modal */}
+        {askExpanded && (
+          <Modal visible transparent animationType="slide">
+            <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => { setAskExpanded(false); setAskQuestion(''); setChatMessages([]); }}>
+              <TouchableOpacity activeOpacity={1} onPress={(e) => e.stopPropagation()} style={styles.modalContentWrap}>
+                <View style={styles.askModalCard}>
+                  <View style={styles.askModalHeader}>
+                    <View style={styles.askModalHeaderLeft}>
+                      <View style={styles.askModalHeaderIcon}>
+                        <Ionicons name="help-circle-outline" size={20} color="#5F8575" />
+                      </View>
+                      <View>
+                        <Text style={styles.askModalTitle}>Ask Gia</Text>
+                        <Text style={styles.askModalSubtitle}>AI-powered progress insights</Text>
+                      </View>
+                    </View>
+                    <TouchableOpacity onPress={() => { setAskExpanded(false); setAskQuestion(''); setChatMessages([]); }} style={styles.askModalClose}>
+                      <Ionicons name="close" size={20} color="#6B8B7D" />
+                    </TouchableOpacity>
+                  </View>
+                  <ScrollView style={styles.askModalBody} showsVerticalScrollIndicator={false}>
+                    <Text style={styles.commonQuestionsLabel}>common questions</Text>
+                    <TouchableOpacity style={styles.commonQuestionBtn} onPress={() => handleAskQuestion('how is my progress going?')}>
+                      <Text style={styles.commonQuestionText}>how is my progress going?</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={styles.commonQuestionBtn} onPress={() => handleAskQuestion('what patterns do you notice?')}>
+                      <Text style={styles.commonQuestionText}>what patterns do you notice?</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={styles.commonQuestionBtn} onPress={() => handleAskQuestion('how has my skin been this month?')}>
+                      <Text style={styles.commonQuestionText}>how has my skin been this month?</Text>
+                    </TouchableOpacity>
+                    <TextInput
+                      style={styles.askInput}
+                      value={askQuestion}
+                      onChangeText={setAskQuestion}
+                      placeholder="or ask your own question..."
+                      placeholderTextColor="#8A9088"
+                    />
+                    <TouchableOpacity style={styles.askSubmitBtn} onPress={() => handleAskQuestion(askQuestion)} activeOpacity={0.9}>
+                      <Text style={styles.askSubmitText}>Ask Gia</Text>
+                    </TouchableOpacity>
+                    <Text style={styles.askDisclaimer}>*American Academy of Dermatology sourced answers</Text>
+                    {chatMessages.length > 0 && (
+                      <View style={styles.chatBlock}>
+                        <Text style={styles.chatBlockLabel}>insights:</Text>
+                        {chatMessages.map((msg, i) => (
+                          <View key={i} style={styles.chatBubble}>
+                            <Text style={styles.chatQuestion}>Q: {msg.question}</Text>
+                            <Text style={styles.chatAnswer}>A: {msg.answer}</Text>
+                          </View>
+                        ))}
+                      </View>
+                    )}
+                  </ScrollView>
+                </View>
+              </TouchableOpacity>
+            </TouchableOpacity>
+          </Modal>
         )}
 
-        {/* Executive summary button — opens Executive Summary modal when tapped */}
-        <TouchableOpacity style={styles.execSummaryBtn} onPress={() => setShowExecutiveSummary(true)} activeOpacity={0.85}>
-          <View style={styles.execSummaryIcon}>
-            <Ionicons name="document-text-outline" size={20} color="#FFFFFF" />
-          </View>
-          <Text style={styles.execSummaryText}>generate provider summary</Text>
-        </TouchableOpacity>
-
-        {/* Filters toggle */}
+        {/* Filters */}
         <TouchableOpacity style={styles.filtersToggle} onPress={() => setShowFilters(!showFilters)} activeOpacity={0.85}>
           <View style={styles.filtersToggleLeft}>
-            <Ionicons name="filter-outline" size={20} color="#7B9B8C" />
+            <Ionicons name="filter-outline" size={18} color="#7B9B8C" />
             <Text style={styles.filtersToggleText}>Filters</Text>
-            {activeFilterCount > 0 && (
-              <View style={styles.filterBadge}>
-                <Text style={styles.filterBadgeText}>{activeFilterCount}</Text>
-              </View>
-            )}
           </View>
-          <Ionicons name={showFilters ? 'chevron-up' : 'chevron-down'} size={20} color="#6B7370" />
+          <Ionicons name={showFilters ? 'chevron-up' : 'chevron-down'} size={18} color="#6B7370" />
         </TouchableOpacity>
 
-        {/* Filters panel */}
         {showFilters && (
           <View style={styles.filtersPanel}>
             <Text style={styles.filterSectionLabel}>Symptoms</Text>
             <View style={styles.tagRow}>
               {SYMPTOM_FILTERS.map((s) => (
-                <TouchableOpacity
-                  key={s}
-                  style={[styles.filterTag, selectedSymptoms.includes(s) && styles.filterTagActive]}
-                  onPress={() => toggleFilter(s, 'symptom')}
-                >
+                <TouchableOpacity key={s} style={[styles.filterTag, selectedSymptoms.includes(s) && styles.filterTagActive]} onPress={() => toggleFilter(s, 'symptom')}>
                   <Text style={[styles.filterTagText, selectedSymptoms.includes(s) && styles.filterTagTextActive]}>{s}</Text>
                 </TouchableOpacity>
               ))}
@@ -265,104 +391,173 @@ export function Insights({
             <Text style={styles.filterSectionLabel}>Context</Text>
             <View style={styles.tagRow}>
               {CONTEXT_FILTERS.map((c) => (
-                <TouchableOpacity
-                  key={c}
-                  style={[styles.filterTag, selectedContext.includes(c) && styles.filterTagActive]}
-                  onPress={() => toggleFilter(c, 'context')}
-                >
+                <TouchableOpacity key={c} style={[styles.filterTag, selectedContext.includes(c) && styles.filterTagActive]} onPress={() => toggleFilter(c, 'context')}>
                   <Text style={[styles.filterTagText, selectedContext.includes(c) && styles.filterTagTextActive]}>{c}</Text>
                 </TouchableOpacity>
               ))}
             </View>
             <Text style={styles.filterSectionLabel}>Mood</Text>
             <View style={styles.moodRow}>
-              {(['😌', '😐', '😟'] as const).map((mood) => (
+              {[1, 2, 3, 4, 5].map((v) => (
                 <TouchableOpacity
-                  key={mood}
-                  style={[styles.moodBtn, selectedMood === mood && styles.moodBtnActive]}
-                  onPress={() => setSelectedMood(selectedMood === mood ? null : mood)}
+                  key={v}
+                  style={[styles.moodCircleBtn, selectedMood === v && styles.moodCircleBtnActive]}
+                  onPress={() => setSelectedMood(selectedMood === v ? null : v)}
                 >
-                  <Text style={styles.moodEmoji}>{mood}</Text>
+                  <Text style={styles.moodCircleEmoji}>{MOOD_EMOJI[v]}</Text>
                 </TouchableOpacity>
               ))}
             </View>
-            {activeFilterCount > 0 && (
-              <TouchableOpacity onPress={clearAllFilters}>
+            <Text style={styles.moodScaleLabel}>not satisfied</Text>
+            <Text style={[styles.moodScaleLabel, styles.moodScaleLabelRight]}>very satisfied</Text>
+            {(selectedSymptoms.length > 0 || selectedContext.length > 0 || selectedMood != null) && (
+              <TouchableOpacity onPress={clearAllFilters} style={styles.clearFiltersBtn}>
                 <Text style={styles.clearFiltersText}>Clear all filters</Text>
               </TouchableOpacity>
             )}
           </View>
         )}
 
-        {/* Pattern insight */}
-        <View style={styles.patternBox}>
-          <Text style={styles.patternTitle}>Pattern noticed</Text>
-          <Text style={styles.patternText}>
-            Your skin tends to feel calmer on days when you complete your routine and get good sleep.
-          </Text>
-        </View>
-
-        {/* Monthly summary toggle */}
+        {/* View monthly summary toggle */}
         <TouchableOpacity style={styles.summaryToggle} onPress={() => setShowSummary(!showSummary)} activeOpacity={0.85}>
-          <Text style={styles.summaryToggleText}>{showSummary ? 'Hide summary' : 'View monthly summary'}</Text>
+          <View style={styles.summaryToggleInner}>
+            <View style={styles.summaryToggleIcon}>
+              <Ionicons name="calendar-outline" size={18} color="#FFFFFF" />
+            </View>
+            <Text style={styles.summaryToggleText}>{showSummary ? 'Hide monthly summary' : 'View monthly summary'}</Text>
+          </View>
         </TouchableOpacity>
 
         {showSummary && (
           <View style={styles.monthlySummary}>
-            <Text style={styles.monthlySummaryTitle}>February summary</Text>
+            <Text style={styles.monthlySummaryTitle}>Summary</Text>
+            <View style={styles.statsGrid}>
+              <View style={styles.summaryStatBox}>
+                <Text style={styles.summaryStatValue}>9</Text>
+                <Text style={styles.summaryStatLabel}>routines completed</Text>
+              </View>
+              <View style={[styles.summaryStatBox, styles.summaryStatBoxFlare]}>
+                <Text style={styles.summaryStatValueFlare}>3</Text>
+                <Text style={styles.summaryStatLabelFlare}>flare days logged</Text>
+              </View>
+            </View>
             <View style={styles.calendarCard}>
-              <Text style={styles.calendarMonth}>February 2026</Text>
-              <Text style={styles.calendarHint}>Days you completed your routine</Text>
+              <View style={styles.calendarNav}>
+                <TouchableOpacity onPress={prevMonth} style={styles.calendarNavBtn}>
+                  <Ionicons name="chevron-back" size={20} color="#7B9B8C" />
+                </TouchableOpacity>
+                <View style={styles.calendarNavCenter}>
+                  <Text style={styles.calendarMonthTitle}>{currentDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' }).toLowerCase()}</Text>
+                  <Text style={styles.calendarMonthSubtitle}>your routine calendar</Text>
+                </View>
+                <TouchableOpacity onPress={nextMonth} style={styles.calendarNavBtn}>
+                  <Ionicons name="chevron-forward" size={20} color="#7B9B8C" />
+                </TouchableOpacity>
+              </View>
               <View style={styles.calendarGrid}>
-                {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((d, i) => (
+                {DAY_LABELS.map((d, i) => (
                   <View key={i} style={styles.calendarDayLabel}>
                     <Text style={styles.calendarDayLabelText}>{d}</Text>
                   </View>
                 ))}
-                {Array.from({ length: 28 }).map((_, i) => (
-                  <View
-                    key={i}
-                    style={[
-                      styles.calendarCell,
-                      [1, 2, 3, 5, 6, 8, 10, 12, 13].includes(i + 1) ? styles.calendarCellDone : styles.calendarCellEmpty,
-                    ]}
-                  >
-                    <Text style={styles.calendarCellText}>{i + 1}</Text>
-                  </View>
+                {Array.from({ length: firstDay }).map((_, i) => (
+                  <View key={`e-${i}`} style={styles.calendarCellEmpty} />
                 ))}
+                {Array.from({ length: daysInMonth }).map((_, i) => {
+                  const day = i + 1;
+                  const comp = getCompletionForDate(day);
+                  const isToday = isCurrentMonth && day === today.getDate();
+                  const hasAppointment = apptDay === day && apptMonth === month && apptYear === year;
+                  let cellStyle = styles.calendarCellEmpty;
+                  let textStyle = styles.calendarCellTextMuted;
+                  if (comp) {
+                    if (comp.stepsCompleted === comp.totalSteps) {
+                      cellStyle = styles.calendarCellComplete;
+                      textStyle = styles.calendarCellTextWhite;
+                    } else if (comp.stepsCompleted > 0) {
+                      cellStyle = styles.calendarCellPartial;
+                      textStyle = styles.calendarCellTextWhite;
+                    } else {
+                      cellStyle = styles.calendarCellMissed;
+                      textStyle = styles.calendarCellTextBrown;
+                    }
+                  }
+                  return (
+                    <View key={day} style={[styles.calendarCell, cellStyle, isToday && styles.calendarCellToday]}>
+                      <Text style={textStyle}>{day}</Text>
+                      {hasAppointment && <View style={styles.calendarApptDot} />}
+                    </View>
+                  );
+                })}
               </View>
               <View style={styles.legendRow}>
                 <View style={styles.legendItem}>
-                  <View style={[styles.legendDot, styles.legendDotDone]} />
-                  <Text style={styles.legendText}>Routine completed</Text>
+                  <View style={[styles.legendDot, styles.legendDotComplete]} />
+                  <Text style={styles.legendText}>completed</Text>
                 </View>
                 <View style={styles.legendItem}>
-                  <View style={[styles.legendDot, styles.legendDotEmpty]} />
-                  <Text style={styles.legendText}>No routine</Text>
+                  <View style={[styles.legendDot, styles.legendDotPartial]} />
+                  <Text style={styles.legendText}>partial</Text>
+                </View>
+                <View style={styles.legendItem}>
+                  <View style={[styles.legendDot, styles.legendDotMissed]} />
+                  <Text style={styles.legendText}>missed</Text>
+                </View>
+                <View style={styles.legendItem}>
+                  <View style={styles.legendDotAppt} />
+                  <Text style={styles.legendText}>appointment</Text>
                 </View>
               </View>
             </View>
-            <View style={styles.statsRow}>
-              <View style={styles.statBox}>
-                <Text style={styles.statNumber}>7</Text>
-                <Text style={styles.statLabel}>Routines completed</Text>
-              </View>
-              <View style={styles.statBox}>
-                <Text style={styles.statNumber}>3</Text>
-                <Text style={styles.statLabel}>Flare days logged</Text>
-              </View>
+            <View style={styles.encouragingBox}>
+              <Text style={styles.encouragingText}>This month, you showed up more often than not. That matters.</Text>
             </View>
-            <Text style={styles.monthlySummaryFooter}>This month, you showed up more often than not. That matters.</Text>
           </View>
         )}
+
+        {/* Weekly Overview */}
+        <View style={styles.weeklyCard}>
+          <View style={styles.weeklyHeader}>
+            <View>
+              <Text style={styles.weeklyTitle}>Weekly Overview</Text>
+              <Text style={styles.weeklySubtitle}>Track your consistency and skin satisfaction</Text>
+            </View>
+            <TouchableOpacity style={styles.weeklyInfoBtn}>
+              <Ionicons name="help-circle-outline" size={18} color="#7B9B8C" />
+            </TouchableOpacity>
+          </View>
+          <View style={styles.chartRow}>
+            {displayWeeklyData.map((d, i) => (
+              <View key={i} style={styles.chartCol}>
+                <View style={styles.chartBarWrap}>
+                  <View style={[styles.chartBarConsistency, { height: `${(d.consistency ?? 0) / 100 * 120}%` }]} />
+                </View>
+                <View style={styles.chartSatisfactionWrap}>
+                  <Text style={styles.chartSatisfactionText}>{d.satisfaction ?? '—'}</Text>
+                </View>
+                <Text style={styles.chartDayLabel}>{d.day}</Text>
+              </View>
+            ))}
+          </View>
+          <View style={styles.chartLegend}>
+            <View style={styles.chartLegendItem}>
+              <View style={styles.chartLegendDotConsistency} />
+              <Text style={styles.chartLegendTitle}>Routine Consistency</Text>
+              <Text style={styles.chartLegendDesc}>% of prescribed skincare routine completed daily</Text>
+            </View>
+            <View style={styles.chartLegendItem}>
+              <View style={styles.chartLegendDotSatisfaction} />
+              <Text style={styles.chartLegendTitle}>Skin Satisfaction</Text>
+              <Text style={styles.chartLegendDesc}>Self-reported satisfaction score (1-5 scale)</Text>
+            </View>
+          </View>
+        </View>
 
         {/* Timeline */}
         <Text style={styles.timelineTitle}>Timeline</Text>
         {filteredEntries.length === 0 ? (
           <View style={styles.emptyState}>
-            <Text style={styles.emptyTitle}>
-              {displayEntries.length === 0 ? 'No entries yet' : 'No entries match your filters'}
-            </Text>
+            <Text style={styles.emptyTitle}>{displayEntries.length === 0 ? 'No entries yet' : 'No entries match your filters'}</Text>
             <Text style={styles.emptySubtitle}>
               {displayEntries.length === 0 ? 'Your check-ins will appear here as a searchable timeline' : 'Try adjusting your search or filters'}
             </Text>
@@ -373,177 +568,270 @@ export function Insights({
             )}
           </View>
         ) : (
-          <View style={styles.timelineList}>
-            {filteredEntries.map((entry) => (
-              <View key={entry.id} style={styles.timelineCard}>
-                <View style={styles.timelineCardHeader}>
-                  <Text style={styles.timelineDate}>
-                    {new Date(entry.date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
-                  </Text>
-                  <Text style={styles.timelineRoutine}>
-                    {entry.routineCompleted ? '✓ Routine completed' : 'No routine'}
-                  </Text>
+          <>
+            {displayedTimelineEntries.map((entry, index) => (
+              <View key={entry.id} style={styles.timelineItem}>
+                {index < displayedTimelineEntries.length - 1 && <View style={styles.timelineConnector} />}
+                <View style={[styles.timelineDot, entry.routineCompleted && styles.timelineDotComplete]}>
+                  {entry.routineCompleted && <Ionicons name="checkmark" size={10} color="#FFFFFF" />}
                 </View>
-                {entry.mood && <Text style={styles.timelineMood}>{entry.mood}</Text>}
-                {entry.flareTags && entry.flareTags.length > 0 && (
-                  <View style={styles.tagRow}>
-                    {entry.flareTags.map((tag) => (
-                      <View key={tag} style={styles.flareTag}>
-                        <Text style={styles.flareTagText}>{tag}</Text>
+                <View style={styles.timelineCard}>
+                  <View style={styles.timelineCardHeader}>
+                    <Text style={styles.timelineDate}>
+                      {parseLocalDate(entry.date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
+                    </Text>
+                    {entry.routineCompleted && (
+                      <View style={styles.timelineRoutineBadge}>
+                        <Ionicons name="checkmark" size={10} color="#FFFFFF" />
+                        <Text style={styles.timelineRoutineBadgeText}>routine complete</Text>
                       </View>
-                    ))}
+                    )}
                   </View>
-                )}
-                {entry.contextTags && entry.contextTags.length > 0 && (
-                  <View style={styles.tagRow}>
-                    {entry.contextTags.map((tag) => (
-                      <View key={tag} style={styles.contextTag}>
-                        <Text style={styles.contextTagText}>{tag}</Text>
+                  {entry.mood && (
+                    <View style={styles.timelineMoodRow}>
+                      <View style={styles.timelineMoodIcon}>
+                        <Text style={styles.timelineMoodEmoji}>{entry.mood === 'happy' ? '😄' : entry.mood === 'neutral' ? '😐' : '😢'}</Text>
                       </View>
-                    ))}
-                  </View>
-                )}
-                {entry.note && (
-                  <View style={styles.noteRow}>
-                    <Ionicons name="document-text-outline" size={16} color="#7B9B8C" />
-                    <Text style={styles.noteText}>{entry.note}</Text>
-                  </View>
-                )}
-                {entry.photo && (
-                  <View style={styles.photoRow}>
-                    <Ionicons name="camera-outline" size={16} color="#7B9B8C" />
-                    <Text style={styles.photoText}>Photo attached</Text>
-                  </View>
-                )}
+                      <Text style={styles.timelineMoodLabel}>{moodLabel(entry.mood)}</Text>
+                    </View>
+                  )}
+                  {entry.flareTags && entry.flareTags.length > 0 && (
+                    <View style={styles.timelineTagsSection}>
+                      <Text style={styles.timelineTagsLabel}>Symptoms</Text>
+                      <View style={styles.tagRow}>
+                        {entry.flareTags.map((tag) => (
+                          <View key={tag} style={styles.flareTag}>
+                            <Text style={styles.flareTagText}>{tag}</Text>
+                          </View>
+                        ))}
+                      </View>
+                    </View>
+                  )}
+                  {entry.contextTags && entry.contextTags.length > 0 && (
+                    <View style={styles.timelineTagsSection}>
+                      <Text style={styles.timelineTagsLabel}>Context</Text>
+                      <View style={styles.tagRow}>
+                        {entry.contextTags.map((tag) => (
+                          <View key={tag} style={styles.contextTag}>
+                            <Text style={styles.contextTagText}>{tag}</Text>
+                          </View>
+                        ))}
+                      </View>
+                    </View>
+                  )}
+                  {(entry.sleepHours != null || entry.stressLevel != null || entry.onPeriod) && (
+                    <View style={styles.wearablesRow}>
+                      <Text style={styles.timelineTagsLabel}>Health data</Text>
+                      <View style={styles.tagRow}>
+                        {entry.sleepHours != null && (
+                          <View style={styles.wearableChip}>
+                            <Text style={styles.wearableEmoji}>💤</Text>
+                            <Text style={styles.wearableText}>{entry.sleepHours}h sleep</Text>
+                          </View>
+                        )}
+                        {entry.stressLevel != null && (
+                          <View style={styles.wearableChip}>
+                            <Text style={styles.wearableText}>stress {entry.stressLevel}/5</Text>
+                          </View>
+                        )}
+                        {entry.onPeriod && (
+                          <View style={styles.wearableChipFlare}>
+                            <Text style={styles.wearableEmoji}>🩸</Text>
+                            <Text style={styles.wearableTextFlare}>on period</Text>
+                          </View>
+                        )}
+                      </View>
+                    </View>
+                  )}
+                  {entry.note && (
+                    <View style={styles.noteRow}>
+                      <Ionicons name="document-text-outline" size={14} color="#7B9B8C" />
+                      <Text style={styles.noteText}>{entry.note}</Text>
+                    </View>
+                  )}
+                  {entry.photo && (
+                    <View style={styles.photoRow}>
+                      <View style={styles.photoIconWrap}>
+                        <Ionicons name="camera-outline" size={14} color="#7B9B8C" />
+                      </View>
+                      <Text style={styles.photoText}>photo attached</Text>
+                    </View>
+                  )}
+                </View>
               </View>
             ))}
-          </View>
+            {filteredEntries.length > 4 && (
+              <TouchableOpacity style={styles.showMoreBtn} onPress={() => setTimelineExpanded(!timelineExpanded)} activeOpacity={0.85}>
+                <Text style={styles.showMoreText}>
+                  {timelineExpanded ? 'Show Less' : `Show ${filteredEntries.length - 4} More Entries`}
+                </Text>
+                <Ionicons name={timelineExpanded ? 'chevron-up' : 'chevron-down'} size={20} color="#5F8575" />
+              </TouchableOpacity>
+            )}
+          </>
         )}
 
-        <View style={{ height: 32 }} />
+        <View style={{ height: 48 }} />
       </ScrollView>
-
-      {showExecutiveSummary && (
-        <ExecutiveSummary
-          onClose={() => setShowExecutiveSummary(false)}
-          condition={userCondition}
-          startDate="2026-01-01"
-          nextAppointment={appointmentDate || undefined}
-        />
-      )}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F5F1ED' },
+  container: { flex: 1, backgroundColor: '#E8EDE8' },
   scroll: { flex: 1 },
-  scrollContent: { paddingHorizontal: 24, paddingTop: 24, paddingBottom: 120 },
-  header: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 24 },
-  headerCenter: { flex: 1, alignItems: 'center' },
-  title: { fontSize: 22, fontWeight: '600', color: '#7B9B8C', marginBottom: 4 },
-  subtitle: { fontSize: 14, color: '#6B7370', textAlign: 'center' },
-  headerActions: { flexDirection: 'row', gap: 8 },
-  iconBtn: { padding: 6 },
+  scrollContent: { paddingHorizontal: 24, paddingTop: 24, paddingBottom: 120, maxWidth: 672, alignSelf: 'center', width: '100%' },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 },
+  headerSpacer: { flex: 1 },
+  headerIconWrap: { width: 80, height: 80, borderRadius: 40, backgroundColor: '#7B9B8C', alignItems: 'center', justifyContent: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.15, shadowRadius: 8, elevation: 4 },
+  headerActions: { flex: 1, flexDirection: 'row', justifyContent: 'flex-end', gap: 8 },
+  iconBtn: { padding: 10, borderRadius: 999 },
+  title: { fontSize: 24, color: '#2D4A3E', fontStyle: 'italic', textAlign: 'center', marginBottom: 4 },
+  subtitle: { fontSize: 14, color: '#6B8B7D', textAlign: 'center', marginBottom: 24 },
 
-  searchWrap: { position: 'relative', marginBottom: 20 },
-  searchIcon: { position: 'absolute', left: 16, top: 16, zIndex: 1 },
-  searchInput: {
-    height: 48,
-    paddingLeft: 48,
-    paddingRight: 16,
-    borderRadius: 20,
-    borderWidth: 2,
-    borderColor: '#D8D5CF',
-    backgroundColor: '#FFFFFF',
-    fontSize: 15,
-    color: '#2D4A3E',
-  },
+  askGiaBtn: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 16, borderRadius: 20, backgroundColor: '#7B9B8C', marginBottom: 24, borderWidth: 2, borderColor: '#7B9B8C' },
+  askGiaIconWrap: { width: 48, height: 48, borderRadius: 12, backgroundColor: 'rgba(255,255,255,0.2)', alignItems: 'center', justifyContent: 'center' },
+  askGiaTextWrap: { flex: 1 },
+  askGiaTitle: { fontSize: 16, color: '#FFFFFF', fontStyle: 'italic', fontWeight: '600' },
+  askGiaSubtitle: { fontSize: 12, color: 'rgba(255,255,255,0.8)', fontStyle: 'italic', marginTop: 2 },
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end', padding: 16 },
+  modalContentWrap: { maxHeight: '80%' },
+  askModalCard: { backgroundColor: '#FFFFFF', borderRadius: 24, borderWidth: 2, borderColor: 'rgba(123,155,140,0.3)', overflow: 'hidden' },
+  askModalHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 20, borderBottomWidth: 1, borderBottomColor: 'rgba(123,155,140,0.2)' },
+  askModalHeaderLeft: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  askModalHeaderIcon: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#E8F5E9', alignItems: 'center', justifyContent: 'center' },
+  askModalTitle: { fontSize: 16, color: '#2D4A3E', fontStyle: 'italic' },
+  askModalSubtitle: { fontSize: 12, color: '#6B8B7D', marginTop: 2 },
+  askModalClose: { padding: 8, borderRadius: 999 },
+  askModalBody: { padding: 24, maxHeight: 400 },
+  commonQuestionsLabel: { fontSize: 11, color: '#6B8B7D', textTransform: 'uppercase', letterSpacing: 1.2, marginBottom: 12 },
+  commonQuestionBtn: { backgroundColor: '#E8F5E9', paddingVertical: 12, paddingHorizontal: 20, borderRadius: 16, marginBottom: 8 },
+  commonQuestionText: { fontSize: 14, color: '#2D4A3E', fontStyle: 'italic' },
+  askInput: { height: 48, paddingHorizontal: 16, borderRadius: 16, borderWidth: 1, borderColor: 'rgba(95,133,117,0.2)', marginTop: 12, fontSize: 15, color: '#2D4A3E' },
+  askSubmitBtn: { backgroundColor: '#5F8575', paddingVertical: 14, borderRadius: 16, alignItems: 'center', marginTop: 12 },
+  askSubmitText: { fontSize: 15, color: '#FFFFFF', fontStyle: 'italic', fontWeight: '600' },
+  askDisclaimer: { fontSize: 11, color: '#6B8B7D', fontStyle: 'italic', marginTop: 8 },
+  chatBlock: { marginTop: 20 },
+  chatBlockLabel: { fontSize: 12, color: '#6B8B7D', marginBottom: 8 },
+  chatBubble: { backgroundColor: '#F5F1ED', padding: 12, borderRadius: 12, marginBottom: 8 },
+  chatQuestion: { fontSize: 13, color: '#2D4A3E', fontStyle: 'italic', marginBottom: 4 },
+  chatAnswer: { fontSize: 13, color: '#6B8B7D' },
 
-  section: { marginBottom: 16 },
-  apptCard: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 16, borderRadius: 14, borderWidth: 1, borderColor: '#D8D5CF', backgroundColor: '#FFFFFF' },
-  apptCardHighlight: { backgroundColor: '#E8F5E9', borderColor: '#5F8575' },
-  apptRow: { flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 },
-  apptLabel: { fontSize: 13, color: '#5F8575', fontStyle: 'italic' },
-  apptValue: { color: '#3A3A3A', fontStyle: 'italic' },
-  apptDays: { fontSize: 12, color: '#5F8575' },
-  apptMuted: { color: '#6B7370', fontStyle: 'italic' },
-  editBtn: { padding: 6 },
-  apptEditCard: { flexDirection: 'row', alignItems: 'center', gap: 8, padding: 16, borderRadius: 14, borderWidth: 1, borderColor: '#5F8575', backgroundColor: '#FFFFFF' },
-  dateInput: { flex: 1, paddingVertical: 10, paddingHorizontal: 12, borderRadius: 10, borderWidth: 1, borderColor: '#D8D5CF', fontSize: 14, color: '#2D4A3E' },
-  saveApptBtn: { padding: 10, borderRadius: 10, backgroundColor: '#5F8575' },
-  saveApptBtnDisabled: { backgroundColor: '#D8D5CF' },
-  cancelApptBtn: { padding: 10 },
-
-  execSummaryBtn: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14, borderRadius: 14, borderWidth: 1, borderColor: '#5F8575', backgroundColor: '#FFFFFF', marginBottom: 20 },
-  execSummaryIcon: { width: 36, height: 36, borderRadius: 10, backgroundColor: '#5F8575', alignItems: 'center', justifyContent: 'center' },
-  execSummaryText: { fontSize: 14, color: '#5F8575', fontStyle: 'italic' },
-
-  filtersToggle: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 16, borderRadius: 20, borderWidth: 1, borderColor: '#D8D5CF', backgroundColor: '#FFFFFF', marginBottom: 16 },
+  filtersToggle: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 14, borderRadius: 20, borderWidth: 1, borderColor: 'rgba(123,155,140,0.3)', backgroundColor: '#FFFFFF', marginBottom: 16 },
   filtersToggleLeft: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  filtersToggleText: { color: '#5A7A6B', fontSize: 16, fontWeight: '600' },
-  filterBadge: { backgroundColor: '#7B9B8C', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 999 },
-  filterBadgeText: { fontSize: 12, color: '#FFFFFF', fontWeight: '600' },
-
+  filtersToggleText: { color: '#5A7A6B', fontSize: 14, fontWeight: '600' },
   filtersPanel: { padding: 20, borderRadius: 20, borderWidth: 1, borderColor: '#D8D5CF', backgroundColor: '#FFFFFF', marginBottom: 16 },
-  filterSectionLabel: { fontSize: 13, color: '#6B7370', marginBottom: 12 },
-  tagRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 16 },
+  filterSectionLabel: { fontSize: 12, color: '#6B7370', marginBottom: 10 },
+  tagRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 12 },
   filterTag: { paddingVertical: 8, paddingHorizontal: 16, borderRadius: 999, backgroundColor: '#F5F1ED' },
   filterTagActive: { backgroundColor: '#7B9B8C' },
   filterTagText: { fontSize: 14, color: '#6B7370' },
   filterTagTextActive: { color: '#FFFFFF' },
-  moodRow: { flexDirection: 'row', gap: 12, marginBottom: 16 },
-  moodBtn: { paddingVertical: 12, paddingHorizontal: 20, borderRadius: 999, backgroundColor: '#F5F1ED' },
-  moodBtnActive: { backgroundColor: '#7B9B8C' },
-  moodEmoji: { fontSize: 24 },
-  clearFiltersText: { fontSize: 14, color: '#7B9B8C', marginTop: 8 },
+  moodRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 },
+  moodCircleBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#F5F1ED', alignItems: 'center', justifyContent: 'center' },
+  moodCircleBtnActive: { backgroundColor: '#F49EC4' },
+  moodCircleEmoji: { fontSize: 22 },
+  moodScaleLabel: { fontSize: 11, color: '#6B8B7D', fontStyle: 'italic', marginTop: 4 },
+  moodScaleLabelRight: { textAlign: 'right' },
+  clearFiltersBtn: { marginTop: 12 },
+  clearFiltersText: { fontSize: 14, color: '#7B9B8C' },
 
-  patternBox: { padding: 20, borderRadius: 20, backgroundColor: 'rgba(212,227,219,0.3)', borderWidth: 1, borderColor: 'rgba(123,155,140,0.3)', marginBottom: 16 },
-  patternTitle: { fontSize: 14, fontWeight: '600', color: '#5A7A6B', marginBottom: 8 },
-  patternText: { fontSize: 14, color: '#3A3A3A', lineHeight: 22 },
+  summaryToggle: { padding: 16, borderRadius: 16, borderWidth: 2, borderColor: '#5F8575', backgroundColor: '#FFFFFF', marginBottom: 16, alignItems: 'center' },
+  summaryToggleInner: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 12 },
+  summaryToggleIcon: { width: 32, height: 32, borderRadius: 8, backgroundColor: '#5F8575', alignItems: 'center', justifyContent: 'center' },
+  summaryToggleText: { fontSize: 14, color: '#5F8575', fontStyle: 'italic' },
 
-  summaryToggle: { padding: 16, borderRadius: 20, borderWidth: 2, borderColor: '#7B9B8C', backgroundColor: '#FFFFFF', marginBottom: 16, alignItems: 'center' },
-  summaryToggleText: { fontSize: 16, color: '#7B9B8C', fontWeight: '600' },
-
-  monthlySummary: { padding: 24, borderRadius: 24, backgroundColor: '#FFFFFF', borderWidth: 2, borderColor: '#D8D5CF', marginBottom: 24 },
-  monthlySummaryTitle: { fontSize: 18, color: '#7B9B8C', fontWeight: '600', marginBottom: 16 },
-  calendarCard: { backgroundColor: '#F5F1ED', borderRadius: 18, padding: 16, marginBottom: 16 },
-  calendarMonth: { fontSize: 14, color: '#7B9B8C', textAlign: 'center', marginBottom: 4 },
-  calendarHint: { fontSize: 12, color: '#6B7370', textAlign: 'center', marginBottom: 12 },
+  monthlySummary: { padding: 24, borderRadius: 24, backgroundColor: '#FFFFFF', borderWidth: 2, borderColor: 'rgba(123,155,140,0.3)', marginBottom: 24 },
+  monthlySummaryTitle: { fontSize: 20, color: '#2D4A3E', fontStyle: 'italic', marginBottom: 16 },
+  statsGrid: { flexDirection: 'row', gap: 16, marginBottom: 20 },
+  summaryStatBox: { flex: 1, padding: 20, borderRadius: 20, backgroundColor: '#E8F5E9', borderWidth: 1, borderColor: 'rgba(123,155,140,0.2)', alignItems: 'center' },
+  summaryStatValue: { fontSize: 28, fontWeight: '700', color: '#5F8575', marginBottom: 4 },
+  summaryStatLabel: { fontSize: 12, color: '#6B8B7D', fontStyle: 'italic' },
+  summaryStatBoxFlare: { backgroundColor: '#FFE0E0', borderColor: 'rgba(255,176,176,0.3)' },
+  summaryStatValueFlare: { fontSize: 28, fontWeight: '700', color: '#8B4545', marginBottom: 4 },
+  summaryStatLabelFlare: { fontSize: 12, color: '#8B4545', fontStyle: 'italic' },
+  calendarCard: { backgroundColor: '#F5F1ED', borderRadius: 20, padding: 20, marginBottom: 16 },
+  calendarNav: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 },
+  calendarNavBtn: { padding: 8 },
+  calendarNavCenter: { alignItems: 'center' },
+  calendarMonthTitle: { fontSize: 16, color: '#2D4A3E', fontStyle: 'italic' },
+  calendarMonthSubtitle: { fontSize: 11, color: '#6B8B7D', marginTop: 2 },
   calendarGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
-  calendarDayLabel: { width: '13%', alignItems: 'center', paddingVertical: 4 },
-  calendarDayLabelText: { fontSize: 12, color: '#6B7370', fontWeight: '600' },
-  calendarCell: { width: '13%', minHeight: 32, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
-  calendarCellDone: { backgroundColor: '#7B9B8C' },
-  calendarCellEmpty: { backgroundColor: '#FFFFFF' },
-  calendarCellText: { fontSize: 12, color: '#2D4A3E' },
-  legendRow: { flexDirection: 'row', justifyContent: 'center', gap: 16, paddingTop: 12, borderTopWidth: 1, borderTopColor: '#D8D5CF' },
-  legendItem: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  calendarDayLabel: { width: '13%', alignItems: 'center', paddingVertical: 6 },
+  calendarDayLabelText: { fontSize: 12, color: '#6B8B7D', fontWeight: '600' },
+  calendarCell: { width: '13%', aspectRatio: 1, maxWidth: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  calendarCellEmpty: { backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#D8D5CF' },
+  calendarCellComplete: { backgroundColor: '#7B9B8C', borderWidth: 1, borderColor: 'transparent' },
+  calendarCellPartial: { backgroundColor: '#F49EC4', borderWidth: 1, borderColor: 'transparent' },
+  calendarCellMissed: { backgroundColor: '#FFBB8F', borderWidth: 1, borderColor: 'rgba(255,179,128,0.3)' },
+  calendarCellToday: { borderWidth: 2, borderColor: '#5F8575' },
+  calendarCellTextMuted: { fontSize: 12, color: '#B8B5AD' },
+  calendarCellTextWhite: { fontSize: 12, color: '#FFFFFF', fontWeight: '600' },
+  calendarCellTextBrown: { fontSize: 12, color: '#8B4513', fontWeight: '600' },
+  calendarApptDot: { position: 'absolute', top: -2, right: -2, width: 10, height: 10, borderRadius: 5, backgroundColor: '#FFF4D4', borderWidth: 2, borderColor: '#FFE8A3' },
+  legendRow: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 12, paddingTop: 16, borderTopWidth: 1, borderTopColor: '#D8D5CF' },
+  legendItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   legendDot: { width: 16, height: 16, borderRadius: 4 },
-  legendDotDone: { backgroundColor: '#7B9B8C' },
-  legendDotEmpty: { backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#D8D5CF' },
-  legendText: { fontSize: 12, color: '#6B7370' },
-  statsRow: { flexDirection: 'row', gap: 12, marginBottom: 12 },
-  statBox: { flex: 1, padding: 16, borderRadius: 14, backgroundColor: '#F5F1ED', alignItems: 'center' },
-  statNumber: { fontSize: 24, color: '#7B9B8C', fontWeight: '700', marginBottom: 4 },
-  statLabel: { fontSize: 12, color: '#6B7370' },
-  monthlySummaryFooter: { fontSize: 14, color: '#6B7370', textAlign: 'center' },
+  legendDotComplete: { backgroundColor: '#7B9B8C' },
+  legendDotPartial: { backgroundColor: '#F49EC4' },
+  legendDotMissed: { backgroundColor: '#FFBB8F', borderWidth: 1, borderColor: 'rgba(255,179,128,0.5)' },
+  legendDotAppt: { width: 16, height: 16, borderRadius: 8, backgroundColor: '#FFF4D4', borderWidth: 2, borderColor: '#FFE8A3' },
+  legendText: { fontSize: 10, color: '#6B8B7D', fontStyle: 'italic' },
+  encouragingBox: { padding: 16, borderRadius: 12, backgroundColor: '#E8F5E9', borderWidth: 1, borderColor: 'rgba(123,155,140,0.2)' },
+  encouragingText: { fontSize: 14, color: '#2D4A3E', fontStyle: 'italic', textAlign: 'center' },
 
-  timelineTitle: { fontSize: 14, color: '#6B7370', marginBottom: 12 },
-  timelineList: { gap: 12 },
-  timelineCard: { padding: 20, borderRadius: 20, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#D8D5CF' },
-  timelineCardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
-  timelineDate: { fontSize: 14, color: '#7B9B8C', fontWeight: '600' },
-  timelineRoutine: { fontSize: 12, color: '#6B7370' },
-  timelineMood: { fontSize: 24, marginBottom: 8 },
-  flareTag: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 999, backgroundColor: '#FFE0E0' },
-  flareTagText: { fontSize: 12, color: '#8B4545' },
-  contextTag: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 999, backgroundColor: '#F5F1ED' },
-  contextTagText: { fontSize: 12, color: '#6B7370' },
-  noteRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: '#D8D5CF' },
-  noteText: { flex: 1, fontSize: 14, color: '#3A3A3A' },
-  photoRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 8 },
-  photoText: { fontSize: 14, color: '#7B9B8C' },
+  weeklyCard: { padding: 24, borderRadius: 20, backgroundColor: '#FFFFFF', borderWidth: 2, borderColor: 'rgba(123,155,140,0.3)', marginBottom: 24 },
+  weeklyHeader: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 20 },
+  weeklyTitle: { fontSize: 18, color: '#2D4A3E', fontStyle: 'italic' },
+  weeklySubtitle: { fontSize: 11, color: '#6B8B7D', fontStyle: 'italic', marginTop: 4 },
+  weeklyInfoBtn: { padding: 8 },
+  chartRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 12 },
+  chartCol: { flex: 1, alignItems: 'center' },
+  chartBarWrap: { width: 24, height: 120, backgroundColor: '#F5F1ED', borderRadius: 6, overflow: 'hidden', justifyContent: 'flex-end' },
+  chartBarConsistency: { width: '100%', backgroundColor: '#95C98E', borderRadius: 6, minHeight: 4 },
+  chartSatisfactionWrap: { marginTop: 6 },
+  chartSatisfactionText: { fontSize: 11, color: '#F49EC4', fontWeight: '600' },
+  chartDayLabel: { fontSize: 11, color: '#6B8B7D', marginTop: 4 },
+  chartLegend: { paddingTop: 16, borderTopWidth: 1, borderTopColor: '#D8D5CF', gap: 12 },
+  chartLegendItem: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'flex-start', gap: 10, padding: 12, borderRadius: 12, backgroundColor: '#E8F5E9' },
+  chartLegendDotConsistency: { width: 12, height: 12, borderRadius: 6, backgroundColor: '#95C98E', marginTop: 2 },
+  chartLegendDotSatisfaction: { width: 12, height: 12, borderRadius: 6, backgroundColor: '#F49EC4', marginTop: 2 },
+  chartLegendTitle: { fontSize: 12, color: '#2D4A3E', fontStyle: 'italic', fontWeight: '600', flex: 1 },
+  chartLegendDesc: { fontSize: 10, color: '#6B8B7D', marginTop: 2 },
+
+  timelineTitle: { fontSize: 12, color: '#6B7370', textTransform: 'uppercase', letterSpacing: 1.2, marginBottom: 16 },
+  timelineItem: { position: 'relative', paddingLeft: 28, marginBottom: 16 },
+  timelineConnector: { position: 'absolute', left: 9, top: 24, bottom: -16, width: 2, backgroundColor: '#7B9B8C' },
+  timelineDot: { position: 'absolute', left: 0, top: 20, width: 20, height: 20, borderRadius: 10, borderWidth: 2, borderColor: '#D8D5CF', backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center' },
+  timelineDotComplete: { backgroundColor: '#7B9B8C', borderColor: '#FFFFFF' },
+  timelineCard: { padding: 14, borderRadius: 12, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#D8D5CF' },
+  timelineCardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, paddingBottom: 8, borderBottomWidth: 1, borderBottomColor: 'rgba(216,213,207,0.5)' },
+  timelineDate: { fontSize: 14, color: '#2D4A3E', fontWeight: '600' },
+  timelineRoutineBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999, backgroundColor: '#7B9B8C' },
+  timelineRoutineBadgeText: { fontSize: 10, color: '#FFFFFF' },
+  timelineMoodRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 8 },
+  timelineMoodIcon: { width: 32, height: 32, borderRadius: 16, backgroundColor: '#F49EC4', alignItems: 'center', justifyContent: 'center' },
+  timelineMoodEmoji: { fontSize: 18 },
+  timelineMoodLabel: { fontSize: 12, color: '#6B8B7D', fontStyle: 'italic' },
+  timelineTagsSection: { marginBottom: 8 },
+  timelineTagsLabel: { fontSize: 10, color: '#6B8B7D', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 6 },
+  flareTag: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999, backgroundColor: '#FFE0E0', borderWidth: 1, borderColor: 'rgba(255,176,176,0.3)' },
+  flareTagText: { fontSize: 10, color: '#8B4545', fontWeight: '600' },
+  contextTag: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999, backgroundColor: '#E8F0DC', borderWidth: 1, borderColor: 'rgba(149,201,142,0.3)' },
+  contextTagText: { fontSize: 10, color: '#5F8575', fontWeight: '600' },
+  wearablesRow: { marginTop: 8, paddingTop: 8, borderTopWidth: 1, borderTopColor: 'rgba(216,213,207,0.5)' },
+  wearableChip: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8, backgroundColor: '#E8F5E9', borderWidth: 1, borderColor: 'rgba(123,155,140,0.2)' },
+  wearableEmoji: { fontSize: 10 },
+  wearableText: { fontSize: 12, color: '#5F8575', fontWeight: '600' },
+  wearableChipFlare: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8, backgroundColor: '#FFE0E0', borderWidth: 1, borderColor: 'rgba(255,176,176,0.3)' },
+  wearableTextFlare: { fontSize: 12, color: '#8B4545', fontWeight: '600' },
+  noteRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, marginTop: 8, padding: 10, borderRadius: 8, backgroundColor: 'rgba(245,241,237,0.5)' },
+  noteText: { flex: 1, fontSize: 12, color: '#3A3A3A', fontStyle: 'italic' },
+  photoRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 6 },
+  photoIconWrap: { padding: 6, borderRadius: 8, backgroundColor: '#E8F5E9' },
+  photoText: { fontSize: 12, color: '#7B9B8C', fontStyle: 'italic' },
+  showMoreBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, padding: 16, borderRadius: 20, borderWidth: 2, borderColor: 'rgba(123,155,140,0.3)', backgroundColor: '#FFFFFF', marginTop: 8 },
+  showMoreText: { fontSize: 14, color: '#5F8575', fontStyle: 'italic' },
 
   emptyState: { paddingVertical: 48, alignItems: 'center' },
   emptyTitle: { fontSize: 16, color: '#6B7370', marginBottom: 8, textAlign: 'center' },

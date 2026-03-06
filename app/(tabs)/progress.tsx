@@ -1,5 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
+import { StatusBar } from 'expo-status-bar';
 import React, { useMemo, useState } from 'react';
 import {
   Dimensions,
@@ -282,6 +283,7 @@ export default function ProgressScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
+      <StatusBar style="dark" backgroundColor="#F5E6F0" />
       <View style={styles.root}>
         <ScrollView
           style={styles.scroll}
@@ -901,6 +903,7 @@ export default function ProgressScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
+    backgroundColor: '#F5E6F0',
   },
   root: {
     flex: 1,

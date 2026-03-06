@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import Slider from '@react-native-community/slider';
 import { router } from 'expo-router';
+import { StatusBar } from 'expo-status-bar';
 import React, { useState } from 'react';
 import {
   Modal,
@@ -269,7 +270,8 @@ export default function Registration() {
   ];
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top']}>
+      <StatusBar style="dark" backgroundColor="#FAF8F5" />
       {/* Back Button */}
       <TouchableOpacity style={styles.backArrow} onPress={handleBack}>
         <Ionicons name="arrow-back" size={24} color="#7B9B8C" />

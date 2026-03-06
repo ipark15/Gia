@@ -1,6 +1,9 @@
 import { router } from 'expo-router';
+import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ProfilePage } from '../../components/ProfilePage';
+
+const PROFILE_BG = '#E8EDE8';
 
 // Demo data — replace with real app state / storage
 const DEMO_COMPLETED_DAYS = [
@@ -22,20 +25,21 @@ const DEMO_REGISTRATION = {
 
 export default function ProfileScreen() {
   return (
-    <SafeAreaView style={{ flex: 1 }} edges={['top']}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: PROFILE_BG }} edges={['top']}>
+      <StatusBar style="dark" backgroundColor={PROFILE_BG} />
       <ProfilePage
         completedDays={DEMO_COMPLETED_DAYS}
         registrationData={DEMO_REGISTRATION}
         onEdit={() => router.push('/(onboarding)/registration')}
         currentStreak={7}
-        onManageRules={() => {}}
+        onManageRules={() => { }}
         treatmentPlanId="demo-plan"
-        onViewTreatmentPlan={() => {}}
+        onViewTreatmentPlan={() => { }}
         nextDermAppointment="2026-03-15"
         ownedProducts={[]}
-        onOpenInventory={() => {}}
+        onOpenInventory={() => { }}
         accountData={{ name: 'User', email: 'user@example.com', password: '••••••••' }}
-        onUpdateAccount={() => {}}
+        onUpdateAccount={() => { }}
       />
     </SafeAreaView>
   );
