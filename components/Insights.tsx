@@ -10,6 +10,7 @@ import {
   View,
 } from 'react-native';
 import { EmergencyHelp } from './EmergencyHelp';
+import WeeklyOverviewChart from './WeeklyOverviewChart';
 
 export interface TimelineEntry {
   id: string;
@@ -526,19 +527,7 @@ export function Insights({
               <Ionicons name="help-circle-outline" size={18} color="#7B9B8C" />
             </TouchableOpacity>
           </View>
-          <View style={styles.chartRow}>
-            {displayWeeklyData.map((d, i) => (
-              <View key={i} style={styles.chartCol}>
-                <View style={styles.chartBarWrap}>
-                  <View style={[styles.chartBarConsistency, { height: `${(d.consistency ?? 0) / 100 * 120}%` }]} />
-                </View>
-                <View style={styles.chartSatisfactionWrap}>
-                  <Text style={styles.chartSatisfactionText}>{d.satisfaction ?? '—'}</Text>
-                </View>
-                <Text style={styles.chartDayLabel}>{d.day}</Text>
-              </View>
-            ))}
-          </View>
+          <WeeklyOverviewChart data={displayWeeklyData} />
           <View style={styles.chartLegend}>
             <View style={styles.chartLegendItem}>
               <View style={styles.chartLegendDotConsistency} />

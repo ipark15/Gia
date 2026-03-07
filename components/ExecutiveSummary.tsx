@@ -139,7 +139,7 @@ export function ExecutiveSummary({
   startDate,
   nextAppointment,
 }: ExecutiveSummaryProps) {
-  const [step, setStep] = useState<'customize' | 'preview'>('customize');
+  const [step, setStep] = useState<'customize' | 'preview'>('preview');
   const [includeAdherence, setIncludeAdherence] = useState(true);
   const [includeMood, setIncludeMood] = useState(true);
   const [includeSymptoms, setIncludeSymptoms] = useState(true);
@@ -266,6 +266,14 @@ export function ExecutiveSummary({
 
             {step === 'preview' && (
               <>
+                <TouchableOpacity
+                  style={styles.backLink}
+                  onPress={() => setStep('customize')}
+                  activeOpacity={0.8}
+                >
+                  <Text style={styles.backLinkText}>adjust what data is included →</Text>
+                </TouchableOpacity>
+
                 <View style={styles.previewCard}>
                   <View style={styles.previewHeader}>
                     <Text style={styles.previewTitle}>Skin Health Executive Summary</Text>
