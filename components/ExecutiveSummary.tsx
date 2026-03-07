@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import React, { useState } from 'react';
 import {
+  Dimensions,
   Modal,
   ScrollView,
   Share,
@@ -139,7 +140,7 @@ export function ExecutiveSummary({
   startDate,
   nextAppointment,
 }: ExecutiveSummaryProps) {
-  const [step, setStep] = useState<'customize' | 'preview'>('preview');
+  const [step, setStep] = useState<'customize' | 'preview'>('customize');
   const [includeAdherence, setIncludeAdherence] = useState(true);
   const [includeMood, setIncludeMood] = useState(true);
   const [includeSymptoms, setIncludeSymptoms] = useState(true);
@@ -266,14 +267,6 @@ export function ExecutiveSummary({
 
             {step === 'preview' && (
               <>
-                <TouchableOpacity
-                  style={styles.backLink}
-                  onPress={() => setStep('customize')}
-                  activeOpacity={0.8}
-                >
-                  <Text style={styles.backLinkText}>adjust what data is included →</Text>
-                </TouchableOpacity>
-
                 <View style={styles.previewCard}>
                   <View style={styles.previewHeader}>
                     <Text style={styles.previewTitle}>Skin Health Executive Summary</Text>
@@ -438,7 +431,7 @@ const styles = StyleSheet.create({
   card: {
     width: '100%',
     maxWidth: 480,
-    maxHeight: '85%',
+    height: Dimensions.get('window').height * 0.85,
     backgroundColor: '#FAF8F5',
     borderRadius: 24,
     borderWidth: 2,
