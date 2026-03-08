@@ -19,6 +19,15 @@ import { EmergencyHelp } from '../../components/EmergencyHelp';
 import { ExecutiveSummary } from '../../components/ExecutiveSummary';
 import { TabTopNavbar } from '../../components/TabTopNavbar';
 import { HEADER_PADDING_HORIZONTAL } from '../../constants/HeaderStyles';
+import {
+  BODY_SIZE,
+  BODY_SMALL_SIZE,
+  BUTTON_TEXT_SIZE,
+  BUTTON_TEXT_WEIGHT,
+  LABEL_SMALL_SIZE,
+  TEXT_PRIMARY,
+  TEXT_SECONDARY
+} from '../../constants/Typography';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const GRID_COLUMNS = 3;
@@ -814,23 +823,20 @@ const styles = StyleSheet.create({
     minWidth: 0,
   },
   appointmentLabel: {
-    fontSize: 11,
+    fontSize: LABEL_SMALL_SIZE,
     color: '#5F8575',
-    fontStyle: 'italic',
     marginBottom: 2,
   },
   appointmentText: {
-    fontSize: 13,
-    color: '#3A3A3A',
-    fontStyle: 'italic',
+    fontSize: BODY_SMALL_SIZE,
+    color: TEXT_PRIMARY,
   },
   appointmentTextEmpty: {
-    fontSize: 13,
-    color: '#6B7370',
-    fontStyle: 'italic',
+    fontSize: BODY_SMALL_SIZE,
+    color: TEXT_SECONDARY,
   },
   appointmentBadge: {
-    fontSize: 11,
+    fontSize: LABEL_SMALL_SIZE,
     color: '#5F8575',
   },
   appointmentEditBtn: {
@@ -903,9 +909,9 @@ const styles = StyleSheet.create({
   },
   summaryText: {
     flex: 1,
-    fontSize: 12,
+    fontSize: BODY_SIZE,
     color: '#FFFFFF',
-    fontStyle: 'italic',
+    fontWeight: BUTTON_TEXT_WEIGHT,
   },
   actionsSection: {
     marginBottom: 16,
@@ -922,9 +928,8 @@ const styles = StyleSheet.create({
   },
   uploadButtonText: {
     color: '#FFFFFF',
-    fontSize: 15,
-    fontStyle: 'italic',
-    fontWeight: '600',
+    fontSize: BUTTON_TEXT_SIZE,
+    fontWeight: BUTTON_TEXT_WEIGHT,
     marginLeft: 8,
   },
   compareButton: {

@@ -15,6 +15,22 @@ import {
   HEADER_ICON_COLOR,
   HEADER_PADDING_HORIZONTAL,
 } from '../constants/HeaderStyles';
+import {
+  BODY_SIZE,
+  BODY_SMALL_SIZE,
+  BUTTON_TEXT_SIZE,
+  BUTTON_TEXT_WEIGHT,
+  CARD_TITLE_SIZE,
+  CARD_TITLE_WEIGHT,
+  LABEL_SIZE,
+  LABEL_SMALL_SIZE,
+  STAT_VALUE_WEIGHT,
+  SUBTITLE_SIZE,
+  TEXT_PRIMARY,
+  TEXT_SECONDARY,
+  TITLE_LARGE_SIZE,
+  TITLE_LARGE_WEIGHT,
+} from '../constants/Typography';
 import { EmergencyHelp } from './EmergencyHelp';
 
 export type CheckInData = {
@@ -1095,15 +1111,15 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   greeting: {
-    fontSize: 24,
-    color: '#2D4A3E',
-    fontWeight: '700',
+    fontSize: TITLE_LARGE_SIZE,
+    color: TEXT_PRIMARY,
+    fontWeight: TITLE_LARGE_WEIGHT,
     marginBottom: 4,
     textAlign: 'left',
   },
   greetingSub: {
-    fontSize: 14,
-    color: '#6B8B7D',
+    fontSize: SUBTITLE_SIZE,
+    color: TEXT_SECONDARY,
     textAlign: 'left',
   },
   headerActions: {
@@ -1134,13 +1150,13 @@ const styles = StyleSheet.create({
   },
   completionBannerTitle: {
     color: '#FFFFFF',
-    fontSize: 16,
-    fontStyle: 'italic',
+    fontSize: CARD_TITLE_SIZE,
+    fontWeight: CARD_TITLE_WEIGHT,
     marginBottom: 4,
   },
   completionBannerSubtitle: {
     color: 'rgba(255,255,255,0.8)',
-    fontSize: 13,
+    fontSize: BODY_SMALL_SIZE,
   },
   completionBannerIcon: {
     fontSize: 24,
@@ -1178,13 +1194,12 @@ const styles = StyleSheet.create({
   },
   primaryCtaTitle: {
     color: '#FFFFFF',
-    fontSize: 17,
-    fontWeight: '600',
-    fontStyle: 'italic',
+    fontSize: BUTTON_TEXT_SIZE,
+    fontWeight: BUTTON_TEXT_WEIGHT,
   },
   primaryCtaSubtitle: {
     color: 'rgba(255,255,255,0.95)',
-    fontSize: 12,
+    fontSize: LABEL_SIZE,
   },
   checkInCard: {
     backgroundColor: '#FFFFFF',
@@ -1237,13 +1252,13 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
   },
   checkInTitle: {
-    fontSize: 16,
-    color: '#2D4A3E',
-    fontStyle: 'italic',
+    fontSize: CARD_TITLE_SIZE,
+    color: TEXT_PRIMARY,
+    fontWeight: CARD_TITLE_WEIGHT,
   },
   checkInDuration: {
-    fontSize: 13,
-    color: '#6B8B7D',
+    fontSize: BODY_SMALL_SIZE,
+    color: TEXT_SECONDARY,
   },
   checkInBody: {
     borderTopWidth: 1,
@@ -1255,10 +1270,10 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   sectionTitle: {
-    fontSize: 15,
-    color: '#2D4A3E',
+    fontSize: CARD_TITLE_SIZE,
+    color: TEXT_PRIMARY,
+    fontWeight: CARD_TITLE_WEIGHT,
     marginBottom: 8,
-    fontStyle: 'italic',
   },
   rowGap: {
     flexDirection: 'row',
@@ -1603,14 +1618,12 @@ const styles = StyleSheet.create({
   },
   askGiaTitle: {
     color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '600',
-    fontStyle: 'italic',
+    fontSize: CARD_TITLE_SIZE,
+    fontWeight: CARD_TITLE_WEIGHT,
   },
   askGiaSubtitle: {
     color: 'rgba(255,255,255,0.85)',
-    fontSize: 12,
-    fontStyle: 'italic',
+    fontSize: LABEL_SIZE,
   },
   askGiaChevron: {
     marginLeft: 8,
@@ -1620,8 +1633,8 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
   },
   askGiaCommonLabel: {
-    fontSize: 11,
-    color: '#6B8B7D',
+    fontSize: LABEL_SMALL_SIZE,
+    color: TEXT_SECONDARY,
     marginBottom: 8,
     textTransform: 'uppercase',
     letterSpacing: 1,
@@ -1634,9 +1647,8 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   askGiaChipText: {
-    fontSize: 14,
-    color: '#2D4A3E',
-    fontStyle: 'italic',
+    fontSize: BODY_SIZE,
+    color: TEXT_PRIMARY,
   },
   askGiaInputBlock: {
     marginTop: 8,
@@ -1660,22 +1672,20 @@ const styles = StyleSheet.create({
   },
   askGiaButtonText: {
     color: '#FFFFFF',
-    fontSize: 15,
-    fontStyle: 'italic',
-    fontWeight: '600',
+    fontSize: BUTTON_TEXT_SIZE,
+    fontWeight: BUTTON_TEXT_WEIGHT,
   },
   askGiaFootnote: {
     marginTop: 4,
-    fontSize: 11,
-    color: '#6B8B7D',
-    fontStyle: 'italic',
+    fontSize: LABEL_SMALL_SIZE,
+    color: TEXT_SECONDARY,
   },
   askGiaAnswerBlock: {
     marginTop: 10,
   },
   askGiaAnswerLabel: {
-    fontSize: 13,
-    color: '#6B8B7D',
+    fontSize: BODY_SMALL_SIZE,
+    color: TEXT_SECONDARY,
     marginBottom: 4,
   },
   askGiaAnswerBubble: {
@@ -1686,14 +1696,13 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   askGiaAnswerQuestion: {
-    fontSize: 13,
-    color: '#2D4A3E',
-    fontStyle: 'italic',
+    fontSize: BODY_SMALL_SIZE,
+    color: TEXT_PRIMARY,
     marginBottom: 2,
   },
   askGiaAnswerText: {
-    fontSize: 13,
-    color: '#6B8B7D',
+    fontSize: BODY_SMALL_SIZE,
+    color: TEXT_SECONDARY,
   },
   gardenCard: {
     backgroundColor: '#FFFFFF',
@@ -1710,13 +1719,14 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   gardenTitle: {
-    fontSize: 15,
+    fontSize: CARD_TITLE_SIZE,
     color: '#7B9B8C',
+    fontWeight: CARD_TITLE_WEIGHT,
     marginBottom: 2,
   },
   gardenSubtitle: {
-    fontSize: 13,
-    color: '#6B7370',
+    fontSize: BODY_SMALL_SIZE,
+    color: TEXT_SECONDARY,
   },
   gardenPond: {
     borderRadius: 18,
@@ -1730,10 +1740,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
   },
   gardenEmptyText: {
-    fontSize: 13,
-    color: '#6B8B7D',
+    fontSize: BODY_SMALL_SIZE,
+    color: TEXT_SECONDARY,
     textAlign: 'center',
-    fontStyle: 'italic',
   },
   gardenFlowerGrid: {
     flexDirection: 'row',
@@ -1800,13 +1809,12 @@ const styles = StyleSheet.create({
   },
   gardenStatValue: {
     fontSize: 20,
-    color: '#2D4A3E',
-    fontWeight: '700',
-    fontStyle: 'italic',
+    color: TEXT_PRIMARY,
+    fontWeight: STAT_VALUE_WEIGHT,
   },
   gardenStatLabel: {
-    fontSize: 11,
-    color: '#6B7370',
+    fontSize: LABEL_SMALL_SIZE,
+    color: TEXT_SECONDARY,
     fontStyle: 'italic',
     textAlign: 'center',
   },

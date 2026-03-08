@@ -10,6 +10,20 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import {
+  BODY_SIZE,
+  BODY_SMALL_SIZE,
+  BUTTON_TEXT_SIZE,
+  BUTTON_TEXT_WEIGHT,
+  CARD_TITLE_SIZE,
+  CARD_TITLE_WEIGHT,
+  LABEL_SIZE,
+  LABEL_SMALL_SIZE,
+  TEXT_PRIMARY,
+  TEXT_SECONDARY,
+  TITLE_SECTION_SIZE,
+  TITLE_SECTION_WEIGHT,
+} from '../constants/Typography';
 
 export interface ExecutiveSummaryProps {
   onClose: () => void;
@@ -449,10 +463,9 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.5)',
   },
   headerTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#2D4A3E',
-    fontStyle: 'italic',
+    fontSize: TITLE_SECTION_SIZE,
+    fontWeight: TITLE_SECTION_WEIGHT,
+    color: TEXT_PRIMARY,
   },
   closeBtn: {
     padding: 4,
@@ -474,14 +487,13 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   infoText: {
-    fontSize: 13,
-    color: '#2D4A3E',
-    fontStyle: 'italic',
+    fontSize: BODY_SMALL_SIZE,
+    color: TEXT_PRIMARY,
   },
   sectionHeading: {
-    fontSize: 15,
-    color: '#2D4A3E',
-    fontStyle: 'italic',
+    fontSize: CARD_TITLE_SIZE,
+    color: TEXT_PRIMARY,
+    fontWeight: CARD_TITLE_WEIGHT,
     marginBottom: 12,
   },
   toggleRow: {
@@ -521,15 +533,14 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   toggleLabel: {
-    fontSize: 14,
-    fontWeight: '500',
+    fontSize: BODY_SIZE,
+    fontWeight: CARD_TITLE_WEIGHT,
     color: '#5F8575',
-    fontStyle: 'italic',
     marginBottom: 2,
   },
   toggleDescription: {
-    fontSize: 12,
-    color: '#6B7370',
+    fontSize: LABEL_SIZE,
+    color: TEXT_SECONDARY,
   },
   previewButton: {
     backgroundColor: '#5F8575',
@@ -541,9 +552,8 @@ const styles = StyleSheet.create({
   },
   previewButtonText: {
     color: '#FFFFFF',
-    fontSize: 15,
-    fontWeight: '600',
-    fontStyle: 'italic',
+    fontSize: BUTTON_TEXT_SIZE,
+    fontWeight: BUTTON_TEXT_WEIGHT,
   },
   previewCard: {
     backgroundColor: '#F5F1ED',
@@ -560,35 +570,32 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   previewTitle: {
-    fontSize: 16,
+    fontSize: CARD_TITLE_SIZE,
     fontWeight: '700',
-    color: '#2D4A3E',
-    fontStyle: 'italic',
+    color: TEXT_PRIMARY,
     marginBottom: 4,
   },
   previewGenerated: {
-    fontSize: 11,
-    color: '#6B8B7D',
-    fontStyle: 'italic',
+    fontSize: LABEL_SMALL_SIZE,
+    color: TEXT_SECONDARY,
   },
   previewBlock: {
     marginBottom: 14,
   },
   previewBlockTitle: {
-    fontSize: 13,
+    fontSize: BODY_SMALL_SIZE,
     fontWeight: '700',
-    color: '#2D4A3E',
-    fontStyle: 'italic',
+    color: TEXT_PRIMARY,
     marginBottom: 6,
   },
   previewLine: {
-    fontSize: 12,
-    color: '#6B8B7D',
+    fontSize: LABEL_SIZE,
+    color: TEXT_SECONDARY,
     marginBottom: 2,
   },
   previewBullet: {
-    fontSize: 12,
-    color: '#6B8B7D',
+    fontSize: LABEL_SIZE,
+    color: TEXT_SECONDARY,
     marginBottom: 2,
     paddingLeft: 12,
   },
@@ -609,9 +616,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFE0E0',
   },
   trendText: {
-    fontSize: 12,
-    color: '#2D4A3E',
-    fontStyle: 'italic',
+    fontSize: LABEL_SIZE,
+    color: TEXT_PRIMARY,
     marginLeft: 8,
     flex: 1,
   },
@@ -627,10 +633,9 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFE0E0',
   },
   obsBoxTitle: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#2D4A3E',
-    fontStyle: 'italic',
+    fontSize: LABEL_SIZE,
+    fontWeight: CARD_TITLE_WEIGHT,
+    color: TEXT_PRIMARY,
     marginBottom: 4,
   },
   previewFooter: {
@@ -640,9 +645,8 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   previewFooterText: {
-    fontSize: 11,
-    color: '#6B8B7D',
-    fontStyle: 'italic',
+    fontSize: LABEL_SMALL_SIZE,
+    color: TEXT_SECONDARY,
     textAlign: 'center',
   },
   downloadButton: {
@@ -657,8 +661,8 @@ const styles = StyleSheet.create({
   },
   downloadButtonText: {
     color: '#FFFFFF',
-    fontSize: 15,
-    fontStyle: 'italic',
+    fontSize: BUTTON_TEXT_SIZE,
+    fontWeight: BUTTON_TEXT_WEIGHT,
     marginLeft: 8,
   },
   shareButton: {
@@ -675,8 +679,8 @@ const styles = StyleSheet.create({
   },
   shareButtonText: {
     color: '#5F8575',
-    fontSize: 15,
-    fontStyle: 'italic',
+    fontSize: BUTTON_TEXT_SIZE,
+    fontWeight: BUTTON_TEXT_WEIGHT,
     marginLeft: 8,
   },
   backLink: {
@@ -684,8 +688,7 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
   },
   backLinkText: {
-    fontSize: 13,
-    color: '#6B8B7D',
-    fontStyle: 'italic',
+    fontSize: BODY_SMALL_SIZE,
+    color: TEXT_SECONDARY,
   },
 });

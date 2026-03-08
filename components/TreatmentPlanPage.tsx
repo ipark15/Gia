@@ -10,6 +10,22 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import {
+  BODY_SIZE,
+  BODY_SMALL_SIZE,
+  BUTTON_TEXT_SIZE,
+  BUTTON_TEXT_WEIGHT,
+  CARD_TITLE_SIZE,
+  CARD_TITLE_WEIGHT,
+  LABEL_SIZE,
+  LABEL_SMALL_SIZE,
+  STAT_VALUE_SIZE,
+  STAT_VALUE_WEIGHT,
+  TEXT_PRIMARY,
+  TEXT_SECONDARY,
+  TITLE_SECTION_SIZE,
+  TITLE_SECTION_WEIGHT,
+} from '../constants/Typography';
 import { getProductRecommendations } from './TreatmentProducts';
 
 export interface TreatmentPlanPageProps {
@@ -528,7 +544,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  headerTitle: { fontSize: 18, color: '#2D4A3E', fontStyle: 'italic', fontWeight: '600' },
+  headerTitle: { fontSize: TITLE_SECTION_SIZE, color: TEXT_PRIMARY, fontWeight: TITLE_SECTION_WEIGHT },
   headerSettings: { padding: 8, borderRadius: 999 },
 
   statsRow: { flexDirection: 'row', gap: 12, marginBottom: 16 },
@@ -549,8 +565,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginBottom: 8,
   },
-  statValue: { fontSize: 22, fontWeight: '700', color: '#2D4A3E' },
-  statLabel: { fontSize: 12, color: '#6B8B7D', fontStyle: 'italic' },
+  statValue: { fontSize: STAT_VALUE_SIZE, fontWeight: STAT_VALUE_WEIGHT, color: TEXT_PRIMARY },
+  statLabel: { fontSize: LABEL_SIZE, color: TEXT_SECONDARY },
 
   infoBanner: {
     flexDirection: 'row',
@@ -563,7 +579,7 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(123,155,140,0.3)',
     marginBottom: 16,
   },
-  infoText: { flex: 1, fontSize: 13, color: '#2D4A3E', fontStyle: 'italic' },
+  infoText: { flex: 1, fontSize: BODY_SMALL_SIZE, color: TEXT_PRIMARY },
 
   editCta: {
     flexDirection: 'row',
@@ -582,8 +598,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  editTitle: { fontSize: 15, color: '#FFFFFF', fontStyle: 'italic', fontWeight: '600' },
-  editSubtitle: { fontSize: 11, color: 'rgba(255,255,255,0.85)', marginTop: 2 },
+  editTitle: { fontSize: CARD_TITLE_SIZE, color: '#FFFFFF', fontWeight: CARD_TITLE_WEIGHT },
+  editSubtitle: { fontSize: LABEL_SMALL_SIZE, color: 'rgba(255,255,255,0.85)', marginTop: 2 },
 
   editActionsRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 20 },
   saveBtn: {
@@ -596,7 +612,7 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     backgroundColor: '#5F8575',
   },
-  saveBtnText: { fontSize: 15, color: '#FFFFFF', fontStyle: 'italic', fontWeight: '600' },
+  saveBtnText: { fontSize: BUTTON_TEXT_SIZE, color: '#FFFFFF', fontWeight: BUTTON_TEXT_WEIGHT },
   cancelEditBtn: {
     padding: 10,
     borderRadius: 16,
@@ -612,7 +628,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginBottom: 8,
   },
-  sectionTitle: { fontSize: 16, color: '#7B9B8C', fontStyle: 'italic', fontWeight: '600' },
+  sectionTitle: { fontSize: CARD_TITLE_SIZE, color: '#7B9B8C', fontWeight: CARD_TITLE_WEIGHT },
   addStepBtn: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -622,7 +638,7 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     backgroundColor: '#95C98E',
   },
-  addStepText: { fontSize: 12, color: '#FFFFFF', fontStyle: 'italic' },
+  addStepText: { fontSize: LABEL_SIZE, color: '#FFFFFF', fontWeight: BUTTON_TEXT_WEIGHT },
 
   stepCard: {
     backgroundColor: '#FFFFFF',
@@ -642,12 +658,11 @@ const styles = StyleSheet.create({
     flex: 1,
     borderBottomWidth: 2,
     borderBottomColor: '#95C98E',
-    fontSize: 14,
-    color: '#2D4A3E',
-    fontStyle: 'italic',
+    fontSize: BODY_SIZE,
+    color: TEXT_PRIMARY,
     paddingVertical: 4,
   },
-  stepNameText: { fontSize: 14, color: '#7B9B8C', fontWeight: '600' },
+  stepNameText: { fontSize: BODY_SIZE, color: '#7B9B8C', fontWeight: CARD_TITLE_WEIGHT },
   removeStepBtn: { padding: 6, borderRadius: 8, backgroundColor: 'rgba(248,113,113,0.08)' },
 
   productsBlock: { marginTop: 4, gap: 8 },
@@ -661,8 +676,8 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
   },
   productTextBlock: { flex: 1, marginRight: 8 },
-  productBrand: { fontSize: 13, color: '#7B9B8C', fontWeight: '600' },
-  productName: { fontSize: 12, color: '#6B7370', marginTop: 2 },
+  productBrand: { fontSize: BODY_SMALL_SIZE, color: '#7B9B8C', fontWeight: CARD_TITLE_WEIGHT },
+  productName: { fontSize: LABEL_SIZE, color: TEXT_SECONDARY, marginTop: 2 },
   productActions: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   iconSmallBtn: {
     padding: 4,
@@ -678,7 +693,7 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     backgroundColor: '#5F8575',
   },
-  buyCtaText: { fontSize: 11, color: '#FFFFFF', fontWeight: '600' },
+  buyCtaText: { fontSize: LABEL_SMALL_SIZE, color: '#FFFFFF', fontWeight: BUTTON_TEXT_WEIGHT },
   addProductBtn: {
     marginTop: 8,
     flexDirection: 'row',
@@ -691,7 +706,7 @@ const styles = StyleSheet.create({
     borderStyle: 'dashed',
     borderColor: '#95C98E',
   },
-  addProductText: { fontSize: 12, color: '#5F8575', fontStyle: 'italic' },
+  addProductText: { fontSize: LABEL_SIZE, color: '#5F8575' },
 
   modalOverlay: {
     flex: 1,
@@ -718,18 +733,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  modalTitle: { fontSize: 18, color: '#2D4A3E', fontStyle: 'italic', fontWeight: '600' },
+  modalTitle: { fontSize: TITLE_SECTION_SIZE, color: TEXT_PRIMARY, fontWeight: TITLE_SECTION_WEIGHT },
   modalBody: { paddingHorizontal: 20, paddingVertical: 16, gap: 12 },
   modalField: {},
-  modalLabel: { fontSize: 12, color: '#6B8B7D', marginBottom: 4, fontStyle: 'italic' },
+  modalLabel: { fontSize: LABEL_SIZE, color: TEXT_SECONDARY, marginBottom: 4 },
   modalInput: {
     borderWidth: 1,
     borderColor: '#D8D5CF',
     borderRadius: 12,
     paddingHorizontal: 12,
     paddingVertical: 10,
-    fontSize: 14,
-    color: '#2D4A3E',
+    fontSize: BODY_SIZE,
+    color: TEXT_PRIMARY,
   },
   modalInputMultiline: { height: 80 },
   modalFooter: {
@@ -749,7 +764,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#5F8575',
     alignItems: 'center',
   },
-  modalSaveText: { fontSize: 14, color: '#FFFFFF', fontWeight: '600' },
+  modalSaveText: { fontSize: BODY_SIZE, color: '#FFFFFF', fontWeight: BUTTON_TEXT_WEIGHT },
   modalCancelBtn: {
     paddingVertical: 12,
     paddingHorizontal: 16,
@@ -758,6 +773,6 @@ const styles = StyleSheet.create({
     borderColor: '#D8D5CF',
     backgroundColor: '#FFFFFF',
   },
-  modalCancelText: { fontSize: 14, color: '#6B8B7D' },
+  modalCancelText: { fontSize: BODY_SIZE, color: TEXT_SECONDARY },
 });
 

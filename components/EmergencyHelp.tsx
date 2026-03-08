@@ -1,6 +1,14 @@
 import { Ionicons } from '@expo/vector-icons';
 import React from 'react';
 import { Modal, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import {
+  BODY_SMALL_SIZE,
+  BUTTON_TEXT_SIZE,
+  BUTTON_TEXT_WEIGHT,
+  LABEL_SIZE,
+  TITLE_SECTION_SIZE,
+  TITLE_SECTION_WEIGHT,
+} from '../constants/Typography';
 
 export interface EmergencyHelpProps {
   onClose: () => void;
@@ -75,13 +83,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   title: {
-    fontSize: 18,
-    fontWeight: '600',
+    fontSize: TITLE_SECTION_SIZE,
+    fontWeight: TITLE_SECTION_WEIGHT,
     color: '#5A3A32',
     marginBottom: 6,
   },
   subtitle: {
-    fontSize: 13,
+    fontSize: BODY_SMALL_SIZE,
     color: '#6B7370',
     marginBottom: 10,
   },
@@ -89,12 +97,12 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   item: {
-    fontSize: 13,
+    fontSize: BODY_SMALL_SIZE,
     color: '#6B7370',
     marginBottom: 4,
   },
   footer: {
-    fontSize: 12,
+    fontSize: LABEL_SIZE,
     color: '#8A9088',
     marginBottom: 16,
   },
@@ -106,8 +114,8 @@ const styles = StyleSheet.create({
   },
   closeButtonText: {
     color: '#FFFFFF',
-    fontSize: 15,
-    fontWeight: '600',
+    fontSize: BUTTON_TEXT_SIZE,
+    fontWeight: BUTTON_TEXT_WEIGHT,
   },
 });
 

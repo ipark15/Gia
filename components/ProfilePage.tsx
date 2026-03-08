@@ -8,6 +8,19 @@ import {
   View,
 } from 'react-native';
 import { HEADER_PADDING_HORIZONTAL } from '../constants/HeaderStyles';
+import {
+  BODY_SIZE,
+  BUTTON_TEXT_SIZE,
+  BUTTON_TEXT_WEIGHT,
+  CARD_TITLE_SIZE,
+  CARD_TITLE_WEIGHT,
+  LABEL_SIZE,
+  LABEL_SMALL_SIZE,
+  STAT_VALUE_SIZE,
+  STAT_VALUE_WEIGHT,
+  TEXT_PRIMARY,
+  TEXT_SECONDARY,
+} from '../constants/Typography';
 import { AccountManagementSection } from './AccountManagementSection';
 import { EmergencyHelp } from './EmergencyHelp';
 import { TabTopNavbar } from './TabTopNavbar';
@@ -324,14 +337,13 @@ const styles = StyleSheet.create({
   statIconCheck: { backgroundColor: '#7B9B8C' },
   statIconTrend: { backgroundColor: '#95C98E' },
   statValue: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: '#2D4A3E',
+    fontSize: STAT_VALUE_SIZE,
+    fontWeight: STAT_VALUE_WEIGHT,
+    color: TEXT_PRIMARY,
   },
   statLabel: {
-    fontSize: 12,
-    color: '#6B8B7D',
-    fontStyle: 'italic',
+    fontSize: LABEL_SIZE,
+    color: TEXT_SECONDARY,
   },
   content: { gap: 24 },
   card: {
@@ -353,15 +365,13 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   cardTitle: {
-    fontSize: 16,
-    color: '#2D4A3E',
-    fontStyle: 'italic',
-    fontWeight: '600',
+    fontSize: CARD_TITLE_SIZE,
+    color: TEXT_PRIMARY,
+    fontWeight: CARD_TITLE_WEIGHT,
   },
   cardSubtitle: {
-    fontSize: 12,
-    color: '#6B8B7D',
-    fontStyle: 'italic',
+    fontSize: LABEL_SIZE,
+    color: TEXT_SECONDARY,
     marginTop: 2,
   },
   planTitleBlock: { flex: 1 },
@@ -369,8 +379,8 @@ const styles = StyleSheet.create({
   editIconBtn: { padding: 8, borderRadius: 999 },
   skinProfileContent: { gap: 4 },
   uppercaseLabel: {
-    fontSize: 11,
-    color: '#6B8B7D',
+    fontSize: LABEL_SMALL_SIZE,
+    color: TEXT_SECONDARY,
     textTransform: 'uppercase',
     letterSpacing: 1.2,
     marginTop: 12,
@@ -385,11 +395,11 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(123, 155, 140, 0.2)',
   },
-  conditionTagText: { fontSize: 14, color: '#2D4A3E', fontStyle: 'italic' },
+  conditionTagText: { fontSize: BODY_SIZE, color: TEXT_PRIMARY },
   careRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 4 },
-  careText: { fontSize: 14, color: '#2D4A3E', fontStyle: 'italic' },
-  careTextMuted: { fontSize: 14, color: '#6B8B7D', fontStyle: 'italic' },
-  bodyText: { fontSize: 14, color: '#2D4A3E', fontStyle: 'italic', marginTop: 2 },
+  careText: { fontSize: BODY_SIZE, color: TEXT_PRIMARY },
+  careTextMuted: { fontSize: BODY_SIZE, color: TEXT_SECONDARY },
+  bodyText: { fontSize: BODY_SIZE, color: TEXT_PRIMARY, marginTop: 2 },
   timeTag: {
     paddingHorizontal: 12,
     paddingVertical: 6,
@@ -398,7 +408,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(123, 155, 140, 0.2)',
   },
-  timeTagText: { fontSize: 12, color: '#2D4A3E', fontStyle: 'italic' },
+  timeTagText: { fontSize: LABEL_SIZE, color: TEXT_PRIMARY },
   satisfactionRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -463,7 +473,7 @@ const styles = StyleSheet.create({
   },
   planStatIconMorning: { backgroundColor: '#95C98E' },
   planStatIconEvening: { backgroundColor: '#F49EC4' },
-  planStatValue: { fontSize: 18, fontWeight: '600', color: '#2D4A3E', marginTop: 4 },
+  planStatValue: { fontSize: STAT_VALUE_SIZE, fontWeight: STAT_VALUE_WEIGHT, color: TEXT_PRIMARY, marginTop: 4 },
   primaryButton: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -474,7 +484,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     borderRadius: 20,
   },
-  primaryButtonText: { fontSize: 16, color: '#FFFFFF', fontStyle: 'italic', fontWeight: '600' },
+  primaryButtonText: { fontSize: BUTTON_TEXT_SIZE, color: '#FFFFFF', fontWeight: BUTTON_TEXT_WEIGHT },
   inventoryHeader: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -490,19 +500,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  viewAllLink: { fontSize: 12, color: '#7B9B8C', fontStyle: 'italic' },
+  viewAllLink: { fontSize: LABEL_SIZE, color: '#7B9B8C' },
   emptyInventory: {
     alignItems: 'center',
     paddingVertical: 32,
   },
-  emptyInventoryText: { fontSize: 14, color: '#6B8B7D', fontStyle: 'italic', marginBottom: 12 },
+  emptyInventoryText: { fontSize: BODY_SIZE, color: TEXT_SECONDARY, marginBottom: 12 },
   addProductsBtn: {
     backgroundColor: '#5F8575',
     paddingVertical: 10,
     paddingHorizontal: 16,
     borderRadius: 12,
   },
-  addProductsBtnText: { fontSize: 14, color: '#FFFFFF', fontStyle: 'italic', fontWeight: '600' },
+  addProductsBtnText: { fontSize: BUTTON_TEXT_SIZE, color: '#FFFFFF', fontWeight: BUTTON_TEXT_WEIGHT },
   productList: { gap: 8, marginBottom: 16 },
   productCard: {
     padding: 12,
@@ -511,13 +521,12 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(123, 155, 140, 0.2)',
   },
-  productBrand: { fontSize: 14, fontWeight: '600', color: '#2D4A3E' },
-  productName: { fontSize: 12, color: '#6B8B7D', fontStyle: 'italic', marginTop: 2 },
-  productCategory: { fontSize: 10, color: '#6B8B7D', marginTop: 4 },
+  productBrand: { fontSize: BODY_SIZE, fontWeight: CARD_TITLE_WEIGHT, color: TEXT_PRIMARY },
+  productName: { fontSize: LABEL_SIZE, color: TEXT_SECONDARY, marginTop: 2 },
+  productCategory: { fontSize: LABEL_SMALL_SIZE, color: TEXT_SECONDARY, marginTop: 4 },
   moreProductsText: {
-    fontSize: 12,
-    color: '#6B8B7D',
-    fontStyle: 'italic',
+    fontSize: LABEL_SIZE,
+    color: TEXT_SECONDARY,
     textAlign: 'center',
     marginBottom: 16,
   },
@@ -531,7 +540,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     borderRadius: 12,
   },
-  manageInventoryBtnText: { fontSize: 14, color: '#FFFFFF', fontStyle: 'italic', fontWeight: '600' },
+  manageInventoryBtnText: { fontSize: BUTTON_TEXT_SIZE, color: '#FFFFFF', fontWeight: BUTTON_TEXT_WEIGHT },
   manageRulesBtn: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -542,5 +551,5 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     borderRadius: 20,
   },
-  manageRulesBtnText: { fontSize: 16, color: '#FFFFFF', fontStyle: 'italic', fontWeight: '600' },
+  manageRulesBtnText: { fontSize: BUTTON_TEXT_SIZE, color: '#FFFFFF', fontWeight: BUTTON_TEXT_WEIGHT },
 });

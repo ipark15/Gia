@@ -6,6 +6,13 @@ import {
   HEADER_BUTTON_GAP,
   HEADER_ICON_COLOR,
 } from '../constants/HeaderStyles';
+import {
+  SUBTITLE_COLOR,
+  SUBTITLE_SIZE,
+  TEXT_PRIMARY,
+  TITLE_LARGE_SIZE,
+  TITLE_LARGE_WEIGHT,
+} from '../constants/Typography';
 
 export interface TabTopNavbarProps {
   /** Ionicons name for the center icon (e.g. "person", "camera-outline", "document-text") */
@@ -94,15 +101,15 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
   },
   title: {
-    fontSize: 24,
-    color: '#2D4A3E',
-    fontWeight: '700',
+    fontSize: TITLE_LARGE_SIZE,
+    color: TEXT_PRIMARY,
+    fontWeight: TITLE_LARGE_WEIGHT,
     textAlign: 'center',
     marginBottom: 4,
   },
   subtitle: {
-    fontSize: 14,
-    color: '#6B8B7D',
+    fontSize: SUBTITLE_SIZE,
+    color: SUBTITLE_COLOR,
     textAlign: 'center',
     marginBottom: 24,
   },

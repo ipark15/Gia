@@ -10,6 +10,19 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import {
+  BODY_SIZE,
+  BODY_SMALL_SIZE,
+  BUTTON_TEXT_SIZE,
+  BUTTON_TEXT_WEIGHT,
+  CARD_TITLE_SIZE,
+  CARD_TITLE_WEIGHT,
+  LABEL_SIZE,
+  TEXT_PRIMARY,
+  TEXT_SECONDARY,
+  TITLE_SECTION_SIZE,
+  TITLE_SECTION_WEIGHT,
+} from '../constants/Typography';
 import { getProductRecommendations } from './TreatmentProducts';
 
 export interface OwnedProduct {
@@ -474,7 +487,7 @@ export function Inventory({
                     <View key={idx} style={styles.shoppingCard}>
                       <View style={styles.shoppingCardTop}>
                         <View style={styles.shoppingCardContent}>
-                          <Text style={styles.shoppingBrand}>{product.category || product.brand}</Text>
+                          <Text style={styles.shoppingBrand}>{('category' in product ? product.category : null) || product.brand}</Text>
                           {product.brand ? <Text style={styles.shoppingName}>{product.brand}</Text> : null}
                           <Text style={styles.shoppingName}>{product.name}</Text>
                           <Text style={styles.shoppingKey}>
@@ -499,7 +512,7 @@ export function Inventory({
                             handleAddToOwnedFromRecommended({
                               brand: product.brand,
                               name: product.name,
-                              step: product.step,
+                              step: 'step' in product ? product.step : undefined,
                             })
                           }
                           activeOpacity={0.9}
@@ -570,8 +583,8 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   backRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  backText: { fontSize: 14, color: '#6B8B7D', fontStyle: 'italic' },
-  headerTitle: { fontSize: 20, color: '#2D4A3E', fontStyle: 'italic', fontWeight: '600' },
+  backText: { fontSize: BODY_SIZE, color: TEXT_SECONDARY },
+  headerTitle: { fontSize: TITLE_SECTION_SIZE, color: TEXT_PRIMARY, fontWeight: TITLE_SECTION_WEIGHT },
   headerSpacer: { width: 64 },
 
   tabRow: { flexDirection: 'row', gap: 8, marginBottom: 20 },
@@ -589,7 +602,7 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(149,201,142,0.4)',
   },
   tabActive: { backgroundColor: '#5F8575', borderColor: '#5F8575' },
-  tabText: { fontSize: 13, color: '#2D4A3E', fontStyle: 'italic' },
+  tabText: { fontSize: BODY_SMALL_SIZE, color: TEXT_PRIMARY },
   tabTextActive: { color: '#FFFFFF' },
 
   tabContent: { gap: 16 },
@@ -603,7 +616,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     backgroundColor: '#5F8575',
   },
-  addCustomBtnText: { fontSize: 14, color: '#FFFFFF', fontStyle: 'italic' },
+  addCustomBtnText: { fontSize: BUTTON_TEXT_SIZE, color: '#FFFFFF', fontWeight: BUTTON_TEXT_WEIGHT },
 
   addFormCard: {
     backgroundColor: '#FFFFFF',
@@ -613,15 +626,15 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(95,133,117,0.2)',
     gap: 12,
   },
-  addFormTitle: { fontSize: 13, color: '#5F8575', fontStyle: 'italic', fontWeight: '600' },
+  addFormTitle: { fontSize: BODY_SMALL_SIZE, color: '#5F8575', fontWeight: CARD_TITLE_WEIGHT },
   input: {
     borderWidth: 1,
     borderColor: '#D8D5CF',
     borderRadius: 10,
     paddingHorizontal: 12,
     paddingVertical: 10,
-    fontSize: 14,
-    color: '#2D4A3E',
+    fontSize: BODY_SIZE,
+    color: TEXT_PRIMARY,
   },
   categoryTouch: {
     flexDirection: 'row',
@@ -633,7 +646,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 10,
   },
-  categoryTouchText: { fontSize: 14, color: '#2D4A3E' },
+  categoryTouchText: { fontSize: BODY_SIZE, color: TEXT_PRIMARY },
   addFormActions: { flexDirection: 'row', gap: 12, marginTop: 4 },
   addFormAddBtn: {
     flex: 1,
@@ -642,7 +655,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#5F8575',
     alignItems: 'center',
   },
-  addFormAddText: { fontSize: 14, color: '#FFFFFF', fontWeight: '600' },
+  addFormAddText: { fontSize: BUTTON_TEXT_SIZE, color: '#FFFFFF', fontWeight: BUTTON_TEXT_WEIGHT },
   addFormCancelBtn: {
     flex: 1,
     paddingVertical: 10,
@@ -650,11 +663,11 @@ const styles = StyleSheet.create({
     backgroundColor: '#E8F5E9',
     alignItems: 'center',
   },
-  addFormCancelText: { fontSize: 14, color: '#6B7370' },
+  addFormCancelText: { fontSize: BODY_SIZE, color: TEXT_SECONDARY },
 
   emptyState: { alignItems: 'center', paddingVertical: 48 },
-  emptyTitle: { fontSize: 15, color: '#6B8B7D', fontStyle: 'italic', marginTop: 12 },
-  emptySubtitle: { fontSize: 13, color: '#6B8B7D', fontStyle: 'italic', marginTop: 4 },
+  emptyTitle: { fontSize: CARD_TITLE_SIZE, color: TEXT_SECONDARY, marginTop: 12 },
+  emptySubtitle: { fontSize: BODY_SMALL_SIZE, color: TEXT_SECONDARY, marginTop: 4 },
 
   productList: { gap: 12 },
   ownedCard: {
@@ -667,9 +680,9 @@ const styles = StyleSheet.create({
   ownedCardInner: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between' },
   ownedCardContent: { flex: 1 },
   ownedCardRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 },
-  ownedBrand: { fontSize: 14, color: '#2D4A3E', fontWeight: '600', fontStyle: 'italic' },
-  ownedName: { fontSize: 12, color: '#6B8B7D', fontStyle: 'italic', marginLeft: 24 },
-  ownedMeta: { fontSize: 12, color: '#6B8B7D', fontStyle: 'italic', marginLeft: 24, marginTop: 4 },
+  ownedBrand: { fontSize: BODY_SIZE, color: TEXT_PRIMARY, fontWeight: CARD_TITLE_WEIGHT },
+  ownedName: { fontSize: LABEL_SIZE, color: TEXT_SECONDARY, marginLeft: 24 },
+  ownedMeta: { fontSize: LABEL_SIZE, color: TEXT_SECONDARY, marginLeft: 24, marginTop: 4 },
   removeIconBtn: { padding: 8 },
 
   infoBanner: {
@@ -679,7 +692,7 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: 'rgba(149,201,142,0.2)',
   },
-  infoBannerText: { fontSize: 12, color: '#6B8B7D', fontStyle: 'italic' },
+  infoBannerText: { fontSize: LABEL_SIZE, color: TEXT_SECONDARY },
   disclaimerBanner: {
     padding: 14,
     borderRadius: 16,
@@ -687,7 +700,7 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: 'rgba(244,158,196,0.2)',
   },
-  disclaimerText: { fontSize: 12, color: '#6B8B7D', fontStyle: 'italic', textAlign: 'center' },
+  disclaimerText: { fontSize: LABEL_SIZE, color: TEXT_SECONDARY, textAlign: 'center' },
 
   shoppingSection: { gap: 12 },
   shoppingCard: {
@@ -699,11 +712,11 @@ const styles = StyleSheet.create({
   },
   shoppingCardTop: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 12 },
   shoppingCardContent: { flex: 1 },
-  shoppingBrand: { fontSize: 14, color: '#2D4A3E', fontWeight: '600', fontStyle: 'italic' },
-  shoppingName: { fontSize: 12, color: '#6B8B7D', fontStyle: 'italic', marginTop: 2 },
-  shoppingKey: { fontSize: 12, color: '#5F8575', marginTop: 4 },
-  shoppingKeyLabel: { fontWeight: '600' },
-  shoppingNote: { fontSize: 12, color: '#6B8B7D', fontStyle: 'italic', marginTop: 6 },
+  shoppingBrand: { fontSize: BODY_SIZE, color: TEXT_PRIMARY, fontWeight: CARD_TITLE_WEIGHT },
+  shoppingName: { fontSize: LABEL_SIZE, color: TEXT_SECONDARY, marginTop: 2 },
+  shoppingKey: { fontSize: LABEL_SIZE, color: '#5F8575', marginTop: 4 },
+  shoppingKeyLabel: { fontWeight: CARD_TITLE_WEIGHT },
+  shoppingNote: { fontSize: LABEL_SIZE, color: TEXT_SECONDARY, marginTop: 6 },
   shoppingActions: { flexDirection: 'row', gap: 8 },
   iHaveBtn: {
     flex: 1,
@@ -716,7 +729,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     backgroundColor: '#5F8575',
   },
-  iHaveBtnText: { fontSize: 13, color: '#FFFFFF', fontStyle: 'italic', fontWeight: '600' },
+  iHaveBtnText: { fontSize: BODY_SMALL_SIZE, color: '#FFFFFF', fontWeight: BUTTON_TEXT_WEIGHT },
   removeBtn: {
     flex: 1,
     flexDirection: 'row',
@@ -730,7 +743,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(149,201,142,0.3)',
   },
-  removeBtnText: { fontSize: 13, color: '#2D4A3E', fontStyle: 'italic' },
+  removeBtnText: { fontSize: BODY_SMALL_SIZE, color: TEXT_PRIMARY },
 
   modalOverlay: {
     flex: 1,
@@ -748,7 +761,7 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: 'rgba(123,155,140,0.3)',
   },
-  pickerTitle: { fontSize: 16, color: '#2D4A3E', fontWeight: '600', marginBottom: 12 },
+  pickerTitle: { fontSize: CARD_TITLE_SIZE, color: TEXT_PRIMARY, fontWeight: CARD_TITLE_WEIGHT, marginBottom: 12 },
   pickerOption: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -757,5 +770,5 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     borderRadius: 10,
   },
-  pickerOptionText: { fontSize: 14, color: '#2D4A3E' },
+  pickerOptionText: { fontSize: BODY_SIZE, color: TEXT_PRIMARY },
 });
