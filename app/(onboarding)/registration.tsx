@@ -380,6 +380,15 @@ export default function Registration() {
               <Text style={styles.footerNote}>
                 By creating an account, you agree to our terms of service.
               </Text>
+              <View style={styles.signInRow}>
+                <Text style={styles.signInRowText}>Already have an account? </Text>
+                <Text
+                  style={styles.signInRowLink}
+                  onPress={() => router.push('/(onboarding)/sign-in')}
+                >
+                  Sign in
+                </Text>
+              </View>
             </View>
           )}
 
@@ -917,6 +926,23 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontSize: 12,
     color: '#6B8B7D',
+  },
+  signInRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    marginTop: 20,
+  },
+  signInRowText: {
+    fontSize: 14,
+    color: '#6B8B7D',
+  },
+  signInRowLink: {
+    fontSize: 14,
+    color: '#5F8575',
+    fontWeight: '600',
+    textDecorationLine: 'underline',
   },
   optionsContainer: {
     gap: 12,
