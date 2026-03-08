@@ -7,8 +7,10 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { HEADER_PADDING_HORIZONTAL } from '../constants/HeaderStyles';
 import { AccountManagementSection } from './AccountManagementSection';
 import { EmergencyHelp } from './EmergencyHelp';
+import { TabTopNavbar } from './TabTopNavbar';
 
 export interface CompletedDay {
   date: string;
@@ -96,185 +98,175 @@ export function ProfilePage({
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* Header */}
-        <View style={styles.header}>
-          <View style={styles.headerSpacer} />
-          <View style={styles.avatarWrap}>
-            <Ionicons name="person" size={40} color="#FFFFFF" />
-          </View>
-          <View style={styles.headerActions}>
-            <TouchableOpacity
-              style={styles.iconBtn}
-              onPress={() => setShowHelpModal(true)}
-              accessibilityLabel="Emergency & medical help"
-              activeOpacity={0.8}
-            >
-              <Ionicons name="help-circle-outline" size={20} color="#7B9B8C" />
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.iconBtn} onPress={onEdit} accessibilityLabel="Settings" activeOpacity={0.8}>
-              <Ionicons name="settings-outline" size={20} color="#7B9B8C" />
-            </TouchableOpacity>
-          </View>
+        <View style={styles.headerWrap}>
+          <TabTopNavbar
+            icon="person"
+            title="Your profile"
+            subtitle="Track your journey, celebrate progress"
+            onHelpPress={() => setShowHelpModal(true)}
+            onSettingsPress={onEdit}
+            helpAccessibilityLabel="Emergency & medical help"
+          />
         </View>
-        <Text style={styles.title}>Your profile</Text>
-        <Text style={styles.subtitle}>Track your journey, celebrate progress</Text>
 
         {showHelpModal && <EmergencyHelp onClose={() => setShowHelpModal(false)} />}
 
         {/* Quick Stats */}
-        <View style={styles.statsGrid}>
-          <View style={styles.statCard}>
-            <View style={[styles.statIconWrap, styles.statIconFlame]}>
-              <Ionicons name="flame" size={20} color="#FFFFFF" />
+        <View style={styles.contentWrap}>
+          <View style={styles.statsGrid}>
+            <View style={styles.statCard}>
+              <View style={[styles.statIconWrap, styles.statIconFlame]}>
+                <Ionicons name="flame" size={20} color="#FFFFFF" />
+              </View>
+              <Text style={styles.statValue}>{currentStreak}</Text>
+              <Text style={styles.statLabel}>day streak</Text>
             </View>
-            <Text style={styles.statValue}>{currentStreak}</Text>
-            <Text style={styles.statLabel}>day streak</Text>
-          </View>
-          <View style={styles.statCard}>
-            <View style={[styles.statIconWrap, styles.statIconCheck]}>
-              <Ionicons name="checkmark-circle" size={20} color="#FFFFFF" />
+            <View style={styles.statCard}>
+              <View style={[styles.statIconWrap, styles.statIconCheck]}>
+                <Ionicons name="checkmark-circle" size={20} color="#FFFFFF" />
+              </View>
+              <Text style={styles.statValue}>{totalCompletedDays}</Text>
+              <Text style={styles.statLabel}>days tracked</Text>
             </View>
-            <Text style={styles.statValue}>{totalCompletedDays}</Text>
-            <Text style={styles.statLabel}>days tracked</Text>
-          </View>
-          <View style={styles.statCard}>
-            <View style={[styles.statIconWrap, styles.statIconTrend]}>
-              <Ionicons name="trending-up" size={20} color="#FFFFFF" />
+            <View style={styles.statCard}>
+              <View style={[styles.statIconWrap, styles.statIconTrend]}>
+                <Ionicons name="trending-up" size={20} color="#FFFFFF" />
+              </View>
+              <Text style={styles.statValue}>{completionRate}%</Text>
+              <Text style={styles.statLabel}>completion</Text>
             </View>
-            <Text style={styles.statValue}>{completionRate}%</Text>
-            <Text style={styles.statLabel}>completion</Text>
           </View>
-        </View>
 
-        {/* Content */}
-        <View style={styles.content}>
-          {/* Skin Profile */}
-          <View style={styles.card}>
-            <View style={styles.cardHeaderRow}>
-              <Text style={styles.cardTitle}>Skin profile</Text>
-              <TouchableOpacity style={styles.editIconBtn} onPress={onEdit} activeOpacity={0.8}>
-                <Ionicons name="pencil" size={18} color="#7B9B8C" />
-              </TouchableOpacity>
-            </View>
-
-            <View style={styles.skinProfileContent}>
-              <Text style={styles.uppercaseLabel}>Primary Concerns</Text>
-              <View style={styles.tagRow}>
-                {registrationData.conditions.map((condition, i) => (
-                  <View key={i} style={styles.conditionTag}>
-                    <Text style={styles.conditionTagText}>{condition}</Text>
-                  </View>
-                ))}
+          {/* Content */}
+          <View style={styles.content}>
+            {/* Skin Profile */}
+            <View style={styles.card}>
+              <View style={styles.cardHeaderRow}>
+                <Text style={styles.cardTitle}>Skin profile</Text>
+                <TouchableOpacity style={styles.editIconBtn} onPress={onEdit} activeOpacity={0.8}>
+                  <Ionicons name="pencil" size={18} color="#7B9B8C" />
+                </TouchableOpacity>
               </View>
 
-              <Text style={styles.uppercaseLabel}>Care</Text>
-              <View style={styles.careRow}>
-                {registrationData.hasDermatologist ? (
-                  <>
-                    <Ionicons name="checkmark-circle" size={16} color="#5F8575" />
-                    <Text style={styles.careText}>Working with a dermatologist</Text>
-                  </>
-                ) : (
-                  <>
-                    <Ionicons name="alert-circle-outline" size={16} color="#6B8B7D" />
-                    <Text style={styles.careTextMuted}>Self-managing care</Text>
-                  </>
-                )}
-              </View>
-
-              <Text style={styles.uppercaseLabel}>Routine Commitment</Text>
-              <Text style={styles.bodyText}>{registrationData.commitment}</Text>
-
-              <Text style={styles.uppercaseLabel}>Preferred Reminders Times</Text>
-              <View style={styles.tagRow}>
-                {registrationData.preferredTimes.map((time, i) => (
-                  <View key={i} style={styles.timeTag}>
-                    <Text style={styles.timeTagText}>{time}</Text>
-                  </View>
-                ))}
-              </View>
-
-              <Text style={styles.uppercaseLabel}>Skin Satisfaction</Text>
-              <View style={styles.satisfactionRow}>
-                <View style={styles.starsRow}>
-                  {[1, 2, 3, 4, 5].map((star) => (
-                    <View
-                      key={star}
-                      style={[
-                        styles.starCircle,
-                        star <= registrationData.satisfaction ? styles.starCircleFilled : styles.starCircleEmpty,
-                      ]}
-                    >
-                      <Text
-                        style={[
-                          styles.starEmoji,
-                          star <= registrationData.satisfaction ? styles.starEmojiFilled : styles.starEmojiEmpty,
-                        ]}
-                      >
-                        🪷
-                      </Text>
+              <View style={styles.skinProfileContent}>
+                <Text style={styles.uppercaseLabel}>Primary Concerns</Text>
+                <View style={styles.tagRow}>
+                  {registrationData.conditions.map((condition, i) => (
+                    <View key={i} style={styles.conditionTag}>
+                      <Text style={styles.conditionTagText}>{condition}</Text>
                     </View>
                   ))}
                 </View>
-                <Text style={styles.bodyText}>
-                  {satisfactionLabels[registrationData.satisfaction] ?? '—'}
-                </Text>
+
+                <Text style={styles.uppercaseLabel}>Care</Text>
+                <View style={styles.careRow}>
+                  {registrationData.hasDermatologist ? (
+                    <>
+                      <Ionicons name="checkmark-circle" size={16} color="#5F8575" />
+                      <Text style={styles.careText}>Working with a dermatologist</Text>
+                    </>
+                  ) : (
+                    <>
+                      <Ionicons name="alert-circle-outline" size={16} color="#6B8B7D" />
+                      <Text style={styles.careTextMuted}>Self-managing care</Text>
+                    </>
+                  )}
+                </View>
+
+                <Text style={styles.uppercaseLabel}>Routine Commitment</Text>
+                <Text style={styles.bodyText}>{registrationData.commitment}</Text>
+
+                <Text style={styles.uppercaseLabel}>Preferred Reminders Times</Text>
+                <View style={styles.tagRow}>
+                  {registrationData.preferredTimes.map((time, i) => (
+                    <View key={i} style={styles.timeTag}>
+                      <Text style={styles.timeTagText}>{time}</Text>
+                    </View>
+                  ))}
+                </View>
+
+                <Text style={styles.uppercaseLabel}>Skin Satisfaction</Text>
+                <View style={styles.satisfactionRow}>
+                  <View style={styles.starsRow}>
+                    {[1, 2, 3, 4, 5].map((star) => (
+                      <View
+                        key={star}
+                        style={[
+                          styles.starCircle,
+                          star <= registrationData.satisfaction ? styles.starCircleFilled : styles.starCircleEmpty,
+                        ]}
+                      >
+                        <Text
+                          style={[
+                            styles.starEmoji,
+                            star <= registrationData.satisfaction ? styles.starEmojiFilled : styles.starEmojiEmpty,
+                          ]}
+                        >
+                          🪷
+                        </Text>
+                      </View>
+                    ))}
+                  </View>
+                  <Text style={styles.bodyText}>
+                    {satisfactionLabels[registrationData.satisfaction] ?? '—'}
+                  </Text>
+                </View>
               </View>
             </View>
+
+            {/* Routine & products — one screen with Routine + Shopping tabs */}
+            {treatmentPlanId ? (
+              <View style={styles.card}>
+                <View style={styles.planHeader}>
+                  <View style={styles.planIconWrap}>
+                    <Ionicons name="document-text" size={26} color="#FFFFFF" />
+                  </View>
+                  <View style={styles.planTitleBlock}>
+                    <Text style={styles.cardTitle}>My routine & products</Text>
+                    <Text style={styles.cardSubtitle}>Your routine and shopping list</Text>
+                  </View>
+                </View>
+                <View style={styles.planStatsRow}>
+                  <View style={[styles.planStatBox, styles.planStatBoxMorning]}>
+                    <View style={[styles.planStatIconWrap, styles.planStatIconMorning]}>
+                      <Ionicons name="time-outline" size={20} color="#FFFFFF" />
+                    </View>
+                    <Text style={styles.uppercaseLabel}>Morning</Text>
+                    <Text style={styles.planStatValue}>{routineMorningSteps ?? 0} steps</Text>
+                  </View>
+                  <View style={[styles.planStatBox, styles.planStatBoxEvening]}>
+                    <View style={[styles.planStatIconWrap, styles.planStatIconEvening]}>
+                      <Ionicons name="time-outline" size={20} color="#FFFFFF" />
+                    </View>
+                    <Text style={styles.uppercaseLabel}>Evening</Text>
+                    <Text style={styles.planStatValue}>{routineEveningSteps ?? 0} steps</Text>
+                  </View>
+                </View>
+                {onViewTreatmentPlan ? (
+                  <TouchableOpacity style={styles.primaryButton} onPress={onViewTreatmentPlan} activeOpacity={0.9}>
+                    <Text style={styles.primaryButtonText}>Open routine & shopping</Text>
+                    <Ionicons name="chevron-forward" size={18} color="#FFFFFF" />
+                  </TouchableOpacity>
+                ) : null}
+              </View>
+            ) : null}
+
+            {/* Account Management */}
+            <AccountManagementSection
+              accountData={accountData ?? { name: 'User', email: 'user@example.com', password: 'password123' }}
+              onUpdateAccount={onUpdateAccount}
+            />
+
+            {/* Manage routine rules */}
+            {onManageRules ? (
+              <TouchableOpacity style={styles.manageRulesBtn} onPress={onManageRules} activeOpacity={0.9}>
+                <Ionicons name="flag" size={20} color="#FFFFFF" />
+                <Text style={styles.manageRulesBtnText}>Manage routine rules</Text>
+              </TouchableOpacity>
+            ) : null}
           </View>
 
-          {/* Routine & products — one screen with Routine + Shopping tabs */}
-          {treatmentPlanId ? (
-            <View style={styles.card}>
-              <View style={styles.planHeader}>
-                <View style={styles.planIconWrap}>
-                  <Ionicons name="document-text" size={26} color="#FFFFFF" />
-                </View>
-                <View style={styles.planTitleBlock}>
-                  <Text style={styles.cardTitle}>My routine & products</Text>
-                  <Text style={styles.cardSubtitle}>Your routine and shopping list</Text>
-                </View>
-              </View>
-              <View style={styles.planStatsRow}>
-                <View style={[styles.planStatBox, styles.planStatBoxMorning]}>
-                  <View style={[styles.planStatIconWrap, styles.planStatIconMorning]}>
-                    <Ionicons name="time-outline" size={20} color="#FFFFFF" />
-                  </View>
-                  <Text style={styles.uppercaseLabel}>Morning</Text>
-                  <Text style={styles.planStatValue}>{routineMorningSteps ?? 0} steps</Text>
-                </View>
-                <View style={[styles.planStatBox, styles.planStatBoxEvening]}>
-                  <View style={[styles.planStatIconWrap, styles.planStatIconEvening]}>
-                    <Ionicons name="time-outline" size={20} color="#FFFFFF" />
-                  </View>
-                  <Text style={styles.uppercaseLabel}>Evening</Text>
-                  <Text style={styles.planStatValue}>{routineEveningSteps ?? 0} steps</Text>
-                </View>
-              </View>
-              {onViewTreatmentPlan ? (
-                <TouchableOpacity style={styles.primaryButton} onPress={onViewTreatmentPlan} activeOpacity={0.9}>
-                  <Text style={styles.primaryButtonText}>Open routine & shopping</Text>
-                  <Ionicons name="chevron-forward" size={18} color="#FFFFFF" />
-                </TouchableOpacity>
-              ) : null}
-            </View>
-          ) : null}
-
-          {/* Account Management */}
-          <AccountManagementSection
-            accountData={accountData ?? { name: 'User', email: 'user@example.com', password: 'password123' }}
-            onUpdateAccount={onUpdateAccount}
-          />
-
-          {/* Manage routine rules */}
-          {onManageRules ? (
-            <TouchableOpacity style={styles.manageRulesBtn} onPress={onManageRules} activeOpacity={0.9}>
-              <Ionicons name="flag" size={20} color="#FFFFFF" />
-              <Text style={styles.manageRulesBtnText}>Manage routine rules</Text>
-            </TouchableOpacity>
-          ) : null}
         </View>
-
         <View style={{ height: 48 }} />
       </ScrollView>
     </View>
@@ -288,54 +280,18 @@ const styles = StyleSheet.create({
   },
   scroll: { flex: 1 },
   scrollContent: {
-    paddingHorizontal: 24,
     paddingTop: 24,
+    paddingBottom: 120,
+  },
+  headerWrap: {
+    width: '100%',
+    paddingHorizontal: HEADER_PADDING_HORIZONTAL,
+  },
+  contentWrap: {
+    width: '100%',
     maxWidth: 672,
     alignSelf: 'center',
-    width: '100%',
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 16,
-  },
-  headerSpacer: { flex: 1 },
-  avatarWrap: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: '#7B9B8C',
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  headerActions: {
-    flex: 1,
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    gap: 8,
-  },
-  iconBtn: {
-    padding: 10,
-    borderRadius: 999,
-  },
-  title: {
-    fontSize: 24,
-    color: '#2D4A3E',
-    fontStyle: 'italic',
-    textAlign: 'center',
-    marginBottom: 4,
-  },
-  subtitle: {
-    fontSize: 14,
-    color: '#6B8B7D',
-    textAlign: 'center',
-    marginBottom: 32,
+    paddingHorizontal: HEADER_PADDING_HORIZONTAL,
   },
   statsGrid: {
     flexDirection: 'row',

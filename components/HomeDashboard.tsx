@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   Image,
   ScrollView,
@@ -9,6 +9,13 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import {
+  HEADER_ACTION_STRIP_WIDTH,
+  HEADER_BUTTON_GAP,
+  HEADER_ICON_COLOR,
+  HEADER_PADDING_HORIZONTAL,
+} from '../constants/HeaderStyles';
+import { EmergencyHelp } from './EmergencyHelp';
 
 export type CheckInData = {
   type: 'morning' | 'evening';
@@ -36,7 +43,6 @@ interface HomeDashboardProps {
   onActivateGreenhouse: () => void;
   onFreshStart: () => void;
   onCustomizeRoutine: () => void;
-  onOpenInventory?: () => void;
   onOpenGarden?: () => void;
   onOpenSettings?: () => void;
   onCheckInComplete?: (data: CheckInData) => void;
@@ -110,7 +116,6 @@ export function HomeDashboard({
   onActivateGreenhouse,
   onFreshStart,
   onCustomizeRoutine,
-  onOpenInventory,
   onOpenGarden,
   onOpenSettings,
   onCheckInComplete,
@@ -132,8 +137,7 @@ export function HomeDashboard({
   const [askQuestion, setAskQuestion] = useState('');
   const [chatMessages, setChatMessages] = useState<{ question: string; answer: string }[]>([]);
 
-  const [isRecording, setIsRecording] = useState(false);
-  const recordingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [showHelpModal, setShowHelpModal] = useState(false);
 
   const [showConfetti, setShowConfetti] = useState(false);
 
@@ -382,40 +386,6 @@ export function HomeDashboard({
     handleAskQuestion(q);
   };
 
-  const handleVoiceRecording = () => {
-    if (isRecording) {
-      setIsRecording(false);
-      if (recordingTimerRef.current) {
-        clearTimeout(recordingTimerRef.current);
-        recordingTimerRef.current = null;
-      }
-      const voiceQuestions = [
-        'is this irritation normal?',
-        'what helps with redness?',
-        'when should I stop using a product?',
-        'how do I know if my skin is purging?',
-        'can I use retinol every day?',
-      ];
-      const randomQuestion =
-        voiceQuestions[Math.floor(Math.random() * voiceQuestions.length)];
-      handleAskQuestion(randomQuestion);
-    } else {
-      setIsRecording(true);
-      if (recordingTimerRef.current) clearTimeout(recordingTimerRef.current);
-      recordingTimerRef.current = setTimeout(() => {
-        handleVoiceRecording();
-      }, 5000);
-    }
-  };
-
-  useEffect(() => {
-    return () => {
-      if (recordingTimerRef.current) {
-        clearTimeout(recordingTimerRef.current);
-      }
-    };
-  }, []);
-
   const handleCompleteRoutine = () => {
     const nowHour = new Date().getHours();
     const currentlyEvening = nowHour >= 18 || nowHour < 6;
@@ -479,6 +449,7 @@ export function HomeDashboard({
 
   return (
     <View style={styles.root}>
+      {showHelpModal && <EmergencyHelp onClose={() => setShowHelpModal(false)} />}
       {activeReminder && (
         <ReminderToast
           reminder={activeReminder}
@@ -510,45 +481,33 @@ export function HomeDashboard({
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        <View style={styles.inner}>
-          <View style={styles.headerRow}>
-            <View style={styles.headerTextBlock}>
-              <Text style={styles.greeting}>{getGreeting()}</Text>
-              <Text style={styles.greetingSub}>Ready for your routine today</Text>
-            </View>
-            <View style={styles.headerActions}>
-              <TouchableOpacity
-                style={styles.helpButton}
-                onPress={handleVoiceRecording}
-                activeOpacity={0.9}
-              >
-                <Ionicons
-                  name={isRecording ? 'mic' : 'help-circle-outline'}
-                  size={20}
-                  color="#5F8575"
-                />
-              </TouchableOpacity>
-              {onOpenInventory && (
-                <TouchableOpacity
-                  onPress={onOpenInventory}
-                  style={styles.iconButton}
-                  activeOpacity={0.8}
-                >
-                  <Ionicons name="briefcase-outline" size={20} color="#5F8575" />
-                </TouchableOpacity>
-              )}
-              {onOpenSettings && (
-                <TouchableOpacity
-                  onPress={onOpenSettings}
-                  style={styles.iconButton}
-                  activeOpacity={0.8}
-                >
-                  <Ionicons name="settings-outline" size={20} color="#5F8575" />
-                </TouchableOpacity>
-              )}
-            </View>
+        <View style={styles.headerRow}>
+          <View style={styles.headerTextBlock}>
+            <Text style={styles.greeting}>{getGreeting()}</Text>
+            <Text style={styles.greetingSub}>Ready for your routine today</Text>
           </View>
+          <View style={styles.headerActions}>
+            <TouchableOpacity
+              style={styles.iconButton}
+              onPress={() => setShowHelpModal(true)}
+              activeOpacity={0.9}
+              accessibilityLabel="Emergency & medical help"
+            >
+              <Ionicons name="help-circle-outline" size={20} color={HEADER_ICON_COLOR} />
+            </TouchableOpacity>
+            {onOpenSettings && (
+              <TouchableOpacity
+                onPress={onOpenSettings}
+                style={styles.iconButton}
+                activeOpacity={0.8}
+              >
+                <Ionicons name="settings-outline" size={20} color={HEADER_ICON_COLOR} />
+              </TouchableOpacity>
+            )}
+          </View>
+        </View>
 
+        <View style={styles.inner}>
           {nextRoutineInfo && (
             <View style={styles.completionBanner}>
               <View style={styles.completionBannerLeft}>
@@ -1114,7 +1073,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    paddingHorizontal: 16,
+    paddingHorizontal: HEADER_PADDING_HORIZONTAL,
     paddingTop: 24,
     paddingBottom: 40,
   },
@@ -1126,38 +1085,38 @@ const styles = StyleSheet.create({
   headerRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'flex-start',
+    alignItems: 'center',
+    minHeight: 56,
     marginBottom: 24,
   },
   headerTextBlock: {
     flex: 1,
     paddingRight: 8,
+    justifyContent: 'center',
   },
   greeting: {
-    fontSize: 22,
+    fontSize: 24,
     color: '#2D4A3E',
+    fontWeight: '700',
     marginBottom: 4,
+    textAlign: 'left',
   },
   greetingSub: {
-    fontSize: 13,
+    fontSize: 14,
     color: '#6B8B7D',
+    textAlign: 'left',
   },
   headerActions: {
+    width: HEADER_ACTION_STRIP_WIDTH,
     flexDirection: 'row',
+    justifyContent: 'flex-end',
     alignItems: 'center',
-    marginLeft: 8,
-  },
-  helpButton: {
-    padding: 10,
-    borderRadius: 999,
-    backgroundColor: '#E8F5E9',
-    marginRight: 4,
+    gap: HEADER_BUTTON_GAP,
   },
   iconButton: {
     padding: 10,
     borderRadius: 999,
-    backgroundColor: '#F0F3ED',
-    marginLeft: 4,
+    backgroundColor: '#FFFFFF',
   },
   completionBanner: {
     backgroundColor: '#5F8575',

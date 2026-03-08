@@ -1,3 +1,4 @@
+import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Insights as InsightsComponent } from '../../components/Insights';
@@ -14,7 +15,7 @@ export default function InsightsScreen() {
         nextDermAppointment="2026-03-15"
         onUpdateDermAppointment={() => { }}
         userCondition="acne"
-        onManageRules={() => { }}
+        onManageRules={() => router.push({ pathname: '/(onboarding)/registration', params: { step: '2' } })}
         completedDays={[]}
         onboardingSatisfaction={3}
       />

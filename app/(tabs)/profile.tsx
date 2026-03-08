@@ -39,7 +39,7 @@ export default function ProfileScreen() {
       <ProfilePage
         completedDays={DEMO_COMPLETED_DAYS}
         registrationData={DEMO_REGISTRATION}
-        onEdit={() => router.push('/(onboarding)/registration')}
+        onEdit={() => router.push({ pathname: '/(onboarding)/registration', params: { step: '2' } })}
         currentStreak={7}
         onManageRules={() => { }}
         treatmentPlanId={PLAN_ID}

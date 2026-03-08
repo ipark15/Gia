@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import Slider from '@react-native-community/slider';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import React, { useState } from 'react';
 import {
@@ -50,7 +50,9 @@ interface FormData {
 }
 
 export default function Registration() {
-  const [step, setStep] = useState<number | 3.4 | 3.5>(1);
+  const params = useLocalSearchParams<{ step?: string }>();
+  const initialStep = params.step != null ? Math.min(6, Math.max(1, parseInt(params.step, 10) || 1)) : 1;
+  const [step, setStep] = useState<number | 3.4 | 3.5>(initialStep as number);
   const [showTermsModal, setShowTermsModal] = useState(false);
 
   const [formData, setFormData] = useState<FormData>({

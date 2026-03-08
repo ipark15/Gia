@@ -48,8 +48,8 @@ export default function HomeScreen() {
         onActivateGreenhouse={() => { }}
         onFreshStart={() => { }}
         onCustomizeRoutine={() => { }}
-        onOpenInventory={() => { }}
         onOpenGarden={() => { }}
+        onOpenSettings={() => router.push({ pathname: '/(onboarding)/registration', params: { step: '2' } })}
         userCondition={userCondition}
         currentStreak={currentStreak}
         weekCount={weekCount}

@@ -1,5 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
+import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import React, { useMemo, useState } from 'react';
 import {
@@ -16,11 +17,13 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { EmergencyHelp } from '../../components/EmergencyHelp';
 import { ExecutiveSummary } from '../../components/ExecutiveSummary';
+import { TabTopNavbar } from '../../components/TabTopNavbar';
+import { HEADER_PADDING_HORIZONTAL } from '../../constants/HeaderStyles';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const GRID_COLUMNS = 3;
 const GRID_GAP = 8;
-const HORIZONTAL_PADDING = 24;
+const HORIZONTAL_PADDING = HEADER_PADDING_HORIZONTAL;
 const PHOTO_SIZE =
   (SCREEN_WIDTH - HORIZONTAL_PADDING * 2 - GRID_GAP * (GRID_COLUMNS - 1)) / GRID_COLUMNS;
 
@@ -253,32 +256,13 @@ export default function ProgressScreen() {
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
         >
-          <View style={styles.headerRow}>
-            <View style={{ flex: 1 }} />
-            <View style={styles.headerCenter}>
-              <View style={styles.cameraCircle}>
-                <Ionicons name="camera-outline" size={32} color="#FFFFFF" />
-              </View>
-            </View>
-            <View style={styles.headerRight}>
-              <TouchableOpacity
-                style={styles.iconButton}
-                onPress={() => setShowHelpModal(true)}
-                activeOpacity={0.8}
-              >
-                <Ionicons name="help-circle-outline" size={20} color="#7B9B8C" />
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.iconButton} activeOpacity={0.8}>
-                <Ionicons name="settings-outline" size={20} color="#7B9B8C" />
-              </TouchableOpacity>
-            </View>
-          </View>
-          <View style={styles.headerTextBlock}>
-            <Text style={styles.headerTitle}>Track your progress</Text>
-            <Text style={styles.headerSubtitle}>
-              Visualize changes and see a summary of your skin journey
-            </Text>
-          </View>
+          <TabTopNavbar
+            icon="camera-outline"
+            title="Track your progress"
+            subtitle="Visualize changes and see a summary of your skin journey"
+            onHelpPress={() => setShowHelpModal(true)}
+            onSettingsPress={() => router.push({ pathname: '/(onboarding)/registration', params: { step: '2' } })}
+          />
 
           <View style={styles.appointmentCard}>
             <View style={styles.appointmentGrid}>
@@ -782,54 +766,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: HORIZONTAL_PADDING,
     paddingTop: 24,
     paddingBottom: 32,
-  },
-  headerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  headerCenter: {
-    flex: 1,
-    alignItems: 'center',
-  },
-  cameraCircle: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
-    backgroundColor: '#7B9B8C',
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOpacity: 0.18,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 4,
-  },
-  headerRight: {
-    flex: 1,
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-  },
-  iconButton: {
-    padding: 8,
-    borderRadius: 999,
-    backgroundColor: '#FFFFFF',
-    marginLeft: 6,
-  },
-  headerTextBlock: {
-    alignItems: 'center',
-    marginBottom: 18,
-  },
-  headerTitle: {
-    fontSize: 22,
-    color: '#2D4A3E',
-    fontStyle: 'italic',
-    marginBottom: 4,
-  },
-  headerSubtitle: {
-    fontSize: 13,
-    color: '#6B8B7D',
-    textAlign: 'center',
   },
   appointmentCard: {
     backgroundColor: '#F5F1ED',

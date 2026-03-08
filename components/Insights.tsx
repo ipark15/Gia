@@ -9,7 +9,9 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { HEADER_PADDING_HORIZONTAL } from '../constants/HeaderStyles';
 import { EmergencyHelp } from './EmergencyHelp';
+import { TabTopNavbar } from './TabTopNavbar';
 import WeeklyOverviewChart from './WeeklyOverviewChart';
 
 export interface TimelineEntry {
@@ -276,394 +278,386 @@ export function Insights({
   return (
     <View style={styles.container}>
       <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        {/* Header */}
-        <View style={styles.header}>
-          <View style={styles.headerSpacer} />
-          <View style={styles.headerIconWrap}>
-            <Ionicons name="document-text" size={40} color="#FFFFFF" />
-          </View>
-          <View style={styles.headerActions}>
-            <TouchableOpacity style={styles.iconBtn} onPress={() => setShowHelpModal(true)} accessibilityLabel="Help">
-              <Ionicons name="help-circle-outline" size={20} color="#7B9B8C" />
-            </TouchableOpacity>
-            {onManageRules && (
-              <TouchableOpacity style={styles.iconBtn} onPress={onManageRules} accessibilityLabel="Settings">
-                <Ionicons name="settings-outline" size={20} color="#7B9B8C" />
-              </TouchableOpacity>
-            )}
-          </View>
+        <View style={styles.headerWrap}>
+          <TabTopNavbar
+            icon="document-text"
+            title="Insights"
+            subtitle="Monitor your journey and gain insights"
+            onHelpPress={() => setShowHelpModal(true)}
+            onSettingsPress={onManageRules ?? undefined}
+          />
         </View>
-        <Text style={styles.title}>Insights</Text>
-        <Text style={styles.subtitle}>Monitor your journey and gain insights</Text>
 
         {showHelpModal && <EmergencyHelp onClose={() => setShowHelpModal(false)} />}
 
-        {/* Ask Gia */}
-        <TouchableOpacity style={styles.askGiaBtn} onPress={() => setAskExpanded(true)} activeOpacity={0.9}>
-          <View style={styles.askGiaIconWrap}>
-            <Ionicons name="mic" size={24} color="#FFFFFF" />
-          </View>
-          <View style={styles.askGiaTextWrap}>
-            <Text style={styles.askGiaTitle}>Ask Gia</Text>
-            <Text style={styles.askGiaSubtitle}>Get AI insights about your skin journey</Text>
-          </View>
-          <Ionicons name="chevron-forward" size={20} color="rgba(255,255,255,0.8)" />
-        </TouchableOpacity>
+        <View style={styles.contentWrap}>
+          {/* Ask Gia */}
+          <TouchableOpacity style={styles.askGiaBtn} onPress={() => setAskExpanded(true)} activeOpacity={0.9}>
+            <View style={styles.askGiaIconWrap}>
+              <Ionicons name="mic" size={24} color="#FFFFFF" />
+            </View>
+            <View style={styles.askGiaTextWrap}>
+              <Text style={styles.askGiaTitle}>Ask Gia</Text>
+              <Text style={styles.askGiaSubtitle}>Get AI insights about your skin journey</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color="rgba(255,255,255,0.8)" />
+          </TouchableOpacity>
 
-        {/* Ask Gia Modal */}
-        {askExpanded && (
-          <Modal visible transparent animationType="slide">
-            <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => { setAskExpanded(false); setAskQuestion(''); setChatMessages([]); }}>
-              <TouchableOpacity activeOpacity={1} onPress={(e) => e.stopPropagation()} style={styles.modalContentWrap}>
-                <View style={styles.askModalCard}>
-                  <View style={styles.askModalHeader}>
-                    <View style={styles.askModalHeaderLeft}>
-                      <View style={styles.askModalHeaderIcon}>
-                        <Ionicons name="help-circle-outline" size={20} color="#5F8575" />
+          {/* Ask Gia Modal */}
+          {askExpanded && (
+            <Modal visible transparent animationType="slide">
+              <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => { setAskExpanded(false); setAskQuestion(''); setChatMessages([]); }}>
+                <TouchableOpacity activeOpacity={1} onPress={(e) => e.stopPropagation()} style={styles.modalContentWrap}>
+                  <View style={styles.askModalCard}>
+                    <View style={styles.askModalHeader}>
+                      <View style={styles.askModalHeaderLeft}>
+                        <View style={styles.askModalHeaderIcon}>
+                          <Ionicons name="help-circle-outline" size={20} color="#5F8575" />
+                        </View>
+                        <View>
+                          <Text style={styles.askModalTitle}>Ask Gia</Text>
+                          <Text style={styles.askModalSubtitle}>AI-powered progress insights</Text>
+                        </View>
                       </View>
-                      <View>
-                        <Text style={styles.askModalTitle}>Ask Gia</Text>
-                        <Text style={styles.askModalSubtitle}>AI-powered progress insights</Text>
-                      </View>
+                      <TouchableOpacity onPress={() => { setAskExpanded(false); setAskQuestion(''); setChatMessages([]); }} style={styles.askModalClose}>
+                        <Ionicons name="close" size={20} color="#6B8B7D" />
+                      </TouchableOpacity>
                     </View>
-                    <TouchableOpacity onPress={() => { setAskExpanded(false); setAskQuestion(''); setChatMessages([]); }} style={styles.askModalClose}>
-                      <Ionicons name="close" size={20} color="#6B8B7D" />
-                    </TouchableOpacity>
+                    <ScrollView style={styles.askModalBody} showsVerticalScrollIndicator={false}>
+                      <Text style={styles.commonQuestionsLabel}>common questions</Text>
+                      <TouchableOpacity style={styles.commonQuestionBtn} onPress={() => handleAskQuestion('how is my progress going?')}>
+                        <Text style={styles.commonQuestionText}>how is my progress going?</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity style={styles.commonQuestionBtn} onPress={() => handleAskQuestion('what patterns do you notice?')}>
+                        <Text style={styles.commonQuestionText}>what patterns do you notice?</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity style={styles.commonQuestionBtn} onPress={() => handleAskQuestion('how has my skin been this month?')}>
+                        <Text style={styles.commonQuestionText}>how has my skin been this month?</Text>
+                      </TouchableOpacity>
+                      <TextInput
+                        style={styles.askInput}
+                        value={askQuestion}
+                        onChangeText={setAskQuestion}
+                        placeholder="or ask your own question..."
+                        placeholderTextColor="#8A9088"
+                      />
+                      <TouchableOpacity style={styles.askSubmitBtn} onPress={() => handleAskQuestion(askQuestion)} activeOpacity={0.9}>
+                        <Text style={styles.askSubmitText}>Ask Gia</Text>
+                      </TouchableOpacity>
+                      <Text style={styles.askDisclaimer}>*American Academy of Dermatology sourced answers</Text>
+                      {chatMessages.length > 0 && (
+                        <View style={styles.chatBlock}>
+                          <Text style={styles.chatBlockLabel}>insights:</Text>
+                          {chatMessages.map((msg, i) => (
+                            <View key={i} style={styles.chatBubble}>
+                              <Text style={styles.chatQuestion}>Q: {msg.question}</Text>
+                              <Text style={styles.chatAnswer}>A: {msg.answer}</Text>
+                            </View>
+                          ))}
+                        </View>
+                      )}
+                    </ScrollView>
                   </View>
-                  <ScrollView style={styles.askModalBody} showsVerticalScrollIndicator={false}>
-                    <Text style={styles.commonQuestionsLabel}>common questions</Text>
-                    <TouchableOpacity style={styles.commonQuestionBtn} onPress={() => handleAskQuestion('how is my progress going?')}>
-                      <Text style={styles.commonQuestionText}>how is my progress going?</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity style={styles.commonQuestionBtn} onPress={() => handleAskQuestion('what patterns do you notice?')}>
-                      <Text style={styles.commonQuestionText}>what patterns do you notice?</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity style={styles.commonQuestionBtn} onPress={() => handleAskQuestion('how has my skin been this month?')}>
-                      <Text style={styles.commonQuestionText}>how has my skin been this month?</Text>
-                    </TouchableOpacity>
-                    <TextInput
-                      style={styles.askInput}
-                      value={askQuestion}
-                      onChangeText={setAskQuestion}
-                      placeholder="or ask your own question..."
-                      placeholderTextColor="#8A9088"
-                    />
-                    <TouchableOpacity style={styles.askSubmitBtn} onPress={() => handleAskQuestion(askQuestion)} activeOpacity={0.9}>
-                      <Text style={styles.askSubmitText}>Ask Gia</Text>
-                    </TouchableOpacity>
-                    <Text style={styles.askDisclaimer}>*American Academy of Dermatology sourced answers</Text>
-                    {chatMessages.length > 0 && (
-                      <View style={styles.chatBlock}>
-                        <Text style={styles.chatBlockLabel}>insights:</Text>
-                        {chatMessages.map((msg, i) => (
-                          <View key={i} style={styles.chatBubble}>
-                            <Text style={styles.chatQuestion}>Q: {msg.question}</Text>
-                            <Text style={styles.chatAnswer}>A: {msg.answer}</Text>
-                          </View>
-                        ))}
-                      </View>
-                    )}
-                  </ScrollView>
-                </View>
+                </TouchableOpacity>
               </TouchableOpacity>
-            </TouchableOpacity>
-          </Modal>
-        )}
+            </Modal>
+          )}
 
-        {/* Filters */}
-        <TouchableOpacity style={styles.filtersToggle} onPress={() => setShowFilters(!showFilters)} activeOpacity={0.85}>
-          <View style={styles.filtersToggleLeft}>
-            <Ionicons name="filter-outline" size={18} color="#7B9B8C" />
-            <Text style={styles.filtersToggleText}>Filters</Text>
-          </View>
-          <Ionicons name={showFilters ? 'chevron-up' : 'chevron-down'} size={18} color="#6B7370" />
-        </TouchableOpacity>
+          {/* Filters */}
+          <TouchableOpacity style={styles.filtersToggle} onPress={() => setShowFilters(!showFilters)} activeOpacity={0.85}>
+            <View style={styles.filtersToggleLeft}>
+              <Ionicons name="filter-outline" size={18} color="#7B9B8C" />
+              <Text style={styles.filtersToggleText}>Filters</Text>
+            </View>
+            <Ionicons name={showFilters ? 'chevron-up' : 'chevron-down'} size={18} color="#6B7370" />
+          </TouchableOpacity>
 
-        {showFilters && (
-          <View style={styles.filtersPanel}>
-            <Text style={styles.filterSectionLabel}>Symptoms</Text>
-            <View style={styles.tagRow}>
-              {SYMPTOM_FILTERS.map((s) => (
-                <TouchableOpacity key={s} style={[styles.filterTag, selectedSymptoms.includes(s) && styles.filterTagActive]} onPress={() => toggleFilter(s, 'symptom')}>
-                  <Text style={[styles.filterTagText, selectedSymptoms.includes(s) && styles.filterTagTextActive]}>{s}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-            <Text style={styles.filterSectionLabel}>Context</Text>
-            <View style={styles.tagRow}>
-              {CONTEXT_FILTERS.map((c) => (
-                <TouchableOpacity key={c} style={[styles.filterTag, selectedContext.includes(c) && styles.filterTagActive]} onPress={() => toggleFilter(c, 'context')}>
-                  <Text style={[styles.filterTagText, selectedContext.includes(c) && styles.filterTagTextActive]}>{c}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-            <Text style={styles.filterSectionLabel}>Mood</Text>
-            <View style={styles.moodRow}>
-              {[1, 2, 3, 4, 5].map((v) => (
-                <TouchableOpacity
-                  key={v}
-                  style={[styles.moodCircleBtn, selectedMood === v && styles.moodCircleBtnActive]}
-                  onPress={() => setSelectedMood(selectedMood === v ? null : v)}
-                >
-                  <Text style={styles.moodCircleEmoji}>{MOOD_EMOJI[v]}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-            <Text style={styles.moodScaleLabel}>not satisfied</Text>
-            <Text style={[styles.moodScaleLabel, styles.moodScaleLabelRight]}>very satisfied</Text>
-            {(selectedSymptoms.length > 0 || selectedContext.length > 0 || selectedMood != null) && (
-              <TouchableOpacity onPress={clearAllFilters} style={styles.clearFiltersBtn}>
-                <Text style={styles.clearFiltersText}>Clear all filters</Text>
-              </TouchableOpacity>
-            )}
-          </View>
-        )}
-
-        {/* View monthly summary toggle */}
-        <TouchableOpacity style={styles.summaryToggle} onPress={() => setShowSummary(!showSummary)} activeOpacity={0.85}>
-          <View style={styles.summaryToggleInner}>
-            <View style={styles.summaryToggleIcon}>
-              <Ionicons name="calendar-outline" size={18} color="#FFFFFF" />
-            </View>
-            <Text style={styles.summaryToggleText}>{showSummary ? 'Hide monthly summary' : 'View monthly summary'}</Text>
-          </View>
-        </TouchableOpacity>
-
-        {showSummary && (
-          <View style={styles.monthlySummary}>
-            <Text style={styles.monthlySummaryTitle}>Summary</Text>
-            <View style={styles.statsGrid}>
-              <View style={styles.summaryStatBox}>
-                <Text style={styles.summaryStatValue}>9</Text>
-                <Text style={styles.summaryStatLabel}>routines completed</Text>
+          {showFilters && (
+            <View style={styles.filtersPanel}>
+              <Text style={styles.filterSectionLabel}>Symptoms</Text>
+              <View style={styles.tagRow}>
+                {SYMPTOM_FILTERS.map((s) => (
+                  <TouchableOpacity key={s} style={[styles.filterTag, selectedSymptoms.includes(s) && styles.filterTagActive]} onPress={() => toggleFilter(s, 'symptom')}>
+                    <Text style={[styles.filterTagText, selectedSymptoms.includes(s) && styles.filterTagTextActive]}>{s}</Text>
+                  </TouchableOpacity>
+                ))}
               </View>
-              <View style={[styles.summaryStatBox, styles.summaryStatBoxFlare]}>
-                <Text style={styles.summaryStatValueFlare}>3</Text>
-                <Text style={styles.summaryStatLabelFlare}>flare days logged</Text>
+              <Text style={styles.filterSectionLabel}>Context</Text>
+              <View style={styles.tagRow}>
+                {CONTEXT_FILTERS.map((c) => (
+                  <TouchableOpacity key={c} style={[styles.filterTag, selectedContext.includes(c) && styles.filterTagActive]} onPress={() => toggleFilter(c, 'context')}>
+                    <Text style={[styles.filterTagText, selectedContext.includes(c) && styles.filterTagTextActive]}>{c}</Text>
+                  </TouchableOpacity>
+                ))}
               </View>
-            </View>
-            <View style={styles.calendarCard}>
-              <View style={styles.calendarNav}>
-                <TouchableOpacity onPress={prevMonth} style={styles.calendarNavBtn}>
-                  <Ionicons name="chevron-back" size={20} color="#7B9B8C" />
+              <Text style={styles.filterSectionLabel}>Mood</Text>
+              <View style={styles.moodRow}>
+                {[1, 2, 3, 4, 5].map((v) => (
+                  <TouchableOpacity
+                    key={v}
+                    style={[styles.moodCircleBtn, selectedMood === v && styles.moodCircleBtnActive]}
+                    onPress={() => setSelectedMood(selectedMood === v ? null : v)}
+                  >
+                    <Text style={styles.moodCircleEmoji}>{MOOD_EMOJI[v]}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+              <Text style={styles.moodScaleLabel}>not satisfied</Text>
+              <Text style={[styles.moodScaleLabel, styles.moodScaleLabelRight]}>very satisfied</Text>
+              {(selectedSymptoms.length > 0 || selectedContext.length > 0 || selectedMood != null) && (
+                <TouchableOpacity onPress={clearAllFilters} style={styles.clearFiltersBtn}>
+                  <Text style={styles.clearFiltersText}>Clear all filters</Text>
                 </TouchableOpacity>
-                <View style={styles.calendarNavCenter}>
-                  <Text style={styles.calendarMonthTitle}>{currentDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' }).toLowerCase()}</Text>
-                  <Text style={styles.calendarMonthSubtitle}>your routine calendar</Text>
+              )}
+            </View>
+          )}
+
+          {/* View monthly summary toggle */}
+          <TouchableOpacity style={styles.summaryToggle} onPress={() => setShowSummary(!showSummary)} activeOpacity={0.85}>
+            <View style={styles.summaryToggleInner}>
+              <View style={styles.summaryToggleIcon}>
+                <Ionicons name="calendar-outline" size={18} color="#FFFFFF" />
+              </View>
+              <Text style={styles.summaryToggleText}>{showSummary ? 'Hide monthly summary' : 'View monthly summary'}</Text>
+            </View>
+          </TouchableOpacity>
+
+          {showSummary && (
+            <View style={styles.monthlySummary}>
+              <Text style={styles.monthlySummaryTitle}>Summary</Text>
+              <View style={styles.statsGrid}>
+                <View style={styles.summaryStatBox}>
+                  <Text style={styles.summaryStatValue}>9</Text>
+                  <Text style={styles.summaryStatLabel}>routines completed</Text>
                 </View>
-                <TouchableOpacity onPress={nextMonth} style={styles.calendarNavBtn}>
-                  <Ionicons name="chevron-forward" size={20} color="#7B9B8C" />
-                </TouchableOpacity>
+                <View style={[styles.summaryStatBox, styles.summaryStatBoxFlare]}>
+                  <Text style={styles.summaryStatValueFlare}>3</Text>
+                  <Text style={styles.summaryStatLabelFlare}>flare days logged</Text>
+                </View>
               </View>
-              <View style={styles.calendarGrid}>
-                {DAY_LABELS.map((d, i) => (
-                  <View key={i} style={styles.calendarDayLabel}>
-                    <Text style={styles.calendarDayLabelText}>{d}</Text>
+              <View style={styles.calendarCard}>
+                <View style={styles.calendarNav}>
+                  <TouchableOpacity onPress={prevMonth} style={styles.calendarNavBtn}>
+                    <Ionicons name="chevron-back" size={20} color="#7B9B8C" />
+                  </TouchableOpacity>
+                  <View style={styles.calendarNavCenter}>
+                    <Text style={styles.calendarMonthTitle}>{currentDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' }).toLowerCase()}</Text>
+                    <Text style={styles.calendarMonthSubtitle}>your routine calendar</Text>
                   </View>
-                ))}
-                {Array.from({ length: firstDay }).map((_, i) => (
-                  <View key={`e-${i}`} style={[styles.calendarCell, styles.calendarCellEmpty]} />
-                ))}
-                {Array.from({ length: daysInMonth }).map((_, i) => {
-                  const day = i + 1;
-                  const comp = getCompletionForDate(day);
-                  const isToday = isCurrentMonth && day === today.getDate();
-                  const hasAppointment = apptDay === day && apptMonth === month && apptYear === year;
-                  let cellStyle = styles.calendarCellEmpty;
-                  let textStyle = styles.calendarCellTextMuted;
-                  if (comp) {
-                    if (comp.stepsCompleted === comp.totalSteps) {
-                      cellStyle = styles.calendarCellComplete;
-                      textStyle = styles.calendarCellTextWhite;
-                    } else if (comp.stepsCompleted > 0) {
-                      cellStyle = styles.calendarCellPartial;
-                      textStyle = styles.calendarCellTextWhite;
-                    } else {
-                      cellStyle = styles.calendarCellMissed;
-                      textStyle = styles.calendarCellTextBrown;
+                  <TouchableOpacity onPress={nextMonth} style={styles.calendarNavBtn}>
+                    <Ionicons name="chevron-forward" size={20} color="#7B9B8C" />
+                  </TouchableOpacity>
+                </View>
+                <View style={styles.calendarGrid}>
+                  {DAY_LABELS.map((d, i) => (
+                    <View key={i} style={styles.calendarDayLabel}>
+                      <Text style={styles.calendarDayLabelText}>{d}</Text>
+                    </View>
+                  ))}
+                  {Array.from({ length: firstDay }).map((_, i) => (
+                    <View key={`e-${i}`} style={[styles.calendarCell, styles.calendarCellEmpty]} />
+                  ))}
+                  {Array.from({ length: daysInMonth }).map((_, i) => {
+                    const day = i + 1;
+                    const comp = getCompletionForDate(day);
+                    const isToday = isCurrentMonth && day === today.getDate();
+                    const hasAppointment = apptDay === day && apptMonth === month && apptYear === year;
+                    let cellStyle = styles.calendarCellEmpty;
+                    let textStyle = styles.calendarCellTextMuted;
+                    if (comp) {
+                      if (comp.stepsCompleted === comp.totalSteps) {
+                        cellStyle = styles.calendarCellComplete;
+                        textStyle = styles.calendarCellTextWhite;
+                      } else if (comp.stepsCompleted > 0) {
+                        cellStyle = styles.calendarCellPartial;
+                        textStyle = styles.calendarCellTextWhite;
+                      } else {
+                        cellStyle = styles.calendarCellMissed;
+                        textStyle = styles.calendarCellTextBrown;
+                      }
                     }
-                  }
-                  return (
-                    <View key={day} style={[styles.calendarCell, cellStyle, isToday && styles.calendarCellToday]}>
-                      <Text style={textStyle}>{day}</Text>
-                      {hasAppointment && <View style={styles.calendarApptDot} />}
-                    </View>
-                  );
-                })}
+                    return (
+                      <View key={day} style={[styles.calendarCell, cellStyle, isToday && styles.calendarCellToday]}>
+                        <Text style={textStyle}>{day}</Text>
+                        {hasAppointment && <View style={styles.calendarApptDot} />}
+                      </View>
+                    );
+                  })}
+                </View>
+                <View style={styles.legendRow}>
+                  <View style={styles.legendItem}>
+                    <View style={[styles.legendDot, styles.legendDotComplete]} />
+                    <Text style={styles.legendText}>completed</Text>
+                  </View>
+                  <View style={styles.legendItem}>
+                    <View style={[styles.legendDot, styles.legendDotPartial]} />
+                    <Text style={styles.legendText}>partial</Text>
+                  </View>
+                  <View style={styles.legendItem}>
+                    <View style={[styles.legendDot, styles.legendDotMissed]} />
+                    <Text style={styles.legendText}>missed</Text>
+                  </View>
+                  <View style={styles.legendItem}>
+                    <View style={styles.legendDotAppt} />
+                    <Text style={styles.legendText}>appointment</Text>
+                  </View>
+                </View>
               </View>
-              <View style={styles.legendRow}>
-                <View style={styles.legendItem}>
-                  <View style={[styles.legendDot, styles.legendDotComplete]} />
-                  <Text style={styles.legendText}>completed</Text>
-                </View>
-                <View style={styles.legendItem}>
-                  <View style={[styles.legendDot, styles.legendDotPartial]} />
-                  <Text style={styles.legendText}>partial</Text>
-                </View>
-                <View style={styles.legendItem}>
-                  <View style={[styles.legendDot, styles.legendDotMissed]} />
-                  <Text style={styles.legendText}>missed</Text>
-                </View>
-                <View style={styles.legendItem}>
-                  <View style={styles.legendDotAppt} />
-                  <Text style={styles.legendText}>appointment</Text>
-                </View>
+              <View style={styles.encouragingBox}>
+                <Text style={styles.encouragingText}>This month, you showed up more often than not. That matters.</Text>
               </View>
             </View>
-            <View style={styles.encouragingBox}>
-              <Text style={styles.encouragingText}>This month, you showed up more often than not. That matters.</Text>
-            </View>
-          </View>
-        )}
+          )}
 
-        {/* Weekly Overview */}
-        <View style={styles.weeklyCard}>
-          <View style={styles.weeklyHeader}>
-            <View>
-              <Text style={styles.weeklyTitle}>Weekly Overview</Text>
-              <Text style={styles.weeklySubtitle}>Track your consistency and skin satisfaction</Text>
-            </View>
-            <TouchableOpacity style={styles.weeklyInfoBtn}>
-              <Ionicons name="help-circle-outline" size={18} color="#7B9B8C" />
-            </TouchableOpacity>
-          </View>
-          <WeeklyOverviewChart data={displayWeeklyData} />
-          <View style={styles.chartLegend}>
-            <View style={styles.chartLegendItem}>
-              <View style={styles.chartLegendDotConsistency} />
-              <View style={styles.chartLegendTextWrap}>
-                <Text style={styles.chartLegendTitle}>Routine Consistency</Text>
-                <Text style={styles.chartLegendDesc}>% of prescribed skincare routine completed daily</Text>
+          {/* Weekly Overview */}
+          <View style={styles.weeklyCard}>
+            <View style={styles.weeklyHeader}>
+              <View>
+                <Text style={styles.weeklyTitle}>Weekly Overview</Text>
+                <Text style={styles.weeklySubtitle}>Track your consistency and skin satisfaction</Text>
               </View>
-            </View>
-            <View style={[styles.chartLegendItem, styles.chartLegendItemSatisfaction]}>
-              <View style={styles.chartLegendDotSatisfaction} />
-              <View style={styles.chartLegendTextWrap}>
-                <Text style={styles.chartLegendTitle}>Skin Satisfaction</Text>
-                <Text style={styles.chartLegendDesc}>Self-reported satisfaction score (1-5 scale)</Text>
-              </View>
-            </View>
-          </View>
-        </View>
-
-        {/* Timeline */}
-        <Text style={styles.timelineTitle}>Timeline</Text>
-        {filteredEntries.length === 0 ? (
-          <View style={styles.emptyState}>
-            <Text style={styles.emptyTitle}>{displayEntries.length === 0 ? 'No entries yet' : 'No entries match your filters'}</Text>
-            <Text style={styles.emptySubtitle}>
-              {displayEntries.length === 0 ? 'Your check-ins will appear here as a searchable timeline' : 'Try adjusting your search or filters'}
-            </Text>
-            {displayEntries.length > 0 && (
-              <TouchableOpacity onPress={clearAllFilters} style={styles.emptyClearBtn}>
-                <Text style={styles.emptyClearText}>Clear all filters</Text>
+              <TouchableOpacity style={styles.weeklyInfoBtn}>
+                <Ionicons name="help-circle-outline" size={18} color="#7B9B8C" />
               </TouchableOpacity>
-            )}
-          </View>
-        ) : (
-          <>
-            {displayedTimelineEntries.map((entry, index) => (
-              <View key={entry.id} style={styles.timelineItem}>
-                {index < displayedTimelineEntries.length - 1 && <View style={styles.timelineConnector} />}
-                <View style={[styles.timelineDot, entry.routineCompleted && styles.timelineDotComplete]}>
-                  {entry.routineCompleted && <Ionicons name="checkmark" size={10} color="#FFFFFF" />}
+            </View>
+            <WeeklyOverviewChart data={displayWeeklyData} />
+            <View style={styles.chartLegend}>
+              <View style={styles.chartLegendItem}>
+                <View style={styles.chartLegendDotConsistency} />
+                <View style={styles.chartLegendTextWrap}>
+                  <Text style={styles.chartLegendTitle}>Routine Consistency</Text>
+                  <Text style={styles.chartLegendDesc}>% of prescribed skincare routine completed daily</Text>
                 </View>
-                <View style={styles.timelineCard}>
-                  <View style={styles.timelineCardHeader}>
-                    <Text style={styles.timelineDate}>
-                      {parseLocalDate(entry.date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
-                    </Text>
-                    {entry.routineCompleted && (
-                      <View style={styles.timelineRoutineBadge}>
-                        <Ionicons name="checkmark" size={10} color="#FFFFFF" />
-                        <Text style={styles.timelineRoutineBadgeText}>routine complete</Text>
+              </View>
+              <View style={[styles.chartLegendItem, styles.chartLegendItemSatisfaction]}>
+                <View style={styles.chartLegendDotSatisfaction} />
+                <View style={styles.chartLegendTextWrap}>
+                  <Text style={styles.chartLegendTitle}>Skin Satisfaction</Text>
+                  <Text style={styles.chartLegendDesc}>Self-reported satisfaction score (1-5 scale)</Text>
+                </View>
+              </View>
+            </View>
+          </View>
+
+          {/* Timeline */}
+          <Text style={styles.timelineTitle}>Timeline</Text>
+          {filteredEntries.length === 0 ? (
+            <View style={styles.emptyState}>
+              <Text style={styles.emptyTitle}>{displayEntries.length === 0 ? 'No entries yet' : 'No entries match your filters'}</Text>
+              <Text style={styles.emptySubtitle}>
+                {displayEntries.length === 0 ? 'Your check-ins will appear here as a searchable timeline' : 'Try adjusting your search or filters'}
+              </Text>
+              {displayEntries.length > 0 && (
+                <TouchableOpacity onPress={clearAllFilters} style={styles.emptyClearBtn}>
+                  <Text style={styles.emptyClearText}>Clear all filters</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          ) : (
+            <>
+              {displayedTimelineEntries.map((entry, index) => (
+                <View key={entry.id} style={styles.timelineItem}>
+                  {index < displayedTimelineEntries.length - 1 && <View style={styles.timelineConnector} />}
+                  <View style={[styles.timelineDot, entry.routineCompleted && styles.timelineDotComplete]}>
+                    {entry.routineCompleted && <Ionicons name="checkmark" size={10} color="#FFFFFF" />}
+                  </View>
+                  <View style={styles.timelineCard}>
+                    <View style={styles.timelineCardHeader}>
+                      <Text style={styles.timelineDate}>
+                        {parseLocalDate(entry.date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
+                      </Text>
+                      {entry.routineCompleted && (
+                        <View style={styles.timelineRoutineBadge}>
+                          <Ionicons name="checkmark" size={10} color="#FFFFFF" />
+                          <Text style={styles.timelineRoutineBadgeText}>routine complete</Text>
+                        </View>
+                      )}
+                    </View>
+                    {entry.mood && (
+                      <View style={styles.timelineMoodRow}>
+                        <View style={styles.timelineMoodIcon}>
+                          <Text style={styles.timelineMoodEmoji}>{entry.mood === 'happy' ? '😄' : entry.mood === 'neutral' ? '😐' : '😢'}</Text>
+                        </View>
+                        <Text style={styles.timelineMoodLabel}>{moodLabel(entry.mood)}</Text>
+                      </View>
+                    )}
+                    {entry.flareTags && entry.flareTags.length > 0 && (
+                      <View style={styles.timelineTagsSection}>
+                        <Text style={styles.timelineTagsLabel}>Symptoms</Text>
+                        <View style={styles.tagRow}>
+                          {entry.flareTags.map((tag) => (
+                            <View key={tag} style={styles.flareTag}>
+                              <Text style={styles.flareTagText}>{tag}</Text>
+                            </View>
+                          ))}
+                        </View>
+                      </View>
+                    )}
+                    {entry.contextTags && entry.contextTags.length > 0 && (
+                      <View style={styles.timelineTagsSection}>
+                        <Text style={styles.timelineTagsLabel}>Context</Text>
+                        <View style={styles.tagRow}>
+                          {entry.contextTags.map((tag) => (
+                            <View key={tag} style={styles.contextTag}>
+                              <Text style={styles.contextTagText}>{tag}</Text>
+                            </View>
+                          ))}
+                        </View>
+                      </View>
+                    )}
+                    {(entry.sleepHours != null || entry.stressLevel != null || entry.onPeriod) && (
+                      <View style={styles.wearablesRow}>
+                        <Text style={styles.timelineTagsLabel}>Health data</Text>
+                        <View style={styles.tagRow}>
+                          {entry.sleepHours != null && (
+                            <View style={styles.wearableChip}>
+                              <Text style={styles.wearableEmoji}>💤</Text>
+                              <Text style={styles.wearableText}>{entry.sleepHours}h sleep</Text>
+                            </View>
+                          )}
+                          {entry.stressLevel != null && (
+                            <View style={styles.wearableChip}>
+                              <Text style={styles.wearableText}>stress {entry.stressLevel}/5</Text>
+                            </View>
+                          )}
+                          {entry.onPeriod && (
+                            <View style={styles.wearableChipFlare}>
+                              <Text style={styles.wearableEmoji}>🩸</Text>
+                              <Text style={styles.wearableTextFlare}>on period</Text>
+                            </View>
+                          )}
+                        </View>
+                      </View>
+                    )}
+                    {entry.note && (
+                      <View style={styles.noteRow}>
+                        <Ionicons name="document-text-outline" size={14} color="#7B9B8C" />
+                        <Text style={styles.noteText}>{entry.note}</Text>
+                      </View>
+                    )}
+                    {entry.photo && (
+                      <View style={styles.photoRow}>
+                        <View style={styles.photoIconWrap}>
+                          <Ionicons name="camera-outline" size={14} color="#7B9B8C" />
+                        </View>
+                        <Text style={styles.photoText}>photo attached</Text>
                       </View>
                     )}
                   </View>
-                  {entry.mood && (
-                    <View style={styles.timelineMoodRow}>
-                      <View style={styles.timelineMoodIcon}>
-                        <Text style={styles.timelineMoodEmoji}>{entry.mood === 'happy' ? '😄' : entry.mood === 'neutral' ? '😐' : '😢'}</Text>
-                      </View>
-                      <Text style={styles.timelineMoodLabel}>{moodLabel(entry.mood)}</Text>
-                    </View>
-                  )}
-                  {entry.flareTags && entry.flareTags.length > 0 && (
-                    <View style={styles.timelineTagsSection}>
-                      <Text style={styles.timelineTagsLabel}>Symptoms</Text>
-                      <View style={styles.tagRow}>
-                        {entry.flareTags.map((tag) => (
-                          <View key={tag} style={styles.flareTag}>
-                            <Text style={styles.flareTagText}>{tag}</Text>
-                          </View>
-                        ))}
-                      </View>
-                    </View>
-                  )}
-                  {entry.contextTags && entry.contextTags.length > 0 && (
-                    <View style={styles.timelineTagsSection}>
-                      <Text style={styles.timelineTagsLabel}>Context</Text>
-                      <View style={styles.tagRow}>
-                        {entry.contextTags.map((tag) => (
-                          <View key={tag} style={styles.contextTag}>
-                            <Text style={styles.contextTagText}>{tag}</Text>
-                          </View>
-                        ))}
-                      </View>
-                    </View>
-                  )}
-                  {(entry.sleepHours != null || entry.stressLevel != null || entry.onPeriod) && (
-                    <View style={styles.wearablesRow}>
-                      <Text style={styles.timelineTagsLabel}>Health data</Text>
-                      <View style={styles.tagRow}>
-                        {entry.sleepHours != null && (
-                          <View style={styles.wearableChip}>
-                            <Text style={styles.wearableEmoji}>💤</Text>
-                            <Text style={styles.wearableText}>{entry.sleepHours}h sleep</Text>
-                          </View>
-                        )}
-                        {entry.stressLevel != null && (
-                          <View style={styles.wearableChip}>
-                            <Text style={styles.wearableText}>stress {entry.stressLevel}/5</Text>
-                          </View>
-                        )}
-                        {entry.onPeriod && (
-                          <View style={styles.wearableChipFlare}>
-                            <Text style={styles.wearableEmoji}>🩸</Text>
-                            <Text style={styles.wearableTextFlare}>on period</Text>
-                          </View>
-                        )}
-                      </View>
-                    </View>
-                  )}
-                  {entry.note && (
-                    <View style={styles.noteRow}>
-                      <Ionicons name="document-text-outline" size={14} color="#7B9B8C" />
-                      <Text style={styles.noteText}>{entry.note}</Text>
-                    </View>
-                  )}
-                  {entry.photo && (
-                    <View style={styles.photoRow}>
-                      <View style={styles.photoIconWrap}>
-                        <Ionicons name="camera-outline" size={14} color="#7B9B8C" />
-                      </View>
-                      <Text style={styles.photoText}>photo attached</Text>
-                    </View>
-                  )}
                 </View>
-              </View>
-            ))}
-            {filteredEntries.length > 4 && (
-              <TouchableOpacity style={styles.showMoreBtn} onPress={() => setTimelineExpanded(!timelineExpanded)} activeOpacity={0.85}>
-                <Text style={styles.showMoreText}>
-                  {timelineExpanded ? 'Show Less' : `Show ${filteredEntries.length - 4} More Entries`}
-                </Text>
-                <Ionicons name={timelineExpanded ? 'chevron-up' : 'chevron-down'} size={20} color="#5F8575" />
-              </TouchableOpacity>
-            )}
-          </>
-        )}
+              ))}
+              {filteredEntries.length > 4 && (
+                <TouchableOpacity style={styles.showMoreBtn} onPress={() => setTimelineExpanded(!timelineExpanded)} activeOpacity={0.85}>
+                  <Text style={styles.showMoreText}>
+                    {timelineExpanded ? 'Show Less' : `Show ${filteredEntries.length - 4} More Entries`}
+                  </Text>
+                  <Ionicons name={timelineExpanded ? 'chevron-up' : 'chevron-down'} size={20} color="#5F8575" />
+                </TouchableOpacity>
+              )}
+            </>
+          )}
 
+        </View>
         <View style={{ height: 48 }} />
       </ScrollView>
     </View>
@@ -673,15 +667,9 @@ export function Insights({
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#E8EDE8' },
   scroll: { flex: 1 },
-  scrollContent: { paddingHorizontal: 24, paddingTop: 24, paddingBottom: 120, maxWidth: 672, alignSelf: 'center', width: '100%' },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 },
-  headerSpacer: { flex: 1 },
-  headerIconWrap: { width: 80, height: 80, borderRadius: 40, backgroundColor: '#7B9B8C', alignItems: 'center', justifyContent: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.15, shadowRadius: 8, elevation: 4 },
-  headerActions: { flex: 1, flexDirection: 'row', justifyContent: 'flex-end', gap: 8 },
-  iconBtn: { padding: 10, borderRadius: 999 },
-  title: { fontSize: 24, color: '#2D4A3E', fontStyle: 'italic', textAlign: 'center', marginBottom: 4 },
-  subtitle: { fontSize: 14, color: '#6B8B7D', textAlign: 'center', marginBottom: 24 },
-
+  scrollContent: { paddingTop: 24, paddingBottom: 120 },
+  headerWrap: { width: '100%', paddingHorizontal: HEADER_PADDING_HORIZONTAL },
+  contentWrap: { width: '100%', maxWidth: 672, alignSelf: 'center', paddingHorizontal: HEADER_PADDING_HORIZONTAL },
   askGiaBtn: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 16, borderRadius: 20, backgroundColor: '#7B9B8C', marginBottom: 24, borderWidth: 2, borderColor: '#7B9B8C' },
   askGiaIconWrap: { width: 48, height: 48, borderRadius: 12, backgroundColor: 'rgba(255,255,255,0.2)', alignItems: 'center', justifyContent: 'center' },
   askGiaTextWrap: { flex: 1 },
