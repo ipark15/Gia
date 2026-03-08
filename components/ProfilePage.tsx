@@ -218,14 +218,17 @@ export function ProfilePage({
             </View>
           </View>
 
-          {/* Treatment Plan */}
+          {/* Treatment Plan — your AM/PM routine */}
           {treatmentPlanId ? (
             <View style={styles.card}>
               <View style={styles.planHeader}>
                 <View style={styles.planIconWrap}>
                   <Ionicons name="document-text" size={26} color="#FFFFFF" />
                 </View>
-                <Text style={styles.cardTitle}>My treatment plan</Text>
+                <View style={styles.planTitleBlock}>
+                  <Text style={styles.cardTitle}>My treatment plan</Text>
+                  <Text style={styles.cardSubtitle}>Your AM/PM routine — what to use and when</Text>
+                </View>
               </View>
               <View style={styles.planStatsRow}>
                 <View style={styles.planStatBox}>
@@ -246,14 +249,17 @@ export function ProfilePage({
             </View>
           ) : null}
 
-          {/* Inventory */}
+          {/* Inventory — what you own and what to buy */}
           <View style={styles.card}>
             <View style={styles.inventoryHeader}>
               <View style={styles.inventoryTitleRow}>
                 <View style={styles.inventoryIconWrap}>
                   <Ionicons name="cube-outline" size={20} color="#FFFFFF" />
                 </View>
-                <Text style={styles.cardTitle}>My inventory</Text>
+                <View style={styles.inventoryTitleBlock}>
+                  <Text style={styles.cardTitle}>My inventory</Text>
+                  <Text style={styles.cardSubtitle}>What you own and what to buy</Text>
+                </View>
               </View>
               {onOpenInventory ? (
                 <TouchableOpacity onPress={onOpenInventory} activeOpacity={0.8}>
@@ -440,6 +446,14 @@ const styles = StyleSheet.create({
     fontStyle: 'italic',
     fontWeight: '600',
   },
+  cardSubtitle: {
+    fontSize: 12,
+    color: '#6B8B7D',
+    fontStyle: 'italic',
+    marginTop: 2,
+  },
+  planTitleBlock: { flex: 1 },
+  inventoryTitleBlock: { flex: 1 },
   editIconBtn: { padding: 8, borderRadius: 999 },
   skinProfileContent: { gap: 4 },
   uppercaseLabel: {

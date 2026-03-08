@@ -89,15 +89,10 @@ export default function ProgressScreen() {
 
   const [comparisonMode, setComparisonMode] = useState(false);
   const [comparePhotos, setComparePhotos] = useState<ProgressPhoto[]>([]);
-  const [showAskGia, setShowAskGia] = useState(false);
-
   const [showFilters, setShowFilters] = useState(false);
   const [selectedYear, setSelectedYear] = useState<string>('all');
   const [selectedMonth, setSelectedMonth] = useState<string>('all');
   const [selectedDate, setSelectedDate] = useState<string>('all');
-
-  const [askQuestion, setAskQuestion] = useState('');
-  const [chatMessages, setChatMessages] = useState<{ question: string; answer: string }[]>([]);
 
   const [appointmentDate, setAppointmentDate] = useState<string>('');
   const [isEditingAppointment, setIsEditingAppointment] = useState(false);
@@ -249,38 +244,6 @@ export default function ProgressScreen() {
     }
   };
 
-  const getGiaResponse = (question: string): string => {
-    const q = question.toLowerCase();
-    if (comparePhotos.length === 2) {
-      const d1 = new Date(comparePhotos[0].date).toLocaleDateString('en-US', {
-        month: 'short',
-        day: 'numeric',
-      });
-      const d2 = new Date(comparePhotos[1].date).toLocaleDateString('en-US', {
-        month: 'short',
-        day: 'numeric',
-      });
-      return `Comparing your photos from ${d1} and ${d2}. I can see progress in texture and redness — your consistency is paying off. Keep going, small changes add up.`;
-    }
-    if (q.includes('progress') || q.includes('improvement')) {
-      return "You're building a real body of evidence. Focus on month‑to‑month changes rather than day‑to‑day — that's where progress shows up most clearly.";
-    }
-    if (q.includes('compare') || q.includes('difference')) {
-      return 'Turn on comparison mode, pick two photos, and I will help you focus on realistic changes like texture, redness and overall calmness.';
-    }
-    if (q.includes('texture')) {
-      return 'Texture often improves before redness. Look for fewer raised bumps and a smoother overall surface when you compare photos across a few weeks.';
-    }
-    return "I'm here to help you interpret your photos. Ask about progress, differences between two dates, or what to watch for next.";
-  };
-
-  const handleAskGia = () => {
-    if (!askQuestion.trim()) return;
-    const answer = getGiaResponse(askQuestion);
-    setChatMessages((prev) => [...prev, { question: askQuestion, answer }]);
-    setAskQuestion('');
-  };
-
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
       <StatusBar style="dark" backgroundColor="#F5E6F0" />
@@ -319,7 +282,7 @@ export default function ProgressScreen() {
 
           <View style={styles.appointmentCard}>
             <View style={styles.appointmentGrid}>
-              <View>
+              <View style={styles.appointmentBoxWrap}>
                 {!isEditingAppointment ? (
                   <View
                     style={[
@@ -335,10 +298,14 @@ export default function ProgressScreen() {
                     <View style={styles.appointmentRow}>
                       <View style={styles.appointmentLeft}>
                         <Ionicons name="calendar-outline" size={16} color="#5F8575" />
-                        <View style={{ marginLeft: 6, flex: 1 }}>
+                        <View style={styles.appointmentTextWrap}>
                           <Text style={styles.appointmentLabel}>Next derm appt:</Text>
                           {appointmentDate ? (
-                            <Text style={styles.appointmentText}>
+                            <Text
+                              style={styles.appointmentText}
+                              numberOfLines={1}
+                              ellipsizeMode="tail"
+                            >
                               {(() => {
                                 const [y, m, d] = appointmentDate
                                   .split('-')
@@ -439,7 +406,6 @@ export default function ProgressScreen() {
               onPress={() => {
                 setComparisonMode((prev) => !prev);
                 setComparePhotos([]);
-                setShowAskGia(false);
               }}
               activeOpacity={0.9}
             >
@@ -600,106 +566,6 @@ export default function ProgressScreen() {
                   </View>
                 ))}
               </View>
-            </View>
-          )}
-
-          {comparisonMode && comparePhotos.length === 2 && (
-            <View style={styles.askGiaSection}>
-              <TouchableOpacity
-                style={styles.askGiaToggle}
-                onPress={() => setShowAskGia((prev) => !prev)}
-                activeOpacity={0.9}
-              >
-                <View style={styles.askGiaToggleLeft}>
-                  <View style={styles.askGiaIconCircle}>
-                    <Ionicons name="help-circle-outline" size={20} color="#FFFFFF" />
-                  </View>
-                  <View style={{ marginLeft: 10, flex: 1 }}>
-                    <Text style={styles.askGiaTitle}>Ask Gia</Text>
-                    <Text style={styles.askGiaSubtitle}>
-                      Get insights about your comparison
-                    </Text>
-                  </View>
-                </View>
-                <Ionicons
-                  name={showAskGia ? 'chevron-up' : 'chevron-forward'}
-                  size={18}
-                  color="#FFFFFF"
-                />
-              </TouchableOpacity>
-
-              {showAskGia && (
-                <View style={styles.askGiaBody}>
-                  <Text style={styles.askGiaLabel}>Comparison questions</Text>
-                  <TouchableOpacity
-                    style={styles.askGiaChip}
-                    onPress={() => {
-                      setAskQuestion('what differences do you see between these photos?');
-                      handleAskGia();
-                    }}
-                    activeOpacity={0.85}
-                  >
-                    <Text style={styles.askGiaChipText}>
-                      what differences do you see between these photos?
-                    </Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={styles.askGiaChip}
-                    onPress={() => {
-                      setAskQuestion('has my skin improved?');
-                      handleAskGia();
-                    }}
-                    activeOpacity={0.85}
-                  >
-                    <Text style={styles.askGiaChipText}>has my skin improved?</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={styles.askGiaChip}
-                    onPress={() => {
-                      setAskQuestion('what should I focus on next?');
-                      handleAskGia();
-                    }}
-                    activeOpacity={0.85}
-                  >
-                    <Text style={styles.askGiaChipText}>what should I focus on next?</Text>
-                  </TouchableOpacity>
-
-                  <View style={styles.askGiaInputBlock}>
-                    <TextInput
-                      style={styles.askGiaInput}
-                      value={askQuestion}
-                      onChangeText={setAskQuestion}
-                      placeholder="or ask your own question..."
-                      placeholderTextColor="#8A9088"
-                      multiline
-                      numberOfLines={3}
-                      textAlignVertical="top"
-                    />
-                    <TouchableOpacity
-                      style={styles.askGiaButton}
-                      onPress={handleAskGia}
-                      activeOpacity={0.9}
-                    >
-                      <Text style={styles.askGiaButtonText}>Ask Gia</Text>
-                    </TouchableOpacity>
-                    <Text style={styles.askGiaFootnote}>
-                      *American Academy of Dermatology sourced answers
-                    </Text>
-                  </View>
-
-                  {chatMessages.length > 0 && (
-                    <View style={styles.askGiaAnswers}>
-                      <Text style={styles.askGiaAnswersLabel}>Answers:</Text>
-                      {chatMessages.map((msg, idx) => (
-                        <View key={idx} style={styles.askGiaAnswerBubble}>
-                          <Text style={styles.askGiaAnswerQuestion}>Q: {msg.question}</Text>
-                          <Text style={styles.askGiaAnswerText}>A: {msg.answer}</Text>
-                        </View>
-                      ))}
-                    </View>
-                  )}
-                </View>
-              )}
             </View>
           )}
 
@@ -974,10 +840,16 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   appointmentGrid: {
-    flexDirection: 'row',
+    flexDirection: 'column',
+    gap: 8,
+  },
+  appointmentBoxWrap: {
+    flex: 1,
+    minWidth: 0,
   },
   appointmentBox: {
     flex: 1,
+    minWidth: 0,
     borderRadius: 14,
     padding: 10,
     borderWidth: 1,
@@ -998,6 +870,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     flex: 1,
+    minWidth: 0,
+  },
+  appointmentTextWrap: {
+    marginLeft: 6,
+    flex: 1,
+    minWidth: 0,
   },
   appointmentLabel: {
     fontSize: 11,
@@ -1065,8 +943,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
   },
   summaryButton: {
-    flex: 1,
-    marginLeft: 8,
+    width: '100%',
     borderRadius: 16,
     borderWidth: 2,
     borderColor: '#5F8575',
@@ -1267,126 +1144,6 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontStyle: 'italic',
   },
-  askGiaSection: {
-    marginBottom: 18,
-  },
-  askGiaToggle: {
-    borderRadius: 18,
-    paddingVertical: 14,
-    paddingHorizontal: 14,
-    backgroundColor: '#7B9B8C',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  askGiaToggleLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-  },
-  askGiaIconCircle: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(255,255,255,0.25)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  askGiaTitle: {
-    fontSize: 15,
-    color: '#FFFFFF',
-    fontStyle: 'italic',
-  },
-  askGiaSubtitle: {
-    fontSize: 12,
-    color: 'rgba(255,255,255,0.85)',
-    fontStyle: 'italic',
-  },
-  askGiaBody: {
-    marginTop: 8,
-    borderRadius: 18,
-    padding: 14,
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: 'rgba(123,155,140,0.3)',
-  },
-  askGiaLabel: {
-    fontSize: 11,
-    color: '#6B8B7D',
-    marginBottom: 6,
-    textTransform: 'uppercase',
-    letterSpacing: 1,
-  },
-  askGiaChip: {
-    borderRadius: 16,
-    paddingVertical: 8,
-    paddingHorizontal: 10,
-    backgroundColor: '#E8F5E9',
-    marginBottom: 6,
-  },
-  askGiaChipText: {
-    fontSize: 13,
-    color: '#2D4A3E',
-    fontStyle: 'italic',
-  },
-  askGiaInputBlock: {
-    marginTop: 8,
-  },
-  askGiaInput: {
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: 'rgba(123,155,140,0.4)',
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    minHeight: 70,
-    fontSize: 13,
-    color: '#2D4A3E',
-    backgroundColor: '#FFFFFF',
-  },
-  askGiaButton: {
-    marginTop: 8,
-    borderRadius: 16,
-    paddingVertical: 12,
-    backgroundColor: '#5F8575',
-    alignItems: 'center',
-  },
-  askGiaButtonText: {
-    fontSize: 15,
-    color: '#FFFFFF',
-    fontStyle: 'italic',
-    fontWeight: '600',
-  },
-  askGiaFootnote: {
-    fontSize: 11,
-    color: '#6B8B7D',
-    fontStyle: 'italic',
-    marginTop: 4,
-  },
-  askGiaAnswers: {
-    marginTop: 10,
-  },
-  askGiaAnswersLabel: {
-    fontSize: 13,
-    color: '#6B8B7D',
-    marginBottom: 4,
-  },
-  askGiaAnswerBubble: {
-    borderRadius: 14,
-    paddingVertical: 8,
-    paddingHorizontal: 10,
-    backgroundColor: '#F5F1ED',
-    marginBottom: 6,
-  },
-  askGiaAnswerQuestion: {
-    fontSize: 13,
-    color: '#2D4A3E',
-    fontStyle: 'italic',
-    marginBottom: 2,
-  },
-  askGiaAnswerText: {
-    fontSize: 13,
-    color: '#6B7370',
-  },
   timelineHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -1479,7 +1236,7 @@ const styles = StyleSheet.create({
   },
   modalCard: {
     width: '100%',
-    maxHeight: '85%',
+    height: Dimensions.get('window').height * 0.65,
     borderRadius: 24,
     backgroundColor: '#FAF8F5',
     borderWidth: 2,
@@ -1488,7 +1245,7 @@ const styles = StyleSheet.create({
   },
   detailCard: {
     width: '100%',
-    maxHeight: '85%',
+    height: Dimensions.get('window').height * 0.65,
     borderRadius: 24,
     backgroundColor: '#FAF8F5',
     borderWidth: 2,
