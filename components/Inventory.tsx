@@ -34,6 +34,8 @@ export interface InventoryProps {
   planId: string;
   ownedProducts: OwnedProduct[];
   onUpdateOwnedProducts: (products: OwnedProduct[]) => void;
+  /** When 'shopping-only', hide header and tabs and show only the shopping list. Use when embedded as a tab. */
+  mode?: 'full' | 'shopping-only';
   dermatologistProducts?: Array<{
     id: string;
     name: string;
@@ -57,6 +59,7 @@ export function Inventory({
   planId,
   ownedProducts,
   onUpdateOwnedProducts,
+  mode = 'full',
   dermatologistProducts,
 }: InventoryProps) {
   const [activeTab, setActiveTab] = useState<'owned' | 'shopping'>('owned');
@@ -206,6 +209,9 @@ export function Inventory({
   };
 
   const categoryOptions = [...uniqueSteps, 'other'];
+  const isShoppingOnly = mode === 'shopping-only';
+  const showOwnedContent = !isShoppingOnly && activeTab === 'owned';
+  const showShoppingContent = isShoppingOnly || activeTab === 'shopping';
 
   return (
     <View style={styles.container}>
@@ -214,41 +220,43 @@ export function Inventory({
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* Header */}
-        <View style={styles.header}>
-          <TouchableOpacity onPress={onBack} style={styles.backRow} activeOpacity={0.8}>
-            <Ionicons name="arrow-back" size={20} color="#6B8B7D" />
-            <Text style={styles.backText}>back</Text>
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>My inventory</Text>
-          <View style={styles.headerSpacer} />
-        </View>
+        {!isShoppingOnly && (
+          <>
+            <View style={styles.header}>
+              <TouchableOpacity onPress={onBack} style={styles.backRow} activeOpacity={0.8}>
+                <Ionicons name="arrow-back" size={20} color="#6B8B7D" />
+                <Text style={styles.backText}>back</Text>
+              </TouchableOpacity>
+              <Text style={styles.headerTitle}>My inventory</Text>
+              <View style={styles.headerSpacer} />
+            </View>
 
-        {/* Tabs */}
-        <View style={styles.tabRow}>
-          <TouchableOpacity
-            style={[styles.tab, activeTab === 'owned' && styles.tabActive]}
-            onPress={() => setActiveTab('owned')}
-            activeOpacity={0.85}
-          >
-            <Ionicons name="cube-outline" size={16} color={activeTab === 'owned' ? '#FFFFFF' : '#2D4A3E'} />
-            <Text style={[styles.tabText, activeTab === 'owned' && styles.tabTextActive]}>
-              Owned ({ownedProducts.length})
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.tab, activeTab === 'shopping' && styles.tabActive]}
-            onPress={() => setActiveTab('shopping')}
-            activeOpacity={0.85}
-          >
-            <Ionicons name="cart-outline" size={16} color={activeTab === 'shopping' ? '#FFFFFF' : '#2D4A3E'} />
-            <Text style={[styles.tabText, activeTab === 'shopping' && styles.tabTextActive]}>
-              Shopping list ({shoppingList.length + customShoppingItems.length})
-            </Text>
-          </TouchableOpacity>
-        </View>
+            <View style={styles.tabRow}>
+              <TouchableOpacity
+                style={[styles.tab, activeTab === 'owned' && styles.tabActive]}
+                onPress={() => setActiveTab('owned')}
+                activeOpacity={0.85}
+              >
+                <Ionicons name="cube-outline" size={16} color={activeTab === 'owned' ? '#FFFFFF' : '#2D4A3E'} />
+                <Text style={[styles.tabText, activeTab === 'owned' && styles.tabTextActive]}>
+                  Owned ({ownedProducts.length})
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.tab, activeTab === 'shopping' && styles.tabActive]}
+                onPress={() => setActiveTab('shopping')}
+                activeOpacity={0.85}
+              >
+                <Ionicons name="cart-outline" size={16} color={activeTab === 'shopping' ? '#FFFFFF' : '#2D4A3E'} />
+                <Text style={[styles.tabText, activeTab === 'shopping' && styles.tabTextActive]}>
+                  Shopping list ({shoppingList.length + customShoppingItems.length})
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </>
+        )}
 
-        {activeTab === 'owned' && (
+        {showOwnedContent && (
           <View style={styles.tabContent}>
             {!showAddCustom && (
               <TouchableOpacity
@@ -342,7 +350,7 @@ export function Inventory({
           </View>
         )}
 
-        {activeTab === 'shopping' && (
+        {showShoppingContent && (
           <View style={styles.tabContent}>
             <View style={styles.infoBanner}>
               <Text style={styles.infoBannerText}>

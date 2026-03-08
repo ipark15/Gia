@@ -1,7 +1,9 @@
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+import { useMemo } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ProfilePage } from '../../components/ProfilePage';
+import { getProductRecommendations } from '../../components/TreatmentProducts';
 
 const PROFILE_BG = '#E8EDE8';
 
@@ -23,7 +25,14 @@ const DEMO_REGISTRATION = {
   preferredTimes: ['morning', 'evening'],
 };
 
+const PLAN_ID = 'acne-basic';
+
 export default function ProfileScreen() {
+  const { morningSteps, eveningSteps } = useMemo(() => {
+    const { amRoutine, pmRoutine } = getProductRecommendations(PLAN_ID);
+    return { morningSteps: amRoutine.length, eveningSteps: pmRoutine.length };
+  }, []);
+
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: PROFILE_BG }} edges={['top']}>
       <StatusBar style="dark" backgroundColor={PROFILE_BG} />
@@ -33,14 +42,16 @@ export default function ProfileScreen() {
         onEdit={() => router.push('/(onboarding)/registration')}
         currentStreak={7}
         onManageRules={() => { }}
-        treatmentPlanId="acne-basic"
+        treatmentPlanId={PLAN_ID}
+        routineMorningSteps={morningSteps}
+        routineEveningSteps={eveningSteps}
         onViewTreatmentPlan={() =>
-          router.push({ pathname: '/treatment-plan', params: { planId: 'acne-basic' } })
+          router.push({ pathname: '/treatment-plan', params: { planId: PLAN_ID } })
         }
         nextDermAppointment="2026-03-15"
         ownedProducts={[]}
         onOpenInventory={() =>
-          router.push({ pathname: '/inventory', params: { planId: 'acne-basic' } })
+          router.push({ pathname: '/inventory', params: { planId: PLAN_ID } })
         }
         accountData={{ name: 'User', email: 'user@example.com', password: '••••••••' }}
         onUpdateAccount={() => { }}

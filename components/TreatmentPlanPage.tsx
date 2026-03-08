@@ -16,6 +16,8 @@ export interface TreatmentPlanPageProps {
   planId: string;
   onBack: () => void;
   onManageRules?: () => void;
+  /** When true, hide the top header (back + title). Use when embedded in a tabbed screen. */
+  hideHeader?: boolean;
 }
 
 interface Product {
@@ -39,7 +41,7 @@ function getProductUrl(product: { brand: string; name: string; amazonUrl?: strin
   return `https://www.amazon.com/s?k=${searchQuery}`;
 }
 
-export function TreatmentPlanPage({ planId, onBack, onManageRules }: TreatmentPlanPageProps) {
+export function TreatmentPlanPage({ planId, onBack, onManageRules, hideHeader }: TreatmentPlanPageProps) {
   const { amRoutine, pmRoutine } = getProductRecommendations(planId);
   const [isEditMode, setIsEditMode] = useState(false);
   const [editedAmRoutine, setEditedAmRoutine] = useState<RoutineStep[]>(amRoutine);
@@ -176,43 +178,26 @@ export function TreatmentPlanPage({ planId, onBack, onManageRules }: TreatmentPl
   return (
     <View style={styles.container}>
       <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        {/* Header */}
-        <View style={styles.header}>
-          <TouchableOpacity onPress={onBack} style={styles.backBtn} activeOpacity={0.8}>
-            <Ionicons name="chevron-back" size={24} color="#7B9B8C" />
-          </TouchableOpacity>
-          <View style={styles.headerCenter}>
-            <View style={styles.headerIcon}>
-              <Ionicons name="document-text" size={24} color="#FFFFFF" />
-            </View>
-            <Text style={styles.headerTitle}>My treatment plan</Text>
-          </View>
-          {onManageRules ? (
-            <TouchableOpacity onPress={onManageRules} style={styles.headerSettings} activeOpacity={0.8}>
-              <Ionicons name="settings-outline" size={22} color="#7B9B8C" />
+        {!hideHeader && (
+          <View style={styles.header}>
+            <TouchableOpacity onPress={onBack} style={styles.backBtn} activeOpacity={0.8}>
+              <Ionicons name="chevron-back" size={24} color="#7B9B8C" />
             </TouchableOpacity>
-          ) : (
-            <View style={{ width: 40 }} />
-          )}
-        </View>
-
-        {/* Quick stats */}
-        <View style={styles.statsRow}>
-          <View style={styles.statCard}>
-            <View style={[styles.statIcon, { backgroundColor: '#95C98E' }]}>
-              <Ionicons name="time-outline" size={20} color="#FFFFFF" />
+            <View style={styles.headerCenter}>
+              <View style={styles.headerIcon}>
+                <Ionicons name="document-text" size={24} color="#FFFFFF" />
+              </View>
+              <Text style={styles.headerTitle}>My treatment plan</Text>
             </View>
-            <Text style={styles.statValue}>{amRoutine.length}</Text>
-            <Text style={styles.statLabel}>morning steps</Text>
+            {onManageRules ? (
+              <TouchableOpacity onPress={onManageRules} style={styles.headerSettings} activeOpacity={0.8}>
+                <Ionicons name="settings-outline" size={22} color="#7B9B8C" />
+              </TouchableOpacity>
+            ) : (
+              <View style={{ width: 40 }} />
+            )}
           </View>
-          <View style={styles.statCard}>
-            <View style={[styles.statIcon, { backgroundColor: '#F49EC4' }]}>
-              <Ionicons name="time-outline" size={20} color="#FFFFFF" />
-            </View>
-            <Text style={styles.statValue}>{pmRoutine.length}</Text>
-            <Text style={styles.statLabel}>evening steps</Text>
-          </View>
-        </View>
+        )}
 
         {/* Info banner */}
         <View style={styles.infoBanner}>

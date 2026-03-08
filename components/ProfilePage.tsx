@@ -40,6 +40,9 @@ export interface ProfilePageProps {
   currentStreak: number;
   onManageRules?: () => void;
   treatmentPlanId?: string;
+  /** Morning and evening step counts from the treatment plan (for display on the card). */
+  routineMorningSteps?: number;
+  routineEveningSteps?: number;
   onViewTreatmentPlan?: () => void;
   nextDermAppointment?: string;
   ownedProducts?: OwnedProduct[];
@@ -59,6 +62,8 @@ export function ProfilePage({
   currentStreak,
   onManageRules,
   treatmentPlanId = '',
+  routineMorningSteps,
+  routineEveningSteps,
   onViewTreatmentPlan,
   nextDermAppointment,
   ownedProducts = [],
@@ -218,7 +223,7 @@ export function ProfilePage({
             </View>
           </View>
 
-          {/* Treatment Plan — your AM/PM routine */}
+          {/* Routine & products — one screen with Routine + Shopping tabs */}
           {treatmentPlanId ? (
             <View style={styles.card}>
               <View style={styles.planHeader}>
@@ -226,83 +231,34 @@ export function ProfilePage({
                   <Ionicons name="document-text" size={26} color="#FFFFFF" />
                 </View>
                 <View style={styles.planTitleBlock}>
-                  <Text style={styles.cardTitle}>My treatment plan</Text>
-                  <Text style={styles.cardSubtitle}>Your AM/PM routine — what to use and when</Text>
+                  <Text style={styles.cardTitle}>My routine & products</Text>
+                  <Text style={styles.cardSubtitle}>Your routine and shopping list</Text>
                 </View>
               </View>
               <View style={styles.planStatsRow}>
-                <View style={styles.planStatBox}>
+                <View style={[styles.planStatBox, styles.planStatBoxMorning]}>
+                  <View style={[styles.planStatIconWrap, styles.planStatIconMorning]}>
+                    <Ionicons name="time-outline" size={20} color="#FFFFFF" />
+                  </View>
                   <Text style={styles.uppercaseLabel}>Morning</Text>
-                  <Text style={styles.planStatValue}>5 steps</Text>
+                  <Text style={styles.planStatValue}>{routineMorningSteps ?? 0} steps</Text>
                 </View>
-                <View style={styles.planStatBox}>
+                <View style={[styles.planStatBox, styles.planStatBoxEvening]}>
+                  <View style={[styles.planStatIconWrap, styles.planStatIconEvening]}>
+                    <Ionicons name="time-outline" size={20} color="#FFFFFF" />
+                  </View>
                   <Text style={styles.uppercaseLabel}>Evening</Text>
-                  <Text style={styles.planStatValue}>6 steps</Text>
+                  <Text style={styles.planStatValue}>{routineEveningSteps ?? 0} steps</Text>
                 </View>
               </View>
               {onViewTreatmentPlan ? (
                 <TouchableOpacity style={styles.primaryButton} onPress={onViewTreatmentPlan} activeOpacity={0.9}>
-                  <Text style={styles.primaryButtonText}>View full plan</Text>
+                  <Text style={styles.primaryButtonText}>Open routine & shopping</Text>
                   <Ionicons name="chevron-forward" size={18} color="#FFFFFF" />
                 </TouchableOpacity>
               ) : null}
             </View>
           ) : null}
-
-          {/* Inventory — what you own and what to buy */}
-          <View style={styles.card}>
-            <View style={styles.inventoryHeader}>
-              <View style={styles.inventoryTitleRow}>
-                <View style={styles.inventoryIconWrap}>
-                  <Ionicons name="cube-outline" size={20} color="#FFFFFF" />
-                </View>
-                <View style={styles.inventoryTitleBlock}>
-                  <Text style={styles.cardTitle}>My inventory</Text>
-                  <Text style={styles.cardSubtitle}>What you own and what to buy</Text>
-                </View>
-              </View>
-              {onOpenInventory ? (
-                <TouchableOpacity onPress={onOpenInventory} activeOpacity={0.8}>
-                  <Text style={styles.viewAllLink}>View all</Text>
-                </TouchableOpacity>
-              ) : null}
-            </View>
-
-            {ownedProducts.length === 0 ? (
-              <View style={styles.emptyInventory}>
-                <Ionicons name="cube-outline" size={48} color="#C9CBD5" />
-                <Text style={styles.emptyInventoryText}>No products yet</Text>
-                {onOpenInventory ? (
-                  <TouchableOpacity style={styles.addProductsBtn} onPress={onOpenInventory} activeOpacity={0.9}>
-                    <Text style={styles.addProductsBtnText}>Add products</Text>
-                  </TouchableOpacity>
-                ) : null}
-              </View>
-            ) : (
-              <>
-                <View style={styles.productList}>
-                  {ownedProducts.slice(0, 3).map((product) => (
-                    <View key={product.id} style={styles.productCard}>
-                      <Text style={styles.productBrand}>{product.brand}</Text>
-                      <Text style={styles.productName}>{product.name}</Text>
-                      <Text style={styles.productCategory}>{product.category}</Text>
-                    </View>
-                  ))}
-                </View>
-                {ownedProducts.length > 3 ? (
-                  <Text style={styles.moreProductsText}>
-                    +{ownedProducts.length - 3} more product{ownedProducts.length - 3 !== 1 ? 's' : ''}
-                  </Text>
-                ) : null}
-                {onOpenInventory ? (
-                  <TouchableOpacity style={styles.manageInventoryBtn} onPress={onOpenInventory} activeOpacity={0.9}>
-                    <Text style={styles.manageInventoryBtnText}>Manage inventory</Text>
-                    <Ionicons name="chevron-forward" size={16} color="#FFFFFF" />
-                  </TouchableOpacity>
-                ) : null}
-              </>
-            )}
-          </View>
 
           {/* Account Management */}
           <AccountManagementSection
@@ -528,12 +484,29 @@ const styles = StyleSheet.create({
   planStatsRow: { flexDirection: 'row', gap: 12, marginBottom: 16 },
   planStatBox: {
     flex: 1,
-    backgroundColor: '#E8F5E9',
     borderRadius: 12,
     padding: 12,
     borderWidth: 1,
-    borderColor: 'rgba(123, 155, 140, 0.2)',
+    alignItems: 'center',
   },
+  planStatBoxMorning: {
+    backgroundColor: '#E8F5E9',
+    borderColor: 'rgba(149, 201, 142, 0.4)',
+  },
+  planStatBoxEvening: {
+    backgroundColor: '#F5E6F0',
+    borderColor: 'rgba(244, 158, 196, 0.4)',
+  },
+  planStatIconWrap: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 8,
+  },
+  planStatIconMorning: { backgroundColor: '#95C98E' },
+  planStatIconEvening: { backgroundColor: '#F49EC4' },
   planStatValue: { fontSize: 18, fontWeight: '600', color: '#2D4A3E', marginTop: 4 },
   primaryButton: {
     flexDirection: 'row',
