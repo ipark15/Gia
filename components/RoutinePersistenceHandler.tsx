@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect } from 'react';
+import { useCallback, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useRoutineCompletion } from '../context/RoutineCompletionContext';
 import { useRoutineStats } from '../hooks/useRoutineStats';

@@ -4,6 +4,7 @@ import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import React, { useMemo, useState } from 'react';
 import {
+  Alert,
   Dimensions,
   Image,
   Modal,
@@ -43,16 +44,24 @@ const PHOTO_SIZE =
 interface ProgressPhoto {
   id: string;
   date: string;
+  storagePath: string;
   imageUrl: string;
   notes?: string;
 }
 
 export default function ProgressScreen() {
   const { user, profile, refreshProfile } = useAuth();
-  const { photos: storedPhotos, loading: photosLoading, uploadPhoto } = useProgressPhotos();
+  const { photos: storedPhotos, loading: photosLoading, uploadPhoto, deletePhoto } = useProgressPhotos();
   const { data: summaryData } = useSummaryData();
   const allPhotos: ProgressPhoto[] = useMemo(
-    () => storedPhotos.map((p) => ({ id: p.id, date: p.date, imageUrl: p.imageUrl, notes: p.notes })),
+    () =>
+      storedPhotos.map((p) => ({
+        id: p.id,
+        date: p.date,
+        storagePath: p.storagePath,
+        imageUrl: p.imageUrl,
+        notes: p.notes,
+      })),
     [storedPhotos]
   );
 
@@ -186,10 +195,16 @@ export default function ProgressScreen() {
       allowsEditing: true,
       aspect: [1, 1],
       quality: 0.8,
+      base64: true,
     });
     if (!result.canceled && result.assets[0]) {
+      const base64 = result.assets[0].base64;
+      if (!base64) {
+        alert('Could not get image data. Try another photo.');
+        return;
+      }
       try {
-        await uploadPhoto(result.assets[0].uri, dateForUpload, newNotes);
+        await uploadPhoto(base64, dateForUpload, newNotes);
         setShowUpload(false);
         setNewNotes('');
       } catch (e) {
@@ -208,16 +223,46 @@ export default function ProgressScreen() {
       allowsEditing: true,
       aspect: [1, 1],
       quality: 0.8,
+      base64: true,
     });
     if (!result.canceled && result.assets[0]) {
+      const base64 = result.assets[0].base64;
+      if (!base64) {
+        alert('Could not get image data. Try taking the photo again.');
+        return;
+      }
       try {
-        await uploadPhoto(result.assets[0].uri, dateForUpload, newNotes);
+        await uploadPhoto(base64, dateForUpload, newNotes);
         setShowUpload(false);
         setNewNotes('');
       } catch (e) {
         alert(e instanceof Error ? e.message : 'Upload failed');
       }
     }
+  };
+
+  const confirmDeleteSelectedPhoto = () => {
+    if (!selectedPhoto) return;
+    Alert.alert(
+      'Delete photo?',
+      'This will remove the photo from your account and delete it from storage.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              const toDelete = selectedPhoto;
+              setSelectedPhoto(null);
+              await deletePhoto({ id: toDelete.id, storagePath: toDelete.storagePath });
+            } catch (e) {
+              Alert.alert('Delete failed', e instanceof Error ? e.message : 'Could not delete photo');
+            }
+          },
+        },
+      ]
+    );
   };
 
   return (
@@ -683,9 +728,14 @@ export default function ProgressScreen() {
                     </Text>
                   )}
                 </View>
-                <TouchableOpacity onPress={() => setSelectedPhoto(null)} hitSlop={12}>
-                  <Ionicons name="close" size={22} color="#6B7370" />
-                </TouchableOpacity>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                  <TouchableOpacity onPress={confirmDeleteSelectedPhoto} hitSlop={12}>
+                    <Ionicons name="trash-outline" size={22} color="#8B4545" />
+                  </TouchableOpacity>
+                  <TouchableOpacity onPress={() => setSelectedPhoto(null)} hitSlop={12}>
+                    <Ionicons name="close" size={22} color="#6B7370" />
+                  </TouchableOpacity>
+                </View>
               </View>
               {selectedPhoto && (
                 <ScrollView

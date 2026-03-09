@@ -13,7 +13,7 @@ const INSIGHTS_BG = '#E8EDE8';
 export default function InsightsScreen() {
   const { user, profile, refreshProfile } = useAuth();
   const { entries, loading: checkInsLoading } = useCheckIns();
-  const { completedDays, loading: statsLoading } = useRoutineStats();
+  const { completedDays, completedDaysRaw, loading: statsLoading } = useRoutineStats();
 
   const onUpdateDermAppointment = useCallback(
     async (date: string) => {
@@ -37,6 +37,7 @@ export default function InsightsScreen() {
         userCondition={profile?.primary_condition ?? 'acne'}
         onManageRules={() => router.push({ pathname: '/(onboarding)/registration', params: { step: '2' } })}
         completedDays={statsLoading ? [] : completedDays}
+        completedDaysRaw={statsLoading ? [] : completedDaysRaw}
         onboardingSatisfaction={profile?.skin_satisfaction_baseline ?? 3}
       />
     </SafeAreaView>

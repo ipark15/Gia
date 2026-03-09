@@ -12,6 +12,8 @@ export type CompletedDayRow = {
 
 export type RoutineStats = {
   completedDays: Array<{ date: string; stepsCompleted: number; totalSteps: number }>;
+  /** Raw rows for computing monthly stats (routines completed per month). */
+  completedDaysRaw: Array<{ date: string; morning_done: boolean; evening_done: boolean }>;
   currentStreak: number;
   weekCount: number;
   morningRoutinesDone: number;
@@ -125,6 +127,12 @@ export function useRoutineStats(): RoutineStats {
       date: r.date,
       stepsCompleted: r.steps_completed,
       totalSteps: r.total_steps,
+    })),
+    /** Raw rows for computing monthly stats (e.g. routines completed per month). */
+    completedDaysRaw: completedDays.map((r) => ({
+      date: r.date,
+      morning_done: r.morning_done,
+      evening_done: r.evening_done,
     })),
     currentStreak: computeStreak(completedDays),
     weekCount: computeWeekCount(completedDays),

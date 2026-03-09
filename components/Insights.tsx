@@ -54,6 +54,8 @@ export interface InsightsProps {
   onViewTreatmentPlan?: () => void;
   onManageRules?: () => void;
   completedDays?: Array<{ date: string; stepsCompleted: number; totalSteps: number }>;
+  /** Raw completion data for monthly summary (routines completed count for displayed month). */
+  completedDaysRaw?: Array<{ date: string; morning_done: boolean; evening_done: boolean }>;
   onboardingSatisfaction?: number;
 }
 
@@ -85,6 +87,7 @@ export function Insights({
   onViewTreatmentPlan,
   onManageRules,
   completedDays = [],
+  completedDaysRaw = [],
   onboardingSatisfaction = 3,
 }: InsightsProps) {
   const [showFilters, setShowFilters] = useState(false);
@@ -271,6 +274,19 @@ export function Insights({
   const today = new Date();
   const isCurrentMonth = today.getMonth() === month && today.getFullYear() === year;
 
+  const monthlySummary = useMemo(() => {
+    const start = `${year}-${String(month + 1).padStart(2, '0')}-01`;
+    const endDate = new Date(year, month + 1, 0);
+    const end = `${year}-${String(month + 1).padStart(2, '0')}-${String(endDate.getDate()).padStart(2, '0')}`;
+    const routinesCompleted = completedDaysRaw
+      .filter((r) => r.date >= start && r.date <= end)
+      .reduce((sum, r) => sum + (r.morning_done ? 1 : 0) + (r.evening_done ? 1 : 0), 0);
+    const flareDays = displayEntries.filter(
+      (e) => e.date >= start && e.date <= end && e.flareTags && e.flareTags.length > 0
+    ).length;
+    return { routinesCompleted, flareDays };
+  }, [year, month, completedDaysRaw, displayEntries]);
+
   const getCompletionForDate = (day: number) => {
     const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
     return completedDays.find((d) => d.date === dateStr);
@@ -441,11 +457,11 @@ export function Insights({
               <Text style={styles.monthlySummaryTitle}>Summary</Text>
               <View style={styles.statsGrid}>
                 <View style={styles.summaryStatBox}>
-                  <Text style={styles.summaryStatValue}>9</Text>
+                  <Text style={styles.summaryStatValue}>{monthlySummary.routinesCompleted}</Text>
                   <Text style={styles.summaryStatLabel}>routines completed</Text>
                 </View>
                 <View style={[styles.summaryStatBox, styles.summaryStatBoxFlare]}>
-                  <Text style={styles.summaryStatValueFlare}>3</Text>
+                  <Text style={styles.summaryStatValueFlare}>{monthlySummary.flareDays}</Text>
                   <Text style={styles.summaryStatLabelFlare}>flare days logged</Text>
                 </View>
               </View>
