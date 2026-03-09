@@ -28,6 +28,10 @@ import {
   TEXT_PRIMARY,
   TEXT_SECONDARY
 } from '../../constants/Typography';
+import { useAuth } from '../../context/AuthContext';
+import { useProgressPhotos } from '../../hooks/useProgressPhotos';
+import { useSummaryData } from '../../hooks/useSummaryData';
+import { supabase } from '../../lib/supabaseClient';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const GRID_COLUMNS = 3;
@@ -44,55 +48,13 @@ interface ProgressPhoto {
 }
 
 export default function ProgressScreen() {
-  const basePhotos: ProgressPhoto[] = useMemo(
-    () => [
-      {
-        id: '1',
-        date: '2025-12-31',
-        imageUrl:
-          'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y="75" font-size="75">👤</text></svg>',
-        notes: 'Starting my journey',
-      },
-      {
-        id: '2',
-        date: '2026-01-08',
-        imageUrl:
-          'https://images.unsplash.com/photo-1629095923147-53d986573d57?w=400&h=400&fit=crop',
-        notes: 'Week 1 - seeing some improvement',
-      },
-      {
-        id: '3',
-        date: '2026-01-15',
-        imageUrl:
-          'https://images.unsplash.com/photo-1616394584738-fc6e612e71b9?w=400&h=400&fit=crop',
-        notes: 'Week 2 - less redness',
-      },
-      {
-        id: '4',
-        date: '2026-01-22',
-        imageUrl:
-          'https://images.unsplash.com/photo-1629095923147-53d986573d57?w=400&h=400&fit=crop&sat=-20',
-        notes: 'Week 3 - smoother texture',
-      },
-      {
-        id: '5',
-        date: '2026-01-29',
-        imageUrl:
-          'https://images.unsplash.com/photo-1616394584738-fc6e612e71b9?w=400&h=400&fit=crop&sat=-20',
-        notes: 'Week 4 - feeling confident!',
-      },
-      {
-        id: '6',
-        date: '2026-02-05',
-        imageUrl:
-          'https://images.unsplash.com/photo-1629095923147-53d986573d57?w=400&h=400&fit=crop&brightness=10',
-        notes: 'Week 5 - great progress',
-      },
-    ],
-    []
+  const { user, profile, refreshProfile } = useAuth();
+  const { photos: storedPhotos, loading: photosLoading, uploadPhoto } = useProgressPhotos();
+  const { data: summaryData } = useSummaryData();
+  const allPhotos: ProgressPhoto[] = useMemo(
+    () => storedPhotos.map((p) => ({ id: p.id, date: p.date, imageUrl: p.imageUrl, notes: p.notes })),
+    [storedPhotos]
   );
-
-  const [uploadedPhotos, setUploadedPhotos] = useState<ProgressPhoto[]>([]);
 
   const [showUpload, setShowUpload] = useState(false);
   const [selectedPhoto, setSelectedPhoto] = useState<ProgressPhoto | null>(null);
@@ -106,14 +68,13 @@ export default function ProgressScreen() {
   const [selectedMonth, setSelectedMonth] = useState<string>('all');
   const [selectedDate, setSelectedDate] = useState<string>('all');
 
-  const [appointmentDate, setAppointmentDate] = useState<string>('');
+  const [appointmentDate, setAppointmentDate] = useState<string>(profile?.next_derm_appointment ?? '');
   const [isEditingAppointment, setIsEditingAppointment] = useState(false);
   const [showExecutiveSummary, setShowExecutiveSummary] = useState(false);
 
-  const allPhotos = useMemo(
-    () => [...basePhotos, ...uploadedPhotos],
-    [basePhotos, uploadedPhotos]
-  );
+  React.useEffect(() => {
+    setAppointmentDate(profile?.next_derm_appointment ?? '');
+  }, [profile?.next_derm_appointment]);
 
   const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
@@ -182,13 +143,21 @@ export default function ProgressScreen() {
 
   const daysUntil = getDaysUntilAppointment();
 
-  const handleSaveAppointment = () => {
-    if (!appointmentDate) return;
-    setIsEditingAppointment(false);
+  const handleSaveAppointment = async () => {
+    if (!appointmentDate || !user) return;
+    const { error } = await (supabase.from('profiles') as any)
+      .update({ next_derm_appointment: appointmentDate, updated_at: new Date().toISOString() })
+      .eq('id', user.id);
+    if (!error) {
+      await refreshProfile();
+      setIsEditingAppointment(false);
+    } else {
+      alert(error.message);
+    }
   };
 
   const handleCancelEdit = () => {
-    setAppointmentDate('');
+    setAppointmentDate(profile?.next_derm_appointment ?? '');
     setIsEditingAppointment(false);
   };
 
@@ -205,30 +174,27 @@ export default function ProgressScreen() {
     }
   };
 
+  const dateForUpload = new Date().toISOString().split('T')[0];
   const pickImageFromLibrary = async () => {
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!permission.granted) {
       alert('Permission to access photos is required.');
       return;
     }
-
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: true,
       aspect: [1, 1],
       quality: 0.8,
     });
-
     if (!result.canceled && result.assets[0]) {
-      const newPhoto: ProgressPhoto = {
-        id: Date.now().toString(),
-        date: new Date().toISOString().split('T')[0],
-        imageUrl: result.assets[0].uri,
-        notes: newNotes,
-      };
-      setUploadedPhotos((prev) => [...prev, newPhoto]);
-      setShowUpload(false);
-      setNewNotes('');
+      try {
+        await uploadPhoto(result.assets[0].uri, dateForUpload, newNotes);
+        setShowUpload(false);
+        setNewNotes('');
+      } catch (e) {
+        alert(e instanceof Error ? e.message : 'Upload failed');
+      }
     }
   };
 
@@ -244,15 +210,13 @@ export default function ProgressScreen() {
       quality: 0.8,
     });
     if (!result.canceled && result.assets[0]) {
-      const newPhoto: ProgressPhoto = {
-        id: Date.now().toString(),
-        date: new Date().toISOString().split('T')[0],
-        imageUrl: result.assets[0].uri,
-        notes: newNotes,
-      };
-      setUploadedPhotos((prev) => [...prev, newPhoto]);
-      setShowUpload(false);
-      setNewNotes('');
+      try {
+        await uploadPhoto(result.assets[0].uri, dateForUpload, newNotes);
+        setShowUpload(false);
+        setNewNotes('');
+      } catch (e) {
+        alert(e instanceof Error ? e.message : 'Upload failed');
+      }
     }
   };
 
@@ -749,9 +713,11 @@ export default function ProgressScreen() {
         {showExecutiveSummary && (
           <ExecutiveSummary
             onClose={() => setShowExecutiveSummary(false)}
-            condition="acne"
-            startDate="2026-01-01"
+            patientName={profile?.name}
+            condition={profile?.primary_condition ?? 'acne'}
+            startDate={profile?.created_at ? new Date(profile.created_at).toISOString().slice(0, 10) : '2026-01-01'}
             nextAppointment={appointmentDate || undefined}
+            summaryData={summaryData}
           />
         )}
       </View>

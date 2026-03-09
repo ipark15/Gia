@@ -4,56 +4,62 @@ import { useMemo } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ProfilePage } from '../../components/ProfilePage';
 import { getProductRecommendations } from '../../components/TreatmentProducts';
+import { useAuth } from '../../context/AuthContext';
+import { useRoutineStats } from '../../hooks/useRoutineStats';
 
 const PROFILE_BG = '#E8EDE8';
 
-// Demo data — replace with real app state / storage
-const DEMO_COMPLETED_DAYS = [
-  { date: '2026-01-20', stepsCompleted: 5, totalSteps: 5 },
-  { date: '2026-01-21', stepsCompleted: 3, totalSteps: 5 },
-  { date: '2026-01-22', stepsCompleted: 5, totalSteps: 5 },
-  { date: '2026-01-25', stepsCompleted: 5, totalSteps: 5 },
-  { date: '2026-01-26', stepsCompleted: 4, totalSteps: 5 },
-];
-
-const DEMO_REGISTRATION = {
-  conditions: ['Acne'],
-  hasDermatologist: false,
-  severity: 'moderate',
-  satisfaction: 4,
-  commitment: '5-7',
-  preferredTimes: ['morning', 'evening'],
-};
-
-const PLAN_ID = 'acne-basic';
-
 export default function ProfileScreen() {
+  const { user, profile } = useAuth();
+  const { completedDays, currentStreak, loading: statsLoading } = useRoutineStats();
+  const planId = profile?.selected_treatment_plan_id ?? 'acne-basic';
   const { morningSteps, eveningSteps } = useMemo(() => {
-    const { amRoutine, pmRoutine } = getProductRecommendations(PLAN_ID);
+    const { amRoutine, pmRoutine } = getProductRecommendations(planId);
     return { morningSteps: amRoutine.length, eveningSteps: pmRoutine.length };
-  }, []);
+  }, [planId]);
+
+  const registrationData = useMemo(
+    () => ({
+      conditions: profile?.conditions ?? [],
+      hasDermatologist: profile?.has_dermatologist_plan ?? false,
+      severity: profile?.severity ?? 'moderate',
+      satisfaction: profile?.skin_satisfaction_baseline ?? 4,
+      commitment: profile?.days_per_week ? `${profile.days_per_week}-7` : '5-7',
+      preferredTimes: profile?.times_of_day ?? ['morning', 'evening'],
+    }),
+    [profile]
+  );
+
+  const accountData = useMemo(
+    () => ({
+      name: profile?.name ?? 'User',
+      email: user?.email ?? '',
+      password: '••••••••',
+    }),
+    [profile?.name, user?.email]
+  );
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: PROFILE_BG }} edges={['top']}>
       <StatusBar style="dark" backgroundColor={PROFILE_BG} />
       <ProfilePage
-        completedDays={DEMO_COMPLETED_DAYS}
-        registrationData={DEMO_REGISTRATION}
+        completedDays={statsLoading ? [] : completedDays}
+        registrationData={registrationData}
         onEdit={() => router.push({ pathname: '/(onboarding)/registration', params: { step: '2' } })}
-        currentStreak={7}
+        currentStreak={statsLoading ? 0 : currentStreak}
         onManageRules={() => router.push({ pathname: '/(onboarding)/registration', params: { step: '2' } })}
-        treatmentPlanId={PLAN_ID}
+        treatmentPlanId={planId}
         routineMorningSteps={morningSteps}
         routineEveningSteps={eveningSteps}
         onViewTreatmentPlan={() =>
-          router.push({ pathname: '/treatment-plan', params: { planId: PLAN_ID } })
+          router.push({ pathname: '/treatment-plan', params: { planId } })
         }
-        nextDermAppointment="2026-03-15"
+        nextDermAppointment={profile?.next_derm_appointment ?? undefined}
         ownedProducts={[]}
         onOpenInventory={() =>
-          router.push({ pathname: '/inventory', params: { planId: PLAN_ID } })
+          router.push({ pathname: '/inventory', params: { planId } })
         }
-        accountData={{ name: 'User', email: 'user@example.com', password: '••••••••' }}
+        accountData={accountData}
         onUpdateAccount={() => { }}
       />
     </SafeAreaView>

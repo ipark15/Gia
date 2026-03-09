@@ -2,18 +2,21 @@ import { Ionicons } from '@expo/vector-icons';
 import Slider from '@react-native-community/slider';
 import { router, useLocalSearchParams } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
+  ActivityIndicator,
   Modal,
   ScrollView,
   StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
-  View,
+  View
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { DermatologistPlanUpload } from '../../components/DermatologistPlanUpload';
+import { useAuth } from '../../context/AuthContext';
+import { supabase } from '../../lib/supabaseClient';
 
 interface DermatologistProduct {
   id: string;
@@ -51,9 +54,12 @@ interface FormData {
 
 export default function Registration() {
   const params = useLocalSearchParams<{ step?: string }>();
+  const { user, profile, loading: authLoading } = useAuth();
   const initialStep = params.step != null ? Math.min(6, Math.max(1, parseInt(params.step, 10) || 1)) : 1;
   const [step, setStep] = useState<number | 3.4 | 3.5>(initialStep as number);
   const [showTermsModal, setShowTermsModal] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   const [formData, setFormData] = useState<FormData>({
     name: '',
@@ -70,6 +76,39 @@ export default function Registration() {
     daysPerWeek: 3,
     timesOfDay: [],
   });
+
+  // Require signed-in user; redirect to sign-in if not
+  useEffect(() => {
+    if (!authLoading && !user) {
+      router.replace('/(onboarding)/sign-in');
+    }
+  }, [user, authLoading]);
+
+  // Pre-fill form from profile and auth user when they exist
+  useEffect(() => {
+    if (!user) return;
+    setFormData((prev) => ({
+      ...prev,
+      email: user.email ?? prev.email,
+      name: prev.name || profile?.name || (user.user_metadata?.name as string) || '',
+    }));
+  }, [user?.id, user?.email, user?.user_metadata?.name, profile?.name]);
+
+  useEffect(() => {
+    if (!user || !profile) return;
+    setFormData((prev) => ({
+      ...prev,
+      conditions: (profile.conditions as string[]) ?? prev.conditions,
+      otherCondition: profile.other_condition ?? prev.otherCondition,
+      conditionSeverity: profile.severity ?? prev.conditionSeverity,
+      skinSatisfaction: profile.skin_satisfaction_baseline ?? prev.skinSatisfaction,
+      daysPerWeek: profile.days_per_week ?? prev.daysPerWeek,
+      timesOfDay: (profile.times_of_day as string[]) ?? prev.timesOfDay,
+      hasDermatologistPlan: profile.has_dermatologist_plan ?? prev.hasDermatologistPlan,
+      dermatologistProducts: (profile.dermatologist_products as unknown as FormData['dermatologistProducts']) ?? prev.dermatologistProducts,
+      selectedTreatmentPlans: (profile.selected_treatment_plans as FormData['selectedTreatmentPlans']) ?? prev.selectedTreatmentPlans,
+    }));
+  }, [user?.id, profile?.id]);
 
   const treatmentPlansByCondition = (): { [condition: string]: TreatmentPlan[] } => {
     const plans: { [key: string]: TreatmentPlan[] } = {
@@ -205,13 +244,7 @@ export default function Registration() {
   const canProceed = () => {
     switch (step) {
       case 1:
-        return (
-          formData.name.trim() !== '' &&
-          formData.email.trim() !== '' &&
-          formData.email.includes('@') &&
-          formData.password.length >= 6 &&
-          formData.termsAccepted
-        );
+        return formData.name.trim() !== '';
       case 2:
         return formData.conditions.length > 0;
       case 3:
@@ -241,12 +274,50 @@ export default function Registration() {
     else if (step === 4) setStep(5);
     else if (step === 5) setStep(6);
     else if (step === 6) {
-      // For now, just finish registration and go to tabs
-      router.replace('/(tabs)');
+      if (!user) return;
+      setSaveError(null);
+      setSaving(true);
+      (async () => {
+        try {
+          const primaryCondition = formData.conditions[0] ?? null;
+          const planIds = Object.values(formData.selectedTreatmentPlans).filter(Boolean);
+          const updatePayload = {
+            name: formData.name.trim(),
+            primary_condition: primaryCondition,
+            conditions: formData.conditions,
+            other_condition: formData.otherCondition || null,
+            severity: formData.conditionSeverity || null,
+            skin_satisfaction_baseline: formData.skinSatisfaction ?? null,
+            days_per_week: formData.daysPerWeek,
+            times_of_day: formData.timesOfDay,
+            has_dermatologist_plan: formData.hasDermatologistPlan,
+            dermatologist_products: formData.dermatologistProducts,
+            selected_treatment_plans: formData.selectedTreatmentPlans,
+            selected_treatment_plan_id: planIds[0] ?? null,
+            updated_at: new Date().toISOString(),
+          };
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const { error: updateError } = await (supabase.from('profiles') as any).update(updatePayload).eq('id', user.id);
+          if (updateError) {
+            setSaveError(updateError.message);
+            setSaving(false);
+            return;
+          }
+          router.replace('/(tabs)');
+        } catch (e) {
+          setSaveError(e instanceof Error ? e.message : 'Something went wrong');
+        } finally {
+          setSaving(false);
+        }
+      })();
     }
   };
 
   const handleBack = () => {
+    if (step === 1) {
+      router.back();
+      return;
+    }
     if (step === 3.5 || step === 3.4) setStep(3);
     else if (step === 3) setStep(2);
     else if (step === 2) setStep(1);
@@ -301,11 +372,11 @@ export default function Registration() {
         </View>
 
         <View style={styles.content}>
-          {/* Step 1: Account */}
+          {/* Step 1: Your profile (user is already signed in) */}
           {step === 1 && (
             <View>
-              <Text style={styles.title}>Create your account</Text>
-              <Text style={styles.subtitle}>Let's get started with the basics</Text>
+              <Text style={styles.title}>Your profile</Text>
+              <Text style={styles.subtitle}>Update your name. Email is from your account.</Text>
 
               <View style={styles.card}>
                 <View style={styles.field}>
@@ -321,73 +392,14 @@ export default function Registration() {
                 <View style={styles.field}>
                   <Text style={styles.label}>Email address</Text>
                   <TextInput
-                    style={styles.input}
+                    style={[styles.input, styles.inputReadOnly]}
                     value={formData.email}
-                    onChangeText={(text) => setFormData({ ...formData, email: text })}
-                    keyboardType="email-address"
-                    autoCapitalize="none"
+                    editable={false}
                     placeholder="your@email.com"
                     placeholderTextColor="#8A9088"
                   />
+                  <Text style={styles.helperText}>Change email in account settings</Text>
                 </View>
-                <View style={styles.field}>
-                  <Text style={styles.label}>Password</Text>
-                  <TextInput
-                    style={styles.input}
-                    value={formData.password}
-                    onChangeText={(text) => setFormData({ ...formData, password: text })}
-                    secureTextEntry
-                    placeholder="At least 6 characters"
-                    placeholderTextColor="#8A9088"
-                  />
-                  {formData.password.length > 0 && formData.password.length < 6 && (
-                    <Text style={styles.errorText}>
-                      Password must be at least 6 characters
-                    </Text>
-                  )}
-                </View>
-                <View style={styles.field}>
-                  <Text style={styles.label}>Terms of Service</Text>
-                  <View style={styles.termsRow}>
-                    <TouchableOpacity
-                      style={[
-                        styles.checkbox,
-                        formData.termsAccepted && styles.checkboxChecked,
-                      ]}
-                      onPress={() =>
-                        setFormData((prev) => ({
-                          ...prev,
-                          termsAccepted: !prev.termsAccepted,
-                        }))
-                      }
-                    >
-                      {formData.termsAccepted && (
-                        <Ionicons name="checkmark" size={16} color="#FFFFFF" />
-                      )}
-                    </TouchableOpacity>
-                    <Text style={styles.termsText}>
-                      I agree to the{' '}
-                      <Text
-                        style={styles.termsLink}
-                        onPress={() => setShowTermsModal(true)}
-                      >
-                        terms of service
-                      </Text>
-                    </Text>
-                  </View>
-                </View>
-              </View>
-              <Text style={styles.footerNote}>
-                By creating an account, you agree to our terms of service.
-              </Text>
-              <View style={styles.signInRow}>
-                <Text style={styles.signInRowText}>Already have an account? </Text>
-                <Text
-                  style={styles.signInRowLink}
-                  onPress={() => router.push('/(onboarding)/sign-in')}
-                >
-                  Sign in
-                </Text>
               </View>
             </View>
           )}
@@ -723,30 +735,39 @@ export default function Registration() {
               <Text style={styles.backButtonText}>Back</Text>
             </TouchableOpacity>
           )}
+          {step === 6 && saveError ? (
+            <Text style={styles.errorText}>{saveError}</Text>
+          ) : null}
           <TouchableOpacity
             onPress={handleNext}
-            disabled={!canProceed()}
+            disabled={!canProceed() || saving}
             style={[
               styles.nextButton,
               step === 1 && styles.nextButtonFull,
-              !canProceed() && styles.nextButtonDisabled,
+              (!canProceed() || saving) && styles.nextButtonDisabled,
             ]}
             activeOpacity={0.85}
           >
-            <Text
-              style={[
-                styles.nextButtonText,
-                !canProceed() && styles.nextButtonTextDisabled,
-              ]}
-            >
-              {step === 6 ? 'Complete' : 'Next'}
-            </Text>
-            {step < 6 && (
-              <Ionicons
-                name="chevron-forward"
-                size={20}
-                color={canProceed() ? '#FFFFFF' : '#6B7370'}
-              />
+            {saving ? (
+              <ActivityIndicator color="#FFFFFF" size="small" />
+            ) : (
+              <>
+                <Text
+                  style={[
+                    styles.nextButtonText,
+                    !canProceed() && styles.nextButtonTextDisabled,
+                  ]}
+                >
+                  {step === 6 ? 'Complete' : 'Next'}
+                </Text>
+                {step < 6 && (
+                  <Ionicons
+                    name="chevron-forward"
+                    size={20}
+                    color={canProceed() ? '#FFFFFF' : '#6B7370'}
+                  />
+                )}
+              </>
             )}
           </TouchableOpacity>
         </View>
@@ -889,6 +910,10 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#2D4A3E',
     backgroundColor: '#FFFFFF',
+  },
+  inputReadOnly: {
+    backgroundColor: '#F5F1ED',
+    color: '#6B7370',
   },
   errorText: {
     marginTop: 4,
