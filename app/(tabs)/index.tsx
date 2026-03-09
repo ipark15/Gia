@@ -1,3 +1,4 @@
+import { useFocusEffect } from '@react-navigation/native';
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import React, { useCallback, useEffect, useState } from 'react';
@@ -11,14 +12,13 @@ import { supabase } from '../../lib/supabaseClient';
 
 const HOME_BG = '#E8F0DC';
 
-const TODAY = new Date().toISOString().slice(0, 10);
-
 export default function HomeScreen() {
   const { user, profile } = useAuth();
   const {
     completedDays: _cd,
     currentStreak,
     weekCount,
+    flowersPlanted,
     morningRoutinesDone,
     eveningRoutinesDone,
     loading: statsLoading,
@@ -29,45 +29,11 @@ export default function HomeScreen() {
   const [showRoutineCelebration, setShowRoutineCelebration] = useState(false);
   const { setOnComplete } = useRoutineCompletion();
 
-  const persistRoutineCompletion = useCallback(
-    async (type: 'morning' | 'evening') => {
-      if (!user) return;
-      const { data: existing } = await supabase
-        .from('completed_days')
-        .select('id, steps_completed, total_steps, morning_done, evening_done')
-        .eq('user_id', user.id)
-        .eq('date', TODAY)
-        .maybeSingle();
-      const totalSteps = 5;
-      const prev = existing as { morning_done: boolean; evening_done: boolean; steps_completed: number } | null;
-      const morning = type === 'morning' || prev?.morning_done;
-      const evening = type === 'evening' || prev?.evening_done;
-      const stepsCompleted = (morning ? 3 : 0) + (evening ? 2 : 0);
-      if (existing) {
-        // Type assertion: Supabase client infers 'never' for update/insert with our Database type
-        await (supabase.from('completed_days') as any)
-          .update({
-            morning_done: morning,
-            evening_done: evening,
-            steps_completed: stepsCompleted,
-            total_steps: totalSteps,
-            updated_at: new Date().toISOString(),
-          })
-          .eq('user_id', user.id)
-          .eq('date', TODAY);
-      } else {
-        await (supabase.from('completed_days') as any).insert({
-          user_id: user.id,
-          date: TODAY,
-          morning_done: morning,
-          evening_done: evening,
-          steps_completed: stepsCompleted,
-          total_steps: totalSteps,
-        });
-      }
-      await refreshStats();
-    },
-    [user?.id, refreshStats]
+  // Refetch stats when Home is focused so flowers/streak are up to date after completing a routine on another screen
+  useFocusEffect(
+    useCallback(() => {
+      refreshStats();
+    }, [refreshStats])
   );
 
   useEffect(() => {
@@ -75,11 +41,10 @@ export default function HomeScreen() {
       if (type === 'morning') setMorningRoutineCompleted(true);
       else setEveningRoutineCompleted(true);
       setShowRoutineCelebration(true);
-      persistRoutineCompletion(type);
     };
     setOnComplete(handler);
     return () => setOnComplete(null);
-  }, [setOnComplete, persistRoutineCompletion]);
+  }, [setOnComplete]);
 
   const handleStartRoutine = () => {
     const planId = profile?.selected_treatment_plan_id ?? 'acne-basic';
@@ -126,6 +91,7 @@ export default function HomeScreen() {
         userCondition={userCondition}
         currentStreak={statsLoading ? 0 : currentStreak}
         weekCount={statsLoading ? 0 : weekCount}
+        flowersPlanted={statsLoading ? 0 : flowersPlanted}
         morningRoutinesDone={statsLoading ? 0 : morningRoutinesDone}
         eveningRoutinesDone={statsLoading ? 0 : eveningRoutinesDone}
         morningRoutineCompleted={morningRoutineCompleted}

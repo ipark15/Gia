@@ -7,6 +7,7 @@ import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 import { useColorScheme } from 'react-native';
 import 'react-native-reanimated';
+import { RoutinePersistenceHandler } from '../components/RoutinePersistenceHandler';
 import { AuthProvider } from '../context/AuthContext';
 import { RoutineCompletionProvider } from '../context/RoutineCompletionContext';
 
@@ -53,6 +54,7 @@ function RootLayoutNav() {
       <StatusBar style="dark" />
       <AuthProvider>
         <RoutineCompletionProvider>
+          <RoutinePersistenceHandler />
           <Stack screenOptions={{ headerShown: false }}>
             <Stack.Screen name="(onboarding)" />
             <Stack.Screen name="(tabs)" />

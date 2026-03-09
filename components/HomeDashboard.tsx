@@ -65,6 +65,8 @@ interface HomeDashboardProps {
   userCondition: string;
   currentStreak: number;
   weekCount: number;
+  /** Total flowers planted (one per routine completion, all time). */
+  flowersPlanted?: number;
   morningRoutinesDone: number;
   eveningRoutinesDone: number;
   morningRoutineCompleted: boolean;
@@ -138,6 +140,7 @@ export function HomeDashboard({
   userCondition,
   currentStreak,
   weekCount,
+  flowersPlanted = 0,
   morningRoutinesDone,
   eveningRoutinesDone,
   morningRoutineCompleted,
@@ -1009,7 +1012,7 @@ export function HomeDashboard({
             </View>
 
             <View style={styles.gardenPond}>
-              {morningRoutinesDone + eveningRoutinesDone === 0 ? (
+              {flowersPlanted === 0 ? (
                 <View style={styles.gardenEmpty}>
                   <Text style={styles.gardenEmptyText}>
                     Complete your first routine to plant a Victoria regia 🪷
@@ -1018,7 +1021,7 @@ export function HomeDashboard({
               ) : (
                 <View style={styles.gardenFlowerGrid}>
                   {Array.from({
-                    length: morningRoutinesDone + eveningRoutinesDone,
+                    length: Math.min(flowersPlanted, 24),
                   }).map((_, i) => (
                     <View key={i} style={styles.gardenFlowerItem}>
                       <Text style={styles.gardenFlowerEmoji}>🪷</Text>
@@ -1034,7 +1037,7 @@ export function HomeDashboard({
                   <Text style={styles.lotusIcon}>🪷</Text>
                 </View>
                 <Text style={styles.gardenStatValue}>
-                  {morningRoutinesDone + eveningRoutinesDone}
+                  {flowersPlanted}
                 </Text>
                 <Text style={styles.gardenStatLabel}>{'flowers\nbloomed'}</Text>
               </View>

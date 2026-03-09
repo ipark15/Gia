@@ -16,6 +16,8 @@ export type RoutineStats = {
   weekCount: number;
   morningRoutinesDone: number;
   eveningRoutinesDone: number;
+  /** Total flowers planted (one per routine completion, all time). */
+  flowersPlanted: number;
   loading: boolean;
   refresh: () => Promise<void>;
 };
@@ -69,6 +71,14 @@ function computeWeekCount(rows: CompletedDayRow[]): number {
   return weeks.size;
 }
 
+/** Total routine completions (one flower per morning or evening completion, all time). */
+function computeFlowersPlanted(rows: CompletedDayRow[]): number {
+  return rows.reduce(
+    (sum, r) => sum + (r.morning_done ? 1 : 0) + (r.evening_done ? 1 : 0),
+    0
+  );
+}
+
 export function useRoutineStats(): RoutineStats {
   const { user } = useAuth();
   const [completedDays, setCompletedDays] = useState<CompletedDayRow[]>([]);
@@ -120,6 +130,7 @@ export function useRoutineStats(): RoutineStats {
     weekCount: computeWeekCount(completedDays),
     morningRoutinesDone,
     eveningRoutinesDone,
+    flowersPlanted: computeFlowersPlanted(completedDays),
     loading,
     refresh: fetchCompletedDays,
   };
