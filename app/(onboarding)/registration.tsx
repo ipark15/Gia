@@ -54,7 +54,7 @@ interface FormData {
 
 export default function Registration() {
   const params = useLocalSearchParams<{ step?: string }>();
-  const { user, profile, loading: authLoading } = useAuth();
+  const { user, profile, loading: authLoading, refreshProfile } = useAuth();
   const initialStep = params.step != null ? Math.min(6, Math.max(1, parseInt(params.step, 10) || 1)) : 1;
   const [step, setStep] = useState<number | 3.4 | 3.5>(initialStep as number);
   const [showTermsModal, setShowTermsModal] = useState(false);
@@ -303,6 +303,8 @@ export default function Registration() {
             setSaving(false);
             return;
           }
+          // Immediately refresh profile in AuthContext so all screens see the new settings.
+          await refreshProfile();
           router.replace('/(tabs)');
         } catch (e) {
           setSaveError(e instanceof Error ? e.message : 'Something went wrong');
@@ -337,8 +339,6 @@ export default function Registration() {
 
   const timeOptions = [
     { value: 'morning', label: 'Morning', icon: 'sunny-outline' as const },
-    { value: 'midday', label: 'Midday', icon: 'sunny' as const },
-    { value: 'evening', label: 'Evening', icon: 'partly-sunny-outline' as const },
     { value: 'night', label: 'Night', icon: 'moon-outline' as const },
   ];
 
@@ -689,9 +689,9 @@ export default function Registration() {
           {/* Step 6: Times of day */}
           {step === 6 && (
             <View>
-              <Text style={styles.title}>When do you want reminders?</Text>
+              <Text style={styles.title}>Which routines do you want?</Text>
               <Text style={styles.subtitle}>
-                Select the times you'd like to implement your routine
+                Choose morning, night, or both. You'll only be asked to complete the routines you select.
               </Text>
               <View style={styles.optionsContainer}>
                 {timeOptions.map((time) => (

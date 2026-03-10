@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   StyleSheet,
@@ -24,6 +24,14 @@ export function AccountManagementSection({
   const [isEditing, setIsEditing] = useState(false);
   const [name, setName] = useState(accountData.name);
   const [email, setEmail] = useState(accountData.email);
+
+  // Sync form fields if the profile is refreshed externally (e.g. after registration).
+  useEffect(() => {
+    if (!isEditing) {
+      setName(accountData.name);
+      setEmail(accountData.email);
+    }
+  }, [accountData.name, accountData.email, isEditing]);
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isSaving, setIsSaving] = useState(false);

@@ -67,7 +67,7 @@ type ActiveReminder = {
 };
 
 interface HomeDashboardProps {
-  onStartRoutine: () => void;
+  onStartRoutine: (routineType: 'morning' | 'evening') => void;
   onActivateGreenhouse: () => void;
   onFreshStart: () => void;
   onCustomizeRoutine: () => void;
@@ -90,6 +90,8 @@ interface HomeDashboardProps {
   nextAppointment?: string;
   /** Whether the user has already completed their check-in today (from DB). */
   checkInCompletedToday?: boolean;
+  /** Which routine types the user has enabled (derived from profile.times_of_day). */
+  preferredRoutines?: ('morning' | 'evening')[];
 }
 
 type ReminderToastProps = {
@@ -176,6 +178,7 @@ export function HomeDashboard({
   onRoutineCelebrationDismiss,
   nextAppointment,
   checkInCompletedToday = false,
+  preferredRoutines = ['morning', 'evening'],
 }: HomeDashboardProps) {
   const [checkInExpanded, setCheckInExpanded] = useState(false);
   const [askExpanded, setAskExpanded] = useState(false);
@@ -220,11 +223,24 @@ export function HomeDashboard({
   const isEvening = timeOfDay >= 18 || timeOfDay < 6;
   const isMorning = timeOfDay >= 6 && timeOfDay < 12;
 
-  const currentRoutineType: RoutineType = isEvening ? "evening" : "morning";
+  const hasMorning = preferredRoutines.includes('morning');
+  const hasEvening = preferredRoutines.includes('evening');
+
+  // Determine which routine to show: if user only wants one type, always show that one.
+  // If they want both, follow time of day.
+  const currentRoutineType: RoutineType =
+    hasMorning && !hasEvening ? 'morning'
+    : hasEvening && !hasMorning ? 'evening'
+    : isEvening ? 'evening'
+    : 'morning';
+
   const isCurrentRoutineCompleted =
-    currentRoutineType === "evening"
-      ? eveningRoutineCompleted
-      : morningRoutineCompleted;
+    currentRoutineType === 'evening' ? eveningRoutineCompleted : morningRoutineCompleted;
+
+  // True when every routine the user has opted into is done for the day.
+  const isAllDoneForDay =
+    (hasMorning ? morningRoutineCompleted : true) &&
+    (hasEvening ? eveningRoutineCompleted : true);
 
   const daysUntilAppointment = useMemo(() => {
     if (!nextAppointment) return null;
@@ -333,8 +349,7 @@ export function HomeDashboard({
 
     if (
       currentStreak > 0 &&
-      !morningRoutineCompleted &&
-      !eveningRoutineCompleted &&
+      !isCurrentRoutineCompleted &&
       !dismissedReminders.includes("streak") &&
       isMorning &&
       canShowReminder("streak", 24)
@@ -380,7 +395,7 @@ export function HomeDashboard({
     }
 
     if (
-      (morningRoutineCompleted || eveningRoutineCompleted) &&
+      isCurrentRoutineCompleted &&
       !dismissedReminders.includes("affirmation") &&
       canShowReminder("affirmation", 12)
     ) {
@@ -423,10 +438,9 @@ export function HomeDashboard({
     daysUntilAppointment,
     dismissedReminders,
     currentStreak,
-    morningRoutineCompleted,
-    eveningRoutineCompleted,
     isMorning,
     isCurrentRoutineCompleted,
+    isAllDoneForDay,
     morningRoutinesDone,
     eveningRoutinesDone,
     currentRoutineType,
@@ -480,22 +494,28 @@ export function HomeDashboard({
   };
 
   const getNextRoutineInfo = () => {
-    if (morningRoutineCompleted && !eveningRoutineCompleted) {
+    if (isAllDoneForDay) {
       return {
-        message: "Next up: evening routine",
+        message: hasMorning && hasEvening ? "Both routines completed!" : "Routine completed!",
+        time: "✨",
+      };
+    }
+    if (hasMorning && morningRoutineCompleted && hasEvening && !eveningRoutineCompleted) {
+      return {
+        message: "Next up: night routine",
         time: "6:00 PM",
       };
     }
-    if (eveningRoutineCompleted && !morningRoutineCompleted) {
+    if (hasEvening && eveningRoutineCompleted && hasMorning && !morningRoutineCompleted) {
       return {
         message: "Next up: morning routine",
         time: "",
       };
     }
-    if (morningRoutineCompleted && eveningRoutineCompleted) {
+    if (false) {
       return {
-        message: "Both routines completed!",
-        time: "✨",
+        message: "",
+        time: "",
       };
     }
     return null;
@@ -622,11 +642,11 @@ export function HomeDashboard({
             <View style={styles.completionBanner}>
               <View style={styles.completionBannerLeft}>
                 <Text style={styles.completionBannerTitle}>
-                  {morningRoutineCompleted && eveningRoutineCompleted
+                  {isAllDoneForDay && hasMorning && hasEvening
                     ? "Both routines complete"
-                    : morningRoutineCompleted
+                    : morningRoutineCompleted && hasMorning
                       ? "Morning routine complete"
-                      : "Evening routine complete"}
+                      : "Night routine complete"}
                 </Text>
                 <Text style={styles.completionBannerSubtitle}>
                   {nextRoutineInfo.message.toLowerCase()}
@@ -634,9 +654,7 @@ export function HomeDashboard({
                 </Text>
               </View>
               <Text style={styles.completionBannerIcon}>
-                {morningRoutineCompleted && eveningRoutineCompleted
-                  ? "✨"
-                  : "○"}
+                {isAllDoneForDay ? "✨" : "○"}
               </Text>
             </View>
           )}
@@ -644,7 +662,7 @@ export function HomeDashboard({
           {!isCurrentRoutineCompleted && (
             <View style={styles.primaryCtaWrapper}>
               <TouchableOpacity
-                onPress={onStartRoutine}
+                onPress={() => onStartRoutine(currentRoutineType)}
                 style={styles.primaryCta}
                 activeOpacity={0.95}
               >

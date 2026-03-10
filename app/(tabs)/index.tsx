@@ -23,7 +23,7 @@ function base64ToArrayBuffer(base64: string): ArrayBuffer {
 const PHOTO_BUCKET = 'progress-photos';
 
 export default function HomeScreen() {
-  const { user, profile } = useAuth();
+  const { user, profile, refreshProfile } = useAuth();
   const {
     completedDays: _cd,
     currentStreak,
@@ -62,13 +62,14 @@ export default function HomeScreen() {
     setCheckInCompletedToday(!!data);
   }, [user?.id]);
 
-  // Refetch stats + today's check-in when Home is focused so state is accurate
-  // after returning from another screen or logging in on a different device.
+  // Refetch everything when Home is focused so state is accurate after returning
+  // from registration, another device, or any profile-mutating screen.
   useFocusEffect(
     useCallback(() => {
+      refreshProfile();
       refreshStats();
       fetchCheckInToday();
-    }, [refreshStats, fetchCheckInToday])
+    }, [refreshProfile, refreshStats, fetchCheckInToday])
   );
 
   useEffect(() => {
@@ -81,11 +82,25 @@ export default function HomeScreen() {
     return () => setOnComplete(null);
   }, [setOnComplete]);
 
-  const handleStartRoutine = () => {
+  // Derive which routines the user wants from their profile preference.
+  // 'night' (new) and 'evening' (legacy) both map to the PM routine.
+  const times = (profile?.times_of_day as string[]) ?? [];
+  const wantsMorning = times.includes('morning');
+  const wantsEvening = times.includes('night') || times.includes('evening');
+  // Fall back to both if preference not set (e.g. brand-new profile).
+  const preferredRoutines: ('morning' | 'evening')[] =
+    !wantsMorning && !wantsEvening
+      ? ['morning', 'evening']
+      : [
+          ...(wantsMorning ? (['morning'] as const) : []),
+          ...(wantsEvening ? (['evening'] as const) : []),
+        ];
+
+  const handleStartRoutine = (routineType: 'morning' | 'evening') => {
     const planId = profile?.selected_treatment_plan_id ?? 'acne-basic';
     router.push({
       pathname: '/routine-execution',
-      params: { planId },
+      params: { planId, routineType },
     });
   };
 
@@ -173,6 +188,7 @@ export default function HomeScreen() {
       <StatusBar style="dark" backgroundColor={HOME_BG} />
       <HomeDashboard
         onStartRoutine={handleStartRoutine}
+        preferredRoutines={preferredRoutines}
         onActivateGreenhouse={() => { }}
         onFreshStart={() => { }}
         onCustomizeRoutine={() => { }}

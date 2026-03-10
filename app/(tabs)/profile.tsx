@@ -1,6 +1,7 @@
+import { useFocusEffect } from '@react-navigation/native';
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { useMemo } from 'react';
+import { useCallback, useMemo } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ProfilePage } from '../../components/ProfilePage';
 import { getProductRecommendations } from '../../components/TreatmentProducts';
@@ -13,6 +14,14 @@ const PROFILE_BG = '#E8EDE8';
 export default function ProfileScreen() {
   const { user, profile, refreshProfile, signOut } = useAuth();
   const { completedDays, currentStreak, daysTracked, loading: statsLoading } = useRoutineStats();
+
+  // Refresh the profile from the DB every time this tab gains focus so changes
+  // made in registration (or on another device) appear immediately.
+  useFocusEffect(
+    useCallback(() => {
+      refreshProfile();
+    }, [refreshProfile])
+  );
   const planId = profile?.selected_treatment_plan_id ?? 'acne-basic';
   const { morningSteps, eveningSteps } = useMemo(() => {
     // User-saved customizations take priority
