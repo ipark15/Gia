@@ -8,6 +8,7 @@ import { HomeDashboard } from '../../components/HomeDashboard';
 import { useAuth } from '../../context/AuthContext';
 import { useRoutineCompletion } from '../../context/RoutineCompletionContext';
 import { useRoutineStats } from '../../hooks/useRoutineStats';
+import { getLocalDateString } from '../../lib/dateUtils';
 import { supabase } from '../../lib/supabaseClient';
 
 const HOME_BG = '#E8F0DC';
@@ -30,25 +31,50 @@ export default function HomeScreen() {
     flowersPlanted,
     morningRoutinesDone,
     eveningRoutinesDone,
+    todayMorningCompleted,
+    todayEveningCompleted,
     loading: statsLoading,
     refresh: refreshStats,
   } = useRoutineStats();
-  const [morningRoutineCompleted, setMorningRoutineCompleted] = useState(false);
-  const [eveningRoutineCompleted, setEveningRoutineCompleted] = useState(false);
+
+  // Optimistic local flags set immediately on completion in the current session.
+  // OR'd with DB-derived values so the UI stays correct on reload / cross-device.
+  const [morningCompletedLocal, setMorningCompletedLocal] = useState(false);
+  const [eveningCompletedLocal, setEveningCompletedLocal] = useState(false);
+  const morningRoutineCompleted = todayMorningCompleted || morningCompletedLocal;
+  const eveningRoutineCompleted = todayEveningCompleted || eveningCompletedLocal;
+
   const [showRoutineCelebration, setShowRoutineCelebration] = useState(false);
+
+  // Track whether today's check-in is already saved (from DB).
+  const [checkInCompletedToday, setCheckInCompletedToday] = useState(false);
+
   const { setOnComplete } = useRoutineCompletion();
 
-  // Refetch stats when Home is focused so flowers/streak are up to date after completing a routine on another screen
+  const fetchCheckInToday = useCallback(async () => {
+    if (!user) return;
+    const { data } = await supabase
+      .from('check_ins')
+      .select('id')
+      .eq('user_id', user.id)
+      .eq('date', getLocalDateString())
+      .maybeSingle();
+    setCheckInCompletedToday(!!data);
+  }, [user?.id]);
+
+  // Refetch stats + today's check-in when Home is focused so state is accurate
+  // after returning from another screen or logging in on a different device.
   useFocusEffect(
     useCallback(() => {
       refreshStats();
-    }, [refreshStats])
+      fetchCheckInToday();
+    }, [refreshStats, fetchCheckInToday])
   );
 
   useEffect(() => {
     const handler = (type: 'morning' | 'evening') => {
-      if (type === 'morning') setMorningRoutineCompleted(true);
-      else setEveningRoutineCompleted(true);
+      if (type === 'morning') setMorningCompletedLocal(true);
+      else setEveningCompletedLocal(true);
       setShowRoutineCelebration(true);
     };
     setOnComplete(handler);
@@ -128,6 +154,9 @@ export default function HomeScreen() {
             notes: data.notes ?? null,
           });
         }
+
+        // Mark check-in as done for today so the card updates immediately.
+        setCheckInCompletedToday(true);
       } catch (e) {
         // Surface errors to caller so UI can show an alert.
         throw e;
@@ -150,6 +179,7 @@ export default function HomeScreen() {
         onOpenGarden={() => { }}
         onOpenSettings={() => router.push({ pathname: '/(onboarding)/registration', params: { step: '2' } })}
         onCheckInComplete={handleCheckInComplete}
+        checkInCompletedToday={checkInCompletedToday}
         userCondition={userCondition}
         currentStreak={currentStreak}
         weekCount={weekCount}
@@ -158,8 +188,8 @@ export default function HomeScreen() {
         eveningRoutinesDone={eveningRoutinesDone}
         morningRoutineCompleted={morningRoutineCompleted}
         eveningRoutineCompleted={eveningRoutineCompleted}
-        onMorningRoutineComplete={() => setMorningRoutineCompleted(true)}
-        onEveningRoutineComplete={() => setEveningRoutineCompleted(true)}
+        onMorningRoutineComplete={() => setMorningCompletedLocal(true)}
+        onEveningRoutineComplete={() => setEveningCompletedLocal(true)}
         showRoutineCelebration={showRoutineCelebration}
         onRoutineCelebrationDismiss={() => setShowRoutineCelebration(false)}
         nextAppointment={nextAppointment}

@@ -31,6 +31,10 @@ export type RoutineStats = {
   eveningRoutinesDone: number;
   /** Total number of routines completed (one per morning/evening completion). */
   flowersPlanted: number;
+  /** Whether the user has completed their morning routine today (from DB). */
+  todayMorningCompleted: boolean;
+  /** Whether the user has completed their evening routine today (from DB). */
+  todayEveningCompleted: boolean;
   loading: boolean;
   refresh: () => Promise<void>;
 };
@@ -172,6 +176,11 @@ export function useRoutineStats(): RoutineStats {
   const morningRoutinesDone = thisWeekRows.filter((r) => r.morning_done).length;
   const eveningRoutinesDone = thisWeekRows.filter((r) => r.evening_done).length;
 
+  const todayStr = toDateStr(new Date());
+  const todayRow = completedDays.find((r) => r.date === todayStr);
+  const todayMorningCompleted = todayRow?.morning_done ?? false;
+  const todayEveningCompleted = todayRow?.evening_done ?? false;
+
   return {
     completedDays: completedDays.map((r) => ({
       date: r.date,
@@ -194,6 +203,8 @@ export function useRoutineStats(): RoutineStats {
     morningRoutinesDone,
     eveningRoutinesDone,
     flowersPlanted: computeFlowersPlanted(rawCompletions),
+    todayMorningCompleted,
+    todayEveningCompleted,
     loading,
     refresh: fetchCompletedDays,
   };

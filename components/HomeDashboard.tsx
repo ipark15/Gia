@@ -88,6 +88,8 @@ interface HomeDashboardProps {
   showRoutineCelebration?: boolean;
   onRoutineCelebrationDismiss?: () => void;
   nextAppointment?: string;
+  /** Whether the user has already completed their check-in today (from DB). */
+  checkInCompletedToday?: boolean;
 }
 
 type ReminderToastProps = {
@@ -173,6 +175,7 @@ export function HomeDashboard({
   showRoutineCelebration = false,
   onRoutineCelebrationDismiss,
   nextAppointment,
+  checkInCompletedToday = false,
 }: HomeDashboardProps) {
   const [checkInExpanded, setCheckInExpanded] = useState(false);
   const [askExpanded, setAskExpanded] = useState(false);
@@ -191,7 +194,10 @@ export function HomeDashboard({
   const [contextTags, setContextTags] = useState<string[]>([]);
   const [optionalFieldsExpanded, setOptionalFieldsExpanded] = useState(false);
   const [checkInNote, setCheckInNote] = useState("");
-  const [checkInCompleted, setCheckInCompleted] = useState(false);
+  // Local optimistic flag (set immediately after user submits the form).
+  // OR'd with checkInCompletedToday so the card shows "complete" on reload/cross-device.
+  const [checkInCompletedLocal, setCheckInCompletedLocal] = useState(false);
+  const checkInCompleted = checkInCompletedLocal || checkInCompletedToday;
   const [checkInPhotoUrl, setCheckInPhotoUrl] = useState<string | null>(null);
   const [checkInPhotoBase64, setCheckInPhotoBase64] = useState<string | null>(
     null,
@@ -499,7 +505,7 @@ export function HomeDashboard({
 
   const handleSaveCheckIn = async () => {
     if (!onCheckInComplete) {
-      setCheckInCompleted(true);
+      setCheckInCompletedLocal(true);
       setCheckInExpanded(false);
       return;
     }
@@ -519,7 +525,7 @@ export function HomeDashboard({
         photoBase64: checkInPhotoBase64 || undefined,
       };
       await onCheckInComplete(checkInData);
-      setCheckInCompleted(true);
+      setCheckInCompletedLocal(true);
       setCheckInExpanded(false);
     } catch (e) {
       // Supabase errors aren't always instances of Error in RN.
