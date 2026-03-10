@@ -24,6 +24,10 @@ export interface RoutineExecutionProps {
     timeOfDay: 'am' | 'pm' | 'both';
     step: string;
   }>;
+  /** User-saved customizations. Takes priority over derm products and OTC plan. */
+  customRoutine?: { amRoutine: Array<{ step: string; products: Array<{ brand: string; name: string; keyIngredient: string; amazonUrl?: string; note?: string }> }>; pmRoutine: Array<{ step: string; products: Array<{ brand: string; name: string; keyIngredient: string; amazonUrl?: string; note?: string }> }> } | null;
+  /** Override time-of-day detection. Pass 'morning' or 'evening' based on the user's preference. */
+  forceRoutineType?: 'morning' | 'evening';
 }
 
 function getProductUrl(product: { brand: string; name: string; amazonUrl?: string }): string {
@@ -38,13 +42,17 @@ export function RoutineExecution({
   onBack,
   planId = 'acne-basic',
   dermatologistProducts,
+  customRoutine,
+  forceRoutineType,
 }: RoutineExecutionProps) {
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
   const [showProducts, setShowProducts] = useState(false);
   const [showGiaChat, setShowGiaChat] = useState(false);
 
   const timeOfDay = new Date().getHours();
-  const isEvening = timeOfDay >= 18 || timeOfDay < 6;
+  const isEvening = forceRoutineType
+    ? forceRoutineType === 'evening'
+    : timeOfDay >= 18 || timeOfDay < 6;
 
   const { amRoutine, pmRoutine } = useMemo(
     () => getProductRecommendations(planId || 'acne-basic'),
@@ -53,7 +61,9 @@ export function RoutineExecution({
 
   let routine: any[] = [];
 
-  if (dermatologistProducts && dermatologistProducts.length > 0) {
+  if (customRoutine) {
+    routine = isEvening ? customRoutine.pmRoutine : customRoutine.amRoutine;
+  } else if (dermatologistProducts && dermatologistProducts.length > 0) {
     routine = dermatologistProducts
       .filter(
         (p: {

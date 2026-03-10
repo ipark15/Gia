@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import React from 'react';
+import React, { useEffect } from 'react';
 import {
   Image,
   StyleSheet,
@@ -9,6 +9,15 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useAuth } from '../../context/AuthContext';
+
+function isProfileComplete(profile: { primary_condition?: string | null; conditions?: unknown[]; selected_treatment_plan_id?: string | null } | null): boolean {
+  if (!profile) return false;
+  if (profile.primary_condition) return true;
+  if (Array.isArray(profile.conditions) && profile.conditions.length > 0) return true;
+  if (profile.selected_treatment_plan_id) return true;
+  return false;
+}
 
 export interface GardenDecoration {
   id: string;
@@ -24,8 +33,17 @@ interface FrontPageProps {
 }
 
 export default function FrontPage(_props: FrontPageProps) {
+  const { user, profile, loading } = useAuth();
+
+  useEffect(() => {
+    if (loading || !user) return;
+    if (isProfileComplete(profile)) {
+      router.replace('/(tabs)');
+    }
+  }, [user, profile, loading]);
+
   const handleGetStarted = () => {
-    router.push('/(onboarding)/registration');
+    router.push('/(onboarding)/sign-in');
   };
 
   return (

@@ -1,6 +1,8 @@
-import { Ionicons } from '@expo/vector-icons';
-import React, { useMemo, useState } from 'react';
+import { Ionicons } from "@expo/vector-icons";
+import * as ImagePicker from "expo-image-picker";
+import React, { useMemo, useState } from "react";
 import {
+  Alert,
   Image,
   ScrollView,
   StyleSheet,
@@ -8,13 +10,13 @@ import {
   TextInput,
   TouchableOpacity,
   View,
-} from 'react-native';
+} from "react-native";
 import {
   HEADER_ACTION_STRIP_WIDTH,
   HEADER_BUTTON_GAP,
   HEADER_ICON_COLOR,
   HEADER_PADDING_HORIZONTAL,
-} from '../constants/HeaderStyles';
+} from "../constants/HeaderStyles";
 import {
   BODY_SIZE,
   BODY_SMALL_SIZE,
@@ -30,21 +32,31 @@ import {
   TEXT_SECONDARY,
   TITLE_LARGE_SIZE,
   TITLE_LARGE_WEIGHT,
-} from '../constants/Typography';
-import { EmergencyHelp } from './EmergencyHelp';
+} from "../constants/Typography";
+import { getLocalDateString } from "../lib/dateUtils";
+import { EmergencyHelp } from "./EmergencyHelp";
 
 export type CheckInData = {
-  type: 'morning' | 'evening';
+  type: "morning" | "evening";
   date: string;
   mood: number;
   skinFeeling: number;
   notes?: string;
   symptomsToday: string[];
-  energyLevel?: number;
-  photoUrl?: string;
+  contextTags: string[];
+  sleepHours?: number;
+  stressLevel?: number;
+  onPeriod?: boolean;
+  /** Optional photo attached to check-in (base64 jpeg from ImagePicker). */
+  photoBase64?: string;
 };
 
-type ReminderType = 'streak' | 'routine' | 'affirmation' | 'appointment' | 'seasonal';
+type ReminderType =
+  | "streak"
+  | "routine"
+  | "affirmation"
+  | "appointment"
+  | "seasonal";
 
 type ActiveReminder = {
   type: ReminderType;
@@ -55,16 +67,18 @@ type ActiveReminder = {
 };
 
 interface HomeDashboardProps {
-  onStartRoutine: () => void;
+  onStartRoutine: (routineType: 'morning' | 'evening') => void;
   onActivateGreenhouse: () => void;
   onFreshStart: () => void;
   onCustomizeRoutine: () => void;
   onOpenGarden?: () => void;
   onOpenSettings?: () => void;
-  onCheckInComplete?: (data: CheckInData) => void;
+  onCheckInComplete?: (data: CheckInData) => Promise<void>;
   userCondition: string;
   currentStreak: number;
   weekCount: number;
+  /** Total flowers planted (one per routine completion, all time). */
+  flowersPlanted?: number;
   morningRoutinesDone: number;
   eveningRoutinesDone: number;
   morningRoutineCompleted: boolean;
@@ -74,6 +88,10 @@ interface HomeDashboardProps {
   showRoutineCelebration?: boolean;
   onRoutineCelebrationDismiss?: () => void;
   nextAppointment?: string;
+  /** Whether the user has already completed their check-in today (from DB). */
+  checkInCompletedToday?: boolean;
+  /** Which routine types the user has enabled (derived from profile.times_of_day). */
+  preferredRoutines?: ('morning' | 'evening')[];
 }
 
 type ReminderToastProps = {
@@ -87,15 +105,20 @@ function ReminderToast({ reminder, onDismiss }: ReminderToastProps) {
       <View style={styles.reminderToast}>
         <View style={styles.reminderTextWrapper}>
           <Text style={styles.reminderTitle}>
-            {reminder.type === 'appointment' && 'Dermatologist visit coming up'}
-            {reminder.type === 'streak' && 'Streak reminder'}
-            {reminder.type === 'routine' && 'Routine reminder'}
-            {reminder.type === 'affirmation' && 'You are doing great'}
-            {reminder.type === 'seasonal' && (reminder.seasonName ?? 'Seasonal reminder')}
+            {reminder.type === "appointment" && "Dermatologist visit coming up"}
+            {reminder.type === "streak" && "Streak reminder"}
+            {reminder.type === "routine" && "Routine reminder"}
+            {reminder.type === "affirmation" && "You are doing great"}
+            {reminder.type === "seasonal" &&
+              (reminder.seasonName ?? "Seasonal reminder")}
           </Text>
           <Text style={styles.reminderMessage}>{reminder.message}</Text>
         </View>
-        <TouchableOpacity onPress={onDismiss} style={styles.reminderClose} hitSlop={12}>
+        <TouchableOpacity
+          onPress={onDismiss}
+          style={styles.reminderClose}
+          hitSlop={12}
+        >
           <Ionicons name="close" size={18} color="#FFFFFF" />
         </TouchableOpacity>
       </View>
@@ -103,15 +126,21 @@ function ReminderToast({ reminder, onDismiss }: ReminderToastProps) {
   );
 }
 
-type FaceVariant = '1' | '2' | '3' | '4' | '5';
+type FaceVariant = "1" | "2" | "3" | "4" | "5";
 
-function MoodFace({ variant, active }: { variant: FaceVariant; active: boolean }) {
+function MoodFace({
+  variant,
+  active,
+}: {
+  variant: FaceVariant;
+  active: boolean;
+}) {
   const labelMap: Record<FaceVariant, string> = {
-    '1': '😣',
-    '2': '🙁',
-    '3': '😐',
-    '4': '🙂',
-    '5': '😊',
+    "1": "😣",
+    "2": "🙁",
+    "3": "😐",
+    "4": "🙂",
+    "5": "😊",
   };
   return (
     <View
@@ -125,7 +154,7 @@ function MoodFace({ variant, active }: { variant: FaceVariant; active: boolean }
   );
 }
 
-type RoutineType = 'morning' | 'evening';
+type RoutineType = "morning" | "evening";
 
 export function HomeDashboard({
   onStartRoutine,
@@ -138,6 +167,7 @@ export function HomeDashboard({
   userCondition,
   currentStreak,
   weekCount,
+  flowersPlanted = 0,
   morningRoutinesDone,
   eveningRoutinesDone,
   morningRoutineCompleted,
@@ -147,11 +177,15 @@ export function HomeDashboard({
   showRoutineCelebration = false,
   onRoutineCelebrationDismiss,
   nextAppointment,
+  checkInCompletedToday = false,
+  preferredRoutines = ['morning', 'evening'],
 }: HomeDashboardProps) {
   const [checkInExpanded, setCheckInExpanded] = useState(false);
   const [askExpanded, setAskExpanded] = useState(false);
-  const [askQuestion, setAskQuestion] = useState('');
-  const [chatMessages, setChatMessages] = useState<{ question: string; answer: string }[]>([]);
+  const [askQuestion, setAskQuestion] = useState("");
+  const [chatMessages, setChatMessages] = useState<
+    { question: string; answer: string }[]
+  >([]);
 
   const [showHelpModal, setShowHelpModal] = useState(false);
 
@@ -162,28 +196,51 @@ export function HomeDashboard({
   const [moodSelection, setMoodSelection] = useState<FaceVariant | null>(null);
   const [contextTags, setContextTags] = useState<string[]>([]);
   const [optionalFieldsExpanded, setOptionalFieldsExpanded] = useState(false);
-  const [checkInNote, setCheckInNote] = useState('');
-  const [checkInCompleted, setCheckInCompleted] = useState(false);
+  const [checkInNote, setCheckInNote] = useState("");
+  // Local optimistic flag (set immediately after user submits the form).
+  // OR'd with checkInCompletedToday so the card shows "complete" on reload/cross-device.
+  const [checkInCompletedLocal, setCheckInCompletedLocal] = useState(false);
+  const checkInCompleted = checkInCompletedLocal || checkInCompletedToday;
   const [checkInPhotoUrl, setCheckInPhotoUrl] = useState<string | null>(null);
+  const [checkInPhotoBase64, setCheckInPhotoBase64] = useState<string | null>(
+    null,
+  );
 
   const [wearablesExpanded, setWearablesExpanded] = useState(false);
   const [wearablesConnected, setWearablesConnected] = useState(false);
-  const [sleepHours, setSleepHours] = useState<string>('');
+  const [sleepHours, setSleepHours] = useState<string>("");
   const [stressLevel, setStressLevel] = useState<number | null>(null);
   const [onPeriod, setOnPeriod] = useState(false);
 
-  const [dismissedReminders, setDismissedReminders] = useState<ReminderType[]>([]);
-  const [lastShownReminders, setLastShownReminders] = useState<Record<ReminderType, number>>(
-    {} as Record<ReminderType, number>
+  const [dismissedReminders, setDismissedReminders] = useState<ReminderType[]>(
+    [],
   );
+  const [lastShownReminders, setLastShownReminders] = useState<
+    Record<ReminderType, number>
+  >({} as Record<ReminderType, number>);
 
   const timeOfDay = new Date().getHours();
   const isEvening = timeOfDay >= 18 || timeOfDay < 6;
   const isMorning = timeOfDay >= 6 && timeOfDay < 12;
 
-  const currentRoutineType: RoutineType = isEvening ? 'evening' : 'morning';
+  const hasMorning = preferredRoutines.includes('morning');
+  const hasEvening = preferredRoutines.includes('evening');
+
+  // Determine which routine to show: if user only wants one type, always show that one.
+  // If they want both, follow time of day.
+  const currentRoutineType: RoutineType =
+    hasMorning && !hasEvening ? 'morning'
+    : hasEvening && !hasMorning ? 'evening'
+    : isEvening ? 'evening'
+    : 'morning';
+
   const isCurrentRoutineCompleted =
     currentRoutineType === 'evening' ? eveningRoutineCompleted : morningRoutineCompleted;
+
+  // True when every routine the user has opted into is done for the day.
+  const isAllDoneForDay =
+    (hasMorning ? morningRoutineCompleted : true) &&
+    (hasEvening ? eveningRoutineCompleted : true);
 
   const daysUntilAppointment = useMemo(() => {
     if (!nextAppointment) return null;
@@ -214,27 +271,42 @@ export function HomeDashboard({
     const month = now.getMonth();
     const day = now.getDate();
 
-    if ((month === 11 && day >= 21) || month === 0 || month === 1 || (month === 2 && day < 20)) {
+    if (
+      (month === 11 && day >= 21) ||
+      month === 0 ||
+      month === 1 ||
+      (month === 2 && day < 20)
+    ) {
       return {
-        name: 'Winter',
-        tip: 'Focus on hydration + barrier care. Use gentler cleansers. Protect from cold + indoor dryness. Keep using SPF',
+        name: "Winter",
+        tip: "Focus on hydration + barrier care. Use gentler cleansers. Protect from cold + indoor dryness. Keep using SPF",
       };
     }
-    if ((month === 2 && day >= 20) || month === 3 || month === 4 || (month === 5 && day <= 20)) {
+    if (
+      (month === 2 && day >= 20) ||
+      month === 3 ||
+      month === 4 ||
+      (month === 5 && day <= 20)
+    ) {
       return {
-        name: 'Spring',
-        tip: 'Soothe sensitivity from weather shifts. Simplify if skin feels reactive. Transition textures gradually',
+        name: "Spring",
+        tip: "Soothe sensitivity from weather shifts. Simplify if skin feels reactive. Transition textures gradually",
       };
     }
-    if ((month === 5 && day >= 21) || month === 6 || month === 7 || (month === 8 && day <= 22)) {
+    if (
+      (month === 5 && day >= 21) ||
+      month === 6 ||
+      month === 7 ||
+      (month === 8 && day <= 22)
+    ) {
       return {
-        name: 'Summer',
-        tip: 'Protect daily (SPF + reapply). Use lighter textures if needed. Cleanse gently after sweat. Stay hydrated',
+        name: "Summer",
+        tip: "Protect daily (SPF + reapply). Use lighter textures if needed. Cleanse gently after sweat. Stay hydrated",
       };
     }
     return {
-      name: 'Fall',
-      tip: 'Adjust slowly as weather cools. Support your skin barrier. Reintroduce stronger products gradually',
+      name: "Fall",
+      tip: "Adjust slowly as weather cools. Support your skin barrier. Reintroduce stronger products gradually",
     };
   };
 
@@ -263,34 +335,33 @@ export function HomeDashboard({
       daysUntilAppointment !== null &&
       daysUntilAppointment >= 0 &&
       daysUntilAppointment <= 3 &&
-      !dismissedReminders.includes('appointment') &&
-      canShowReminder('appointment', 24)
+      !dismissedReminders.includes("appointment") &&
+      canShowReminder("appointment", 24)
     ) {
-      markReminderShown('appointment');
+      markReminderShown("appointment");
       return {
-        type: 'appointment',
+        type: "appointment",
         message:
-          'Your dermatologist appointment is coming up. Prepare any questions or photos you want to discuss',
+          "Your dermatologist appointment is coming up. Prepare any questions or photos you want to discuss",
         daysUntilAppointment,
       };
     }
 
     if (
       currentStreak > 0 &&
-      !morningRoutineCompleted &&
-      !eveningRoutineCompleted &&
-      !dismissedReminders.includes('streak') &&
+      !isCurrentRoutineCompleted &&
+      !dismissedReminders.includes("streak") &&
       isMorning &&
-      canShowReminder('streak', 24)
+      canShowReminder("streak", 24)
     ) {
-      markReminderShown('streak');
+      markReminderShown("streak");
       const messages = [
         `You're on a ${currentStreak}-day streak! Keep it going by completing your routine today`,
         `${currentStreak} days strong! Your skin is thanking you. Don't break the streak now`,
         `${currentStreak} days of consistency! That's real progress. Let's make it ${currentStreak + 1}`,
       ];
       return {
-        type: 'streak',
+        type: "streak",
         message: messages[currentStreak % messages.length],
         streakCount: currentStreak,
       };
@@ -298,36 +369,37 @@ export function HomeDashboard({
 
     if (
       !isCurrentRoutineCompleted &&
-      !dismissedReminders.includes('routine') &&
-      canShowReminder('routine', 8)
+      !dismissedReminders.includes("routine") &&
+      canShowReminder("routine", 8)
     ) {
-      markReminderShown('routine');
+      markReminderShown("routine");
       const routineMessages = {
         morning: [
-          'Morning! Starting your day with your routine sets the tone for healthy skin',
-          'Rise and shine! Your skin is ready for some love this morning',
-          'A few minutes now = happy skin all day. Ready for your morning routine?',
+          "Morning! Starting your day with your routine sets the tone for healthy skin",
+          "Rise and shine! Your skin is ready for some love this morning",
+          "A few minutes now = happy skin all day. Ready for your morning routine?",
         ],
         evening: [
-          'Evening routine time! Your skin repairs itself at night—give it what it needs',
-          'Winding down? Perfect time to wind down with your evening routine',
-          'Before bed, show your skin some love. Your evening routine is waiting',
+          "Evening routine time! Your skin repairs itself at night—give it what it needs",
+          "Winding down? Perfect time to wind down with your evening routine",
+          "Before bed, show your skin some love. Your evening routine is waiting",
         ],
       } as const;
       const messages = routineMessages[currentRoutineType];
-      const randomIndex = Math.floor(Date.now() / (1000 * 60 * 60)) % messages.length;
+      const randomIndex =
+        Math.floor(Date.now() / (1000 * 60 * 60)) % messages.length;
       return {
-        type: 'routine',
+        type: "routine",
         message: messages[randomIndex],
       };
     }
 
     if (
-      (morningRoutineCompleted || eveningRoutineCompleted) &&
-      !dismissedReminders.includes('affirmation') &&
-      canShowReminder('affirmation', 12)
+      isCurrentRoutineCompleted &&
+      !dismissedReminders.includes("affirmation") &&
+      canShowReminder("affirmation", 12)
     ) {
-      markReminderShown('affirmation');
+      markReminderShown("affirmation");
       const affirmations = [
         "Healing takes time, and you're showing up for it every single day. That's powerful",
         "Your skin is adapting and getting stronger. Trust the process—you're doing great",
@@ -336,23 +408,25 @@ export function HomeDashboard({
         "You're not just treating symptoms—you're learning your skin and becoming your own expert",
         "Progress isn't always visible day-to-day, but it's happening. Keep going, you've got this",
       ];
-      const index = Math.floor((morningRoutinesDone + eveningRoutinesDone) / 2) % affirmations.length;
+      const index =
+        Math.floor((morningRoutinesDone + eveningRoutinesDone) / 2) %
+        affirmations.length;
       return {
-        type: 'affirmation',
+        type: "affirmation",
         message: affirmations[index],
       };
     }
 
     if (
       isSeasonStart() &&
-      !dismissedReminders.includes('seasonal') &&
-      canShowReminder('seasonal', 24)
+      !dismissedReminders.includes("seasonal") &&
+      canShowReminder("seasonal", 24)
     ) {
       const seasonInfo = getCurrentSeason();
       if (seasonInfo) {
-        markReminderShown('seasonal');
+        markReminderShown("seasonal");
         return {
-          type: 'seasonal',
+          type: "seasonal",
           message: seasonInfo.tip,
           seasonName: seasonInfo.name,
         };
@@ -364,10 +438,9 @@ export function HomeDashboard({
     daysUntilAppointment,
     dismissedReminders,
     currentStreak,
-    morningRoutineCompleted,
-    eveningRoutineCompleted,
     isMorning,
     isCurrentRoutineCompleted,
+    isAllDoneForDay,
     morningRoutinesDone,
     eveningRoutinesDone,
     currentRoutineType,
@@ -380,13 +453,13 @@ export function HomeDashboard({
 
   const toggleFlareTag = (tag: string) => {
     setSelectedFlareTags((prev) =>
-      prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag]
+      prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag],
     );
   };
 
   const toggleContextTag = (tag: string) => {
     setContextTags((prev) =>
-      prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag]
+      prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag],
     );
   };
 
@@ -395,7 +468,7 @@ export function HomeDashboard({
     if (!trimmed) return;
     const answer = generateAnswer(trimmed);
     setChatMessages([{ question: trimmed, answer }]);
-    setAskQuestion('');
+    setAskQuestion("");
   };
 
   const handleCommonQuestion = (q: string) => {
@@ -415,28 +488,34 @@ export function HomeDashboard({
   };
 
   const getGreeting = () => {
-    if (isMorning) return 'Good morning';
-    if (isEvening) return 'Good evening';
-    return 'Welcome back';
+    if (isMorning) return "Good morning";
+    if (isEvening) return "Good evening";
+    return "Welcome back";
   };
 
   const getNextRoutineInfo = () => {
-    if (morningRoutineCompleted && !eveningRoutineCompleted) {
+    if (isAllDoneForDay) {
       return {
-        message: 'Next up: evening routine',
-        time: '6:00 PM',
+        message: hasMorning && hasEvening ? "Both routines completed!" : "Routine completed!",
+        time: "✨",
       };
     }
-    if (eveningRoutineCompleted && !morningRoutineCompleted) {
+    if (hasMorning && morningRoutineCompleted && hasEvening && !eveningRoutineCompleted) {
       return {
-        message: 'Next up: morning routine',
-        time: '',
+        message: "Next up: night routine",
+        time: "6:00 PM",
       };
     }
-    if (morningRoutineCompleted && eveningRoutineCompleted) {
+    if (hasEvening && eveningRoutineCompleted && hasMorning && !morningRoutineCompleted) {
       return {
-        message: 'Both routines completed!',
-        time: '✨',
+        message: "Next up: morning routine",
+        time: "",
+      };
+    }
+    if (false) {
+      return {
+        message: "",
+        time: "",
       };
     }
     return null;
@@ -444,28 +523,49 @@ export function HomeDashboard({
 
   const nextRoutineInfo = getNextRoutineInfo();
 
-  const handleSaveCheckIn = () => {
-    setCheckInCompleted(true);
-    setCheckInExpanded(false);
-    if (onCheckInComplete) {
+  const handleSaveCheckIn = async () => {
+    if (!onCheckInComplete) {
+      setCheckInCompletedLocal(true);
+      setCheckInExpanded(false);
+      return;
+    }
+    try {
       const skinFeelingNumber = moodSelection ? parseInt(moodSelection, 10) : 3;
       const checkInData: CheckInData = {
         type: currentRoutineType,
-        date: new Date().toISOString().split('T')[0],
+        date: getLocalDateString(),
         mood: skinFeelingNumber,
         skinFeeling: skinFeelingNumber,
         notes: checkInNote || undefined,
-        symptomsToday: hasFlare ? selectedFlareTags : ['None'],
-        energyLevel: stressLevel ? 6 - stressLevel : undefined,
-        photoUrl: checkInPhotoUrl || undefined,
+        symptomsToday: hasFlare ? selectedFlareTags : ["None"],
+        contextTags,
+        sleepHours: sleepHours ? Number(sleepHours) : undefined,
+        stressLevel: stressLevel ?? undefined,
+        onPeriod: onPeriod || undefined,
+        photoBase64: checkInPhotoBase64 || undefined,
       };
-      onCheckInComplete(checkInData);
+      await onCheckInComplete(checkInData);
+      setCheckInCompletedLocal(true);
+      setCheckInExpanded(false);
+    } catch (e) {
+      // Supabase errors aren't always instances of Error in RN.
+      const msg =
+        e instanceof Error
+          ? e.message
+          : typeof e === "object" && e != null && "message" in e
+            ? String((e as any).message)
+            : "Could not save your check-in";
+      // eslint-disable-next-line no-console
+      console.error("check-in save failed", e);
+      Alert.alert("Check-in failed", msg);
     }
   };
 
   return (
     <View style={styles.root}>
-      {showHelpModal && <EmergencyHelp onClose={() => setShowHelpModal(false)} />}
+      {showHelpModal && (
+        <EmergencyHelp onClose={() => setShowHelpModal(false)} />
+      )}
       {activeReminder && (
         <ReminderToast
           reminder={activeReminder}
@@ -476,9 +576,15 @@ export function HomeDashboard({
       {(showConfetti || showRoutineCelebration) && (
         <View style={styles.confettiOverlay} pointerEvents="box-none">
           <View style={styles.confettiInner}>
-            <Text style={styles.confettiEmoji}>🪷</Text>
+            <Image
+              source={require("../assets/images/lotus.png")}
+              style={styles.confettiLotusIcon}
+              resizeMode="contain"
+            />
             <Text style={styles.confettiTitle}>You did it!</Text>
-            <Text style={styles.confettiSubtitle}>A new flower has bloomed in your garden</Text>
+            <Text style={styles.confettiSubtitle}>
+              A new flower has bloomed in your garden
+            </Text>
             <TouchableOpacity
               style={styles.confettiButton}
               onPress={() => {
@@ -509,7 +615,11 @@ export function HomeDashboard({
               activeOpacity={0.9}
               accessibilityLabel="Emergency & medical help"
             >
-              <Ionicons name="help-circle-outline" size={20} color={HEADER_ICON_COLOR} />
+              <Ionicons
+                name="help-circle-outline"
+                size={20}
+                color={HEADER_ICON_COLOR}
+              />
             </TouchableOpacity>
             {onOpenSettings && (
               <TouchableOpacity
@@ -517,7 +627,11 @@ export function HomeDashboard({
                 style={styles.iconButton}
                 activeOpacity={0.8}
               >
-                <Ionicons name="settings-outline" size={20} color={HEADER_ICON_COLOR} />
+                <Ionicons
+                  name="settings-outline"
+                  size={20}
+                  color={HEADER_ICON_COLOR}
+                />
               </TouchableOpacity>
             )}
           </View>
@@ -528,19 +642,19 @@ export function HomeDashboard({
             <View style={styles.completionBanner}>
               <View style={styles.completionBannerLeft}>
                 <Text style={styles.completionBannerTitle}>
-                  {morningRoutineCompleted && eveningRoutineCompleted
-                    ? 'Both routines complete'
-                    : morningRoutineCompleted
-                      ? 'Morning routine complete'
-                      : 'Evening routine complete'}
+                  {isAllDoneForDay && hasMorning && hasEvening
+                    ? "Both routines complete"
+                    : morningRoutineCompleted && hasMorning
+                      ? "Morning routine complete"
+                      : "Night routine complete"}
                 </Text>
                 <Text style={styles.completionBannerSubtitle}>
                   {nextRoutineInfo.message.toLowerCase()}
-                  {nextRoutineInfo.time === '✨' && ' - check your garden'}
+                  {nextRoutineInfo.time === "✨" && " - check your garden"}
                 </Text>
               </View>
               <Text style={styles.completionBannerIcon}>
-                {morningRoutineCompleted && eveningRoutineCompleted ? '✨' : '○'}
+                {isAllDoneForDay ? "✨" : "○"}
               </Text>
             </View>
           )}
@@ -548,19 +662,25 @@ export function HomeDashboard({
           {!isCurrentRoutineCompleted && (
             <View style={styles.primaryCtaWrapper}>
               <TouchableOpacity
-                onPress={onStartRoutine}
+                onPress={() => onStartRoutine(currentRoutineType)}
                 style={styles.primaryCta}
                 activeOpacity={0.95}
               >
                 <View style={styles.primaryCtaContent}>
                   <View style={styles.primaryCtaIconCircle}>
-                    <Ionicons name="sparkles-outline" size={20} color="#FFFFFF" />
+                    <Ionicons
+                      name="sparkles-outline"
+                      size={20}
+                      color="#FFFFFF"
+                    />
                   </View>
                   <View>
                     <Text style={styles.primaryCtaTitle}>
                       Start {currentRoutineType} routine
                     </Text>
-                    <Text style={styles.primaryCtaSubtitle}>Let's grow your garden today</Text>
+                    <Text style={styles.primaryCtaSubtitle}>
+                      Let's grow your garden today
+                    </Text>
                   </View>
                 </View>
                 <Ionicons name="chevron-forward" size={22} color="#FFFFFF" />
@@ -589,18 +709,18 @@ export function HomeDashboard({
                       checkInCompleted && styles.checkInStatusIconComplete,
                     ]}
                   >
-                    {checkInCompleted ? '✓' : '○'}
+                    {checkInCompleted ? "✓" : "○"}
                   </Text>
                 </View>
                 <View>
                   <Text style={styles.checkInTitle}>
-                    {checkInCompleted ? 'Check-in complete' : 'Quick check-in'}
+                    {checkInCompleted ? "Check-in complete" : "Quick check-in"}
                   </Text>
                   <Text style={styles.checkInDuration}>20 seconds</Text>
                 </View>
               </View>
               <Ionicons
-                name={checkInExpanded ? 'chevron-down' : 'chevron-forward'}
+                name={checkInExpanded ? "chevron-down" : "chevron-forward"}
                 size={18}
                 color="#6B8B7D"
               />
@@ -650,22 +770,27 @@ export function HomeDashboard({
 
                   {hasFlare && (
                     <View style={styles.chipRow}>
-                      {['itch', 'redness', 'dryness', 'breakout', 'pain'].map((tag) => {
-                        const active = selectedFlareTags.includes(tag);
-                        return (
-                          <TouchableOpacity
-                            key={tag}
-                            style={[styles.chip, active && styles.chipActive]}
-                            onPress={() => toggleFlareTag(tag)}
-                          >
-                            <Text
-                              style={[styles.chipText, active && styles.chipTextActive]}
+                      {["itch", "redness", "dryness", "breakout", "pain"].map(
+                        (tag) => {
+                          const active = selectedFlareTags.includes(tag);
+                          return (
+                            <TouchableOpacity
+                              key={tag}
+                              style={[styles.chip, active && styles.chipActive]}
+                              onPress={() => toggleFlareTag(tag)}
                             >
-                              {tag}
-                            </Text>
-                          </TouchableOpacity>
-                        );
-                      })}
+                              <Text
+                                style={[
+                                  styles.chipText,
+                                  active && styles.chipTextActive,
+                                ]}
+                              >
+                                {tag}
+                              </Text>
+                            </TouchableOpacity>
+                          );
+                        },
+                      )}
                     </View>
                   )}
                 </View>
@@ -675,17 +800,22 @@ export function HomeDashboard({
                     How are you feeling about your skin today?
                   </Text>
                   <View style={styles.moodRow}>
-                    {(['1', '2', '3', '4', '5'] as FaceVariant[]).map((value) => (
-                      <View key={value} style={styles.moodItem}>
-                        <TouchableOpacity
-                          onPress={() => setMoodSelection(value)}
-                          activeOpacity={0.9}
-                        >
-                          <MoodFace variant={value} active={moodSelection === value} />
-                        </TouchableOpacity>
-                        <Text style={styles.moodLabel}>{value}</Text>
-                      </View>
-                    ))}
+                    {(["1", "2", "3", "4", "5"] as FaceVariant[]).map(
+                      (value) => (
+                        <View key={value} style={styles.moodItem}>
+                          <TouchableOpacity
+                            onPress={() => setMoodSelection(value)}
+                            activeOpacity={0.9}
+                          >
+                            <MoodFace
+                              variant={value}
+                              active={moodSelection === value}
+                            />
+                          </TouchableOpacity>
+                          <Text style={styles.moodLabel}>{value}</Text>
+                        </View>
+                      ),
+                    )}
                   </View>
                   <View style={styles.moodScaleLabels}>
                     <Text style={styles.moodScaleText}>not satisfied</Text>
@@ -694,26 +824,35 @@ export function HomeDashboard({
                 </View>
 
                 <View style={styles.sectionBlock}>
-                  <Text style={styles.sectionTitle}>Anything affecting your skin?</Text>
+                  <Text style={styles.sectionTitle}>
+                    Anything affecting your skin?
+                  </Text>
                   <View style={styles.chipRow}>
-                    {['sleep', 'stress', 'product change', 'period', 'weather'].map(
-                      (tag) => {
-                        const active = contextTags.includes(tag);
-                        return (
-                          <TouchableOpacity
-                            key={tag}
-                            style={[styles.chip, active && styles.chipActive]}
-                            onPress={() => toggleContextTag(tag)}
+                    {[
+                      "sleep",
+                      "stress",
+                      "product change",
+                      "period",
+                      "weather",
+                    ].map((tag) => {
+                      const active = contextTags.includes(tag);
+                      return (
+                        <TouchableOpacity
+                          key={tag}
+                          style={[styles.chip, active && styles.chipActive]}
+                          onPress={() => toggleContextTag(tag)}
+                        >
+                          <Text
+                            style={[
+                              styles.chipText,
+                              active && styles.chipTextActive,
+                            ]}
                           >
-                            <Text
-                              style={[styles.chipText, active && styles.chipTextActive]}
-                            >
-                              {tag}
-                            </Text>
-                          </TouchableOpacity>
-                        );
-                      }
-                    )}
+                            {tag}
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    })}
                   </View>
                 </View>
 
@@ -725,10 +864,14 @@ export function HomeDashboard({
                 >
                   <View style={styles.rowCenter}>
                     <Ionicons name="watch-outline" size={18} color="#5F8575" />
-                    <Text style={styles.wearablesToggleText}>Add wearable wellness data</Text>
+                    <Text style={styles.wearablesToggleText}>
+                      Add wearable wellness data
+                    </Text>
                   </View>
                   <Ionicons
-                    name={wearablesExpanded ? 'chevron-down' : 'chevron-forward'}
+                    name={
+                      wearablesExpanded ? "chevron-down" : "chevron-forward"
+                    }
                     size={18}
                     color="#5F8575"
                   />
@@ -794,7 +937,10 @@ export function HomeDashboard({
                           return (
                             <TouchableOpacity
                               key={level}
-                              style={[styles.stressChip, active && styles.stressChipActive]}
+                              style={[
+                                styles.stressChip,
+                                active && styles.stressChipActive,
+                              ]}
                               onPress={() => setStressLevel(level)}
                             >
                               <Text
@@ -822,11 +968,13 @@ export function HomeDashboard({
                         activeOpacity={0.8}
                       >
                         <Ionicons
-                          name={onPeriod ? 'checkbox' : 'square-outline'}
+                          name={onPeriod ? "checkbox" : "square-outline"}
                           size={20}
                           color="#5F8575"
                         />
-                        <Text style={styles.periodLabel}>On my period today</Text>
+                        <Text style={styles.periodLabel}>
+                          On my period today
+                        </Text>
                       </TouchableOpacity>
                     </View>
                   </View>
@@ -839,7 +987,9 @@ export function HomeDashboard({
                 >
                   <Text style={styles.optionalToggleText}>Add a note</Text>
                   <Ionicons
-                    name={optionalFieldsExpanded ? 'chevron-up' : 'chevron-down'}
+                    name={
+                      optionalFieldsExpanded ? "chevron-up" : "chevron-down"
+                    }
                     size={18}
                     color="#2D4A3E"
                   />
@@ -861,7 +1011,9 @@ export function HomeDashboard({
                 )}
 
                 <View style={styles.sectionDivider} />
-                <Text style={styles.photoLabel}>Add a check-in photo (optional)</Text>
+                <Text style={styles.photoLabel}>
+                  Add a check-in photo (optional)
+                </Text>
                 {checkInPhotoUrl ? (
                   <View style={styles.photoPreviewWrapper}>
                     <Image
@@ -871,7 +1023,10 @@ export function HomeDashboard({
                     />
                     <TouchableOpacity
                       style={styles.photoRemove}
-                      onPress={() => setCheckInPhotoUrl(null)}
+                      onPress={() => {
+                        setCheckInPhotoUrl(null);
+                        setCheckInPhotoBase64(null);
+                      }}
                       activeOpacity={0.85}
                     >
                       <Ionicons name="close" size={18} color="#6B8B7D" />
@@ -881,12 +1036,31 @@ export function HomeDashboard({
                   <TouchableOpacity
                     style={styles.photoPicker}
                     onPress={() => {
-                      // Placeholder: integrate expo-image-picker in a later pass
+                      (async () => {
+                        const permission =
+                          await ImagePicker.requestMediaLibraryPermissionsAsync();
+                        if (!permission.granted) return;
+                        const result =
+                          await ImagePicker.launchImageLibraryAsync({
+                            mediaTypes: ImagePicker.MediaTypeOptions.Images,
+                            allowsEditing: true,
+                            aspect: [1, 1],
+                            quality: 0.8,
+                            base64: true,
+                          });
+                        if (result.canceled || !result.assets[0]) return;
+                        const b64 = result.assets[0].base64;
+                        if (!b64) return;
+                        setCheckInPhotoBase64(b64);
+                        setCheckInPhotoUrl(`data:image/jpeg;base64,${b64}`);
+                      })();
                     }}
                     activeOpacity={0.8}
                   >
                     <Ionicons name="camera-outline" size={32} color="#5F8575" />
-                    <Text style={styles.photoPickerTitle}>Click to add photo</Text>
+                    <Text style={styles.photoPickerTitle}>
+                      Click to add photo
+                    </Text>
                     <Text style={styles.photoPickerSubtitle}>
                       Track your progress visually
                     </Text>
@@ -910,7 +1084,7 @@ export function HomeDashboard({
                 const expanded = !askExpanded;
                 setAskExpanded(expanded);
                 if (!expanded) {
-                  setAskQuestion('');
+                  setAskQuestion("");
                   setChatMessages([]);
                 }
               }}
@@ -919,14 +1093,18 @@ export function HomeDashboard({
             >
               <View style={styles.askGiaHeaderInner}>
                 <View style={styles.askGiaIcon}>
-                  <Ionicons name="help-circle-outline" size={24} color="#FFFFFF" />
+                  <Ionicons
+                    name="help-circle-outline"
+                    size={24}
+                    color="#FFFFFF"
+                  />
                 </View>
                 <View style={styles.askGiaTextBlock}>
                   <Text style={styles.askGiaTitle}>Ask Gia</Text>
                   <Text style={styles.askGiaSubtitle}>Have any doubts?</Text>
                 </View>
                 <Ionicons
-                  name={askExpanded ? 'chevron-down' : 'chevron-forward'}
+                  name={askExpanded ? "chevron-down" : "chevron-forward"}
                   size={20}
                   color="#FFFFFF"
                   style={styles.askGiaChevron}
@@ -939,24 +1117,32 @@ export function HomeDashboard({
                 <Text style={styles.askGiaCommonLabel}>common questions</Text>
                 <TouchableOpacity
                   style={styles.askGiaChip}
-                  onPress={() => handleCommonQuestion('is this irritation normal?')}
+                  onPress={() =>
+                    handleCommonQuestion("is this irritation normal?")
+                  }
                   activeOpacity={0.8}
                 >
-                  <Text style={styles.askGiaChipText}>is this irritation normal?</Text>
+                  <Text style={styles.askGiaChipText}>
+                    is this irritation normal?
+                  </Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={styles.askGiaChip}
-                  onPress={() => handleCommonQuestion('what helps redness?')}
+                  onPress={() => handleCommonQuestion("what helps redness?")}
                   activeOpacity={0.8}
                 >
                   <Text style={styles.askGiaChipText}>what helps redness?</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={styles.askGiaChip}
-                  onPress={() => handleCommonQuestion('when should i stop a product?')}
+                  onPress={() =>
+                    handleCommonQuestion("when should i stop a product?")
+                  }
                   activeOpacity={0.8}
                 >
-                  <Text style={styles.askGiaChipText}>when should i stop a product?</Text>
+                  <Text style={styles.askGiaChipText}>
+                    when should i stop a product?
+                  </Text>
                 </TouchableOpacity>
 
                 <View style={styles.askGiaInputBlock}>
@@ -989,7 +1175,9 @@ export function HomeDashboard({
                         <Text style={styles.askGiaAnswerQuestion}>
                           Q: {msg.question}
                         </Text>
-                        <Text style={styles.askGiaAnswerText}>A: {msg.answer}</Text>
+                        <Text style={styles.askGiaAnswerText}>
+                          A: {msg.answer}
+                        </Text>
                       </View>
                     ))}
                   </View>
@@ -1003,13 +1191,14 @@ export function HomeDashboard({
               <View>
                 <Text style={styles.gardenTitle}>Your garden</Text>
                 <Text style={styles.gardenSubtitle}>
-                  {morningRoutinesDone + eveningRoutinesDone} routines completed this week
+                  {morningRoutinesDone + eveningRoutinesDone} routines completed
+                  this week
                 </Text>
               </View>
             </View>
 
             <View style={styles.gardenPond}>
-              {morningRoutinesDone + eveningRoutinesDone === 0 ? (
+              {flowersPlanted === 0 ? (
                 <View style={styles.gardenEmpty}>
                   <Text style={styles.gardenEmptyText}>
                     Complete your first routine to plant a Victoria regia 🪷
@@ -1018,10 +1207,14 @@ export function HomeDashboard({
               ) : (
                 <View style={styles.gardenFlowerGrid}>
                   {Array.from({
-                    length: morningRoutinesDone + eveningRoutinesDone,
+                    length: Math.min(flowersPlanted, 24),
                   }).map((_, i) => (
                     <View key={i} style={styles.gardenFlowerItem}>
-                      <Text style={styles.gardenFlowerEmoji}>🪷</Text>
+                      <Image
+                        source={require("../assets/images/lotus.png")}
+                        style={styles.gardenFlowerIcon}
+                        resizeMode="contain"
+                      />
                     </View>
                   ))}
                 </View>
@@ -1031,26 +1224,28 @@ export function HomeDashboard({
             <View style={styles.gardenStatsRow}>
               <View style={styles.gardenStatCard}>
                 <View style={styles.gardenStatIconCirclePink}>
-                  <Text style={styles.lotusIcon}>🪷</Text>
+                  <Image
+                    source={require("../assets/images/lotus.png")}
+                    style={styles.gardenStatLotusIcon}
+                    resizeMode="contain"
+                  />
                 </View>
-                <Text style={styles.gardenStatValue}>
-                  {morningRoutinesDone + eveningRoutinesDone}
-                </Text>
-                <Text style={styles.gardenStatLabel}>{'flowers\nbloomed'}</Text>
+                <Text style={styles.gardenStatValue}>{flowersPlanted}</Text>
+                <Text style={styles.gardenStatLabel}>{"flowers\nbloomed"}</Text>
               </View>
               <View style={styles.gardenStatCard}>
                 <View style={styles.gardenStatIconCircleFlame}>
                   <Ionicons name="flame" size={20} color="#FFFFFF" />
                 </View>
                 <Text style={styles.gardenStatValue}>{currentStreak}</Text>
-                <Text style={styles.gardenStatLabel}>{'day\nstreak'}</Text>
+                <Text style={styles.gardenStatLabel}>{"day\nstreak"}</Text>
               </View>
               <View style={styles.gardenStatCard}>
                 <View style={styles.gardenStatIconCircleCalendar}>
                   <Ionicons name="calendar-outline" size={20} color="#FFFFFF" />
                 </View>
                 <Text style={styles.gardenStatValue}>{weekCount}</Text>
-                <Text style={styles.gardenStatLabel}>{'weeks\nactive'}</Text>
+                <Text style={styles.gardenStatLabel}>{"weeks\nactive"}</Text>
               </View>
             </View>
           </View>
@@ -1062,20 +1257,20 @@ export function HomeDashboard({
 
 function generateAnswer(question: string): string {
   const q = question.toLowerCase();
-  if (q.includes('irritation') || q.includes('normal')) {
+  if (q.includes("irritation") || q.includes("normal")) {
     return "Some irritation can be normal when starting new products, especially actives. If it persists beyond 2 weeks, becomes painful, or worsens, consider pausing the product and consulting your dermatologist.";
   }
-  if (q.includes('redness') || q.includes('red')) {
-    return 'Redness can be managed with gentle, fragrance-free products. Look for ingredients like centella asiatica, niacinamide, or azelaic acid. Avoid hot water and harsh exfoliants.';
+  if (q.includes("redness") || q.includes("red")) {
+    return "Redness can be managed with gentle, fragrance-free products. Look for ingredients like centella asiatica, niacinamide, or azelaic acid. Avoid hot water and harsh exfoliants.";
   }
-  if (q.includes('stop') || q.includes('discontinue')) {
-    return 'Stop a product if you experience severe burning, blistering, significant swelling, or an allergic reaction. Mild tingling from actives like retinol is normal, but pain is not.';
+  if (q.includes("stop") || q.includes("discontinue")) {
+    return "Stop a product if you experience severe burning, blistering, significant swelling, or an allergic reaction. Mild tingling from actives like retinol is normal, but pain is not.";
   }
-  if (q.includes('retinol') || q.includes('tretinoin')) {
-    return 'Start retinoids slowly — 2-3 times per week, gradually increasing. Use a pea-sized amount for whole face. Buffer with moisturizer if needed.';
+  if (q.includes("retinol") || q.includes("tretinoin")) {
+    return "Start retinoids slowly — 2-3 times per week, gradually increasing. Use a pea-sized amount for whole face. Buffer with moisturizer if needed.";
   }
-  if (q.includes('purge') || q.includes('purging')) {
-    return 'Purging typically happens with actives like retinoids or acids. It should only occur in areas where you normally break out and resolve within 4-6 weeks.';
+  if (q.includes("purge") || q.includes("purging")) {
+    return "Purging typically happens with actives like retinoids or acids. It should only occur in areas where you normally break out and resolve within 4-6 weeks.";
   }
   return "That's a great question. Based on AAD guidelines, I'd recommend discussing this with your dermatologist for personalized advice. In the meantime, stick to gentle, fragrance-free products.";
 }
@@ -1083,7 +1278,7 @@ function generateAnswer(question: string): string {
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: '#E8F0DC',
+    backgroundColor: "#E8F0DC",
   },
   scroll: {
     flex: 1,
@@ -1095,161 +1290,161 @@ const styles = StyleSheet.create({
   },
   inner: {
     maxWidth: 480,
-    width: '100%',
-    alignSelf: 'center',
+    width: "100%",
+    alignSelf: "center",
   },
   headerRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     minHeight: 56,
     marginBottom: 24,
   },
   headerTextBlock: {
     flex: 1,
     paddingRight: 8,
-    justifyContent: 'center',
+    justifyContent: "center",
   },
   greeting: {
     fontSize: TITLE_LARGE_SIZE,
     color: TEXT_PRIMARY,
     fontWeight: TITLE_LARGE_WEIGHT,
     marginBottom: 4,
-    textAlign: 'left',
+    textAlign: "left",
   },
   greetingSub: {
     fontSize: SUBTITLE_SIZE,
     color: TEXT_SECONDARY,
-    textAlign: 'left',
+    textAlign: "left",
   },
   headerActions: {
     width: HEADER_ACTION_STRIP_WIDTH,
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "flex-end",
+    alignItems: "center",
     gap: HEADER_BUTTON_GAP,
   },
   iconButton: {
     padding: 10,
     borderRadius: 999,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: "#FFFFFF",
   },
   completionBanner: {
-    backgroundColor: '#5F8575',
+    backgroundColor: "#5F8575",
     borderRadius: 24,
     paddingVertical: 20,
     paddingHorizontal: 18,
     marginBottom: 16,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
   },
   completionBannerLeft: {
     flex: 1,
     paddingRight: 12,
   },
   completionBannerTitle: {
-    color: '#FFFFFF',
+    color: "#FFFFFF",
     fontSize: CARD_TITLE_SIZE,
     fontWeight: CARD_TITLE_WEIGHT,
     marginBottom: 4,
   },
   completionBannerSubtitle: {
-    color: 'rgba(255,255,255,0.8)',
+    color: "rgba(255,255,255,0.8)",
     fontSize: BODY_SMALL_SIZE,
   },
   completionBannerIcon: {
     fontSize: 24,
-    color: '#FFFFFF',
+    color: "#FFFFFF",
   },
   primaryCtaWrapper: {
     marginBottom: 16,
   },
   primaryCta: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    backgroundColor: '#E879B9',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    backgroundColor: "#E879B9",
     borderRadius: 24,
     paddingVertical: 22,
     paddingHorizontal: 18,
-    shadowColor: '#000',
+    shadowColor: "#000",
     shadowOpacity: 0.18,
     shadowRadius: 12,
     shadowOffset: { width: 0, height: 6 },
     elevation: 4,
   },
   primaryCtaContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
   },
   primaryCtaIconCircle: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: 'rgba(255,255,255,0.3)',
-    justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: "rgba(255,255,255,0.3)",
+    justifyContent: "center",
+    alignItems: "center",
     marginRight: 12,
   },
   primaryCtaTitle: {
-    color: '#FFFFFF',
+    color: "#FFFFFF",
     fontSize: BUTTON_TEXT_SIZE,
     fontWeight: BUTTON_TEXT_WEIGHT,
   },
   primaryCtaSubtitle: {
-    color: 'rgba(255,255,255,0.95)',
+    color: "rgba(255,255,255,0.95)",
     fontSize: LABEL_SIZE,
   },
   checkInCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: "#FFFFFF",
     borderRadius: 24,
-    overflow: 'hidden',
+    overflow: "hidden",
     marginBottom: 16,
     borderWidth: 1.5,
-    borderColor: 'rgba(123,155,140,0.3)',
-    shadowColor: '#000',
+    borderColor: "rgba(123,155,140,0.3)",
+    shadowColor: "#000",
     shadowOpacity: 0.12,
     shadowRadius: 10,
     shadowOffset: { width: 0, height: 4 },
     elevation: 3,
   },
   checkInHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     paddingHorizontal: 20,
     paddingVertical: 20,
   },
   checkInHeaderLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
   },
   checkInStatusCircle: {
     width: 44,
     height: 44,
     borderRadius: 22,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     marginRight: 12,
-    shadowColor: '#000',
+    shadowColor: "#000",
     shadowOpacity: 0.15,
     shadowRadius: 6,
     shadowOffset: { width: 0, height: 3 },
     elevation: 2,
   },
   checkInStatusCircleComplete: {
-    backgroundColor: '#6B9B6E',
+    backgroundColor: "#6B9B6E",
   },
   checkInStatusCirclePending: {
-    backgroundColor: '#F4C8DE',
+    backgroundColor: "#F4C8DE",
   },
   checkInStatusIcon: {
     fontSize: 20,
-    color: '#2D4A3E',
+    color: "#2D4A3E",
   },
   checkInStatusIconComplete: {
-    color: '#FFFFFF',
+    color: "#FFFFFF",
   },
   checkInTitle: {
     fontSize: CARD_TITLE_SIZE,
@@ -1262,7 +1457,7 @@ const styles = StyleSheet.create({
   },
   checkInBody: {
     borderTopWidth: 1,
-    borderTopColor: 'rgba(95,133,117,0.15)',
+    borderTopColor: "rgba(95,133,117,0.15)",
     paddingHorizontal: 20,
     paddingVertical: 16,
   },
@@ -1276,124 +1471,124 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   rowGap: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    justifyContent: "space-between",
   },
   flareToggle: {
     flex: 1,
     borderRadius: 16,
     borderWidth: 2,
-    borderColor: 'rgba(95,133,117,0.3)',
+    borderColor: "rgba(95,133,117,0.3)",
     paddingVertical: 10,
     paddingHorizontal: 12,
-    alignItems: 'center',
+    alignItems: "center",
     marginRight: 8,
   },
   flareToggleActive: {
-    backgroundColor: '#5F8575',
-    borderColor: '#5F8575',
+    backgroundColor: "#5F8575",
+    borderColor: "#5F8575",
   },
   flareToggleText: {
     fontSize: 15,
-    color: '#6B8B7D',
-    fontWeight: '600',
+    color: "#6B8B7D",
+    fontWeight: "600",
   },
   flareToggleTextActive: {
-    color: '#FFFFFF',
+    color: "#FFFFFF",
   },
   chipRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
+    flexDirection: "row",
+    flexWrap: "wrap",
     marginTop: 8,
   },
   chip: {
     borderRadius: 999,
-    backgroundColor: '#E8F5E9',
+    backgroundColor: "#E8F5E9",
     paddingHorizontal: 14,
     paddingVertical: 8,
     marginRight: 8,
     marginBottom: 8,
   },
   chipActive: {
-    backgroundColor: '#5F8575',
+    backgroundColor: "#5F8575",
   },
   chipText: {
-    color: '#6B8B7D',
-    fontWeight: '600',
+    color: "#6B8B7D",
+    fontWeight: "600",
     fontSize: 13,
   },
   chipTextActive: {
-    color: '#FFFFFF',
+    color: "#FFFFFF",
   },
   moodRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    justifyContent: "space-between",
   },
   moodItem: {
-    alignItems: 'center',
+    alignItems: "center",
     flex: 1,
   },
   moodFaceCircle: {
     width: 44,
     height: 44,
     borderRadius: 22,
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#000',
+    justifyContent: "center",
+    alignItems: "center",
+    shadowColor: "#000",
     shadowOpacity: 0.12,
     shadowRadius: 6,
     shadowOffset: { width: 0, height: 3 },
     elevation: 2,
   },
   moodFaceCircleActive: {
-    backgroundColor: '#F49EC4',
+    backgroundColor: "#F49EC4",
   },
   moodFaceCircleInactive: {
-    backgroundColor: '#F4C8DE',
+    backgroundColor: "#F4C8DE",
     opacity: 0.4,
   },
   moodFaceEmoji: {
     fontSize: 24,
-    color: '#FFFFFF',
+    color: "#FFFFFF",
   },
   moodLabel: {
     fontSize: 11,
-    color: '#6B8B7D',
+    color: "#6B8B7D",
     marginTop: 4,
   },
   moodScaleLabels: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    justifyContent: "space-between",
     marginTop: 4,
   },
   moodScaleText: {
     fontSize: 11,
-    color: '#6B8B7D',
-    fontStyle: 'italic',
+    color: "#6B8B7D",
+    fontStyle: "italic",
   },
   sectionDivider: {
     height: 1,
-    backgroundColor: 'rgba(95,133,117,0.12)',
+    backgroundColor: "rgba(95,133,117,0.12)",
     marginVertical: 12,
   },
   wearablesToggle: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: '#E8F5E9',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    backgroundColor: "#E8F5E9",
     borderRadius: 16,
     paddingHorizontal: 14,
     paddingVertical: 10,
     marginBottom: 8,
   },
   rowCenter: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
   },
   wearablesToggleText: {
     fontSize: 14,
-    color: '#2D4A3E',
-    fontStyle: 'italic',
+    color: "#2D4A3E",
+    fontStyle: "italic",
     marginLeft: 6,
   },
   wearablesBody: {
@@ -1401,8 +1596,8 @@ const styles = StyleSheet.create({
   },
   wearablesHint: {
     fontSize: 13,
-    color: '#6B8B7D',
-    fontStyle: 'italic',
+    color: "#6B8B7D",
+    fontStyle: "italic",
     marginBottom: 10,
   },
   wearablesConnectBlock: {
@@ -1410,30 +1605,30 @@ const styles = StyleSheet.create({
   },
   wearablesConnectButton: {
     borderWidth: 2,
-    borderColor: 'rgba(95,133,117,0.3)',
+    borderColor: "rgba(95,133,117,0.3)",
     borderRadius: 12,
     paddingVertical: 8,
     paddingHorizontal: 10,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#FFFFFF',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#FFFFFF",
   },
   wearablesConnectText: {
     fontSize: 13,
-    color: '#5F8575',
+    color: "#5F8575",
   },
   wearablesOrText: {
-    textAlign: 'center',
+    textAlign: "center",
     fontSize: 11,
-    color: '#6B8B7D',
+    color: "#6B8B7D",
     marginTop: 4,
-    fontStyle: 'italic',
+    fontStyle: "italic",
   },
   wearablesConnected: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#E8F5E9',
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#E8F5E9",
     borderRadius: 8,
     paddingHorizontal: 10,
     paddingVertical: 6,
@@ -1441,63 +1636,63 @@ const styles = StyleSheet.create({
   },
   wearablesConnectedText: {
     fontSize: 13,
-    color: '#5F8575',
+    color: "#5F8575",
     marginLeft: 6,
   },
   inputLabel: {
     fontSize: 13,
-    color: '#6B8B7D',
+    color: "#6B8B7D",
     marginBottom: 6,
-    fontStyle: 'italic',
+    fontStyle: "italic",
   },
   textInput: {
     borderWidth: 1,
-    borderColor: 'rgba(95,133,117,0.3)',
+    borderColor: "rgba(95,133,117,0.3)",
     borderRadius: 12,
     paddingHorizontal: 12,
     paddingVertical: 10,
     fontSize: 14,
-    color: '#2D4A3E',
-    backgroundColor: '#FFFFFF',
+    color: "#2D4A3E",
+    backgroundColor: "#FFFFFF",
   },
   stressRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    justifyContent: "space-between",
     marginTop: 4,
   },
   stressChip: {
     flex: 1,
     marginHorizontal: 3,
     borderRadius: 8,
-    backgroundColor: '#E8F5E9',
+    backgroundColor: "#E8F5E9",
     paddingVertical: 6,
-    alignItems: 'center',
+    alignItems: "center",
   },
   stressChipActive: {
-    backgroundColor: '#5F8575',
+    backgroundColor: "#5F8575",
   },
   stressChipText: {
     fontSize: 13,
-    color: '#6B8B7D',
+    color: "#6B8B7D",
   },
   stressChipTextActive: {
-    color: '#FFFFFF',
+    color: "#FFFFFF",
   },
   periodRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
   },
   periodLabel: {
     marginLeft: 8,
     fontSize: 13,
-    color: '#6B8B7D',
-    fontStyle: 'italic',
+    color: "#6B8B7D",
+    fontStyle: "italic",
   },
   optionalToggle: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    backgroundColor: '#F5E6F0',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    backgroundColor: "#F5E6F0",
     borderRadius: 16,
     paddingHorizontal: 14,
     paddingVertical: 10,
@@ -1505,124 +1700,124 @@ const styles = StyleSheet.create({
   },
   optionalToggleText: {
     fontSize: 14,
-    color: '#2D4A3E',
-    fontStyle: 'italic',
+    color: "#2D4A3E",
+    fontStyle: "italic",
   },
   optionalBody: {
     marginTop: 8,
   },
   noteInput: {
     borderWidth: 1,
-    borderColor: 'rgba(95,133,117,0.3)',
+    borderColor: "rgba(95,133,117,0.3)",
     borderRadius: 16,
     paddingHorizontal: 14,
     paddingVertical: 10,
     minHeight: 80,
     fontSize: 14,
-    color: '#2D4A3E',
-    backgroundColor: '#FFFFFF',
-    textAlignVertical: 'top',
+    color: "#2D4A3E",
+    backgroundColor: "#FFFFFF",
+    textAlignVertical: "top",
   },
   photoLabel: {
     fontSize: 13,
-    color: '#6B8B7D',
-    fontStyle: 'italic',
+    color: "#6B8B7D",
+    fontStyle: "italic",
     marginBottom: 8,
   },
   photoPicker: {
     borderWidth: 2,
-    borderStyle: 'dashed',
-    borderColor: 'rgba(149,201,142,0.6)',
+    borderStyle: "dashed",
+    borderColor: "rgba(149,201,142,0.6)",
     borderRadius: 16,
     paddingVertical: 16,
     paddingHorizontal: 12,
-    alignItems: 'center',
-    backgroundColor: '#E8F0DC',
+    alignItems: "center",
+    backgroundColor: "#E8F0DC",
     marginBottom: 12,
   },
   photoPickerTitle: {
     fontSize: 14,
-    color: '#2D4A3E',
+    color: "#2D4A3E",
     marginTop: 4,
-    fontStyle: 'italic',
+    fontStyle: "italic",
   },
   photoPickerSubtitle: {
     fontSize: 11,
-    color: '#6B8B7D',
+    color: "#6B8B7D",
     marginTop: 2,
-    fontStyle: 'italic',
+    fontStyle: "italic",
   },
   photoPreviewWrapper: {
     borderRadius: 16,
-    overflow: 'hidden',
+    overflow: "hidden",
     marginBottom: 12,
   },
   photoPreview: {
-    width: '100%',
+    width: "100%",
     height: 180,
   },
   photoRemove: {
-    position: 'absolute',
+    position: "absolute",
     top: 8,
     right: 8,
     padding: 6,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: "#FFFFFF",
     borderRadius: 999,
-    shadowColor: '#000',
+    shadowColor: "#000",
     shadowOpacity: 0.2,
     shadowRadius: 4,
     shadowOffset: { width: 0, height: 2 },
     elevation: 2,
   },
   saveCheckInButton: {
-    backgroundColor: '#5F8575',
+    backgroundColor: "#5F8575",
     borderRadius: 16,
     paddingVertical: 14,
-    alignItems: 'center',
+    alignItems: "center",
     marginTop: 4,
   },
   saveCheckInText: {
-    color: '#FFFFFF',
+    color: "#FFFFFF",
     fontSize: 15,
-    fontStyle: 'italic',
-    fontWeight: '600',
+    fontStyle: "italic",
+    fontWeight: "600",
   },
   askGiaCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: "#FFFFFF",
     borderRadius: 20,
     marginBottom: 16,
     borderWidth: 1,
-    borderColor: 'rgba(95,133,117,0.15)',
-    overflow: 'hidden',
+    borderColor: "rgba(95,133,117,0.15)",
+    overflow: "hidden",
   },
   askGiaHeader: {
     paddingHorizontal: 18,
     paddingVertical: 20,
-    backgroundColor: '#7B9B8C',
+    backgroundColor: "#7B9B8C",
   },
   askGiaHeaderInner: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
   },
   askGiaIcon: {
     width: 44,
     height: 44,
     borderRadius: 16,
-    backgroundColor: 'rgba(255,255,255,0.18)',
-    justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: "rgba(255,255,255,0.18)",
+    justifyContent: "center",
+    alignItems: "center",
     marginRight: 12,
   },
   askGiaTextBlock: {
     flex: 1,
   },
   askGiaTitle: {
-    color: '#FFFFFF',
+    color: "#FFFFFF",
     fontSize: CARD_TITLE_SIZE,
     fontWeight: CARD_TITLE_WEIGHT,
   },
   askGiaSubtitle: {
-    color: 'rgba(255,255,255,0.85)',
+    color: "rgba(255,255,255,0.85)",
     fontSize: LABEL_SIZE,
   },
   askGiaChevron: {
@@ -1636,11 +1831,11 @@ const styles = StyleSheet.create({
     fontSize: LABEL_SMALL_SIZE,
     color: TEXT_SECONDARY,
     marginBottom: 8,
-    textTransform: 'uppercase',
+    textTransform: "uppercase",
     letterSpacing: 1,
   },
   askGiaChip: {
-    backgroundColor: '#E8F5E9',
+    backgroundColor: "#E8F5E9",
     borderRadius: 16,
     paddingHorizontal: 14,
     paddingVertical: 10,
@@ -1655,23 +1850,23 @@ const styles = StyleSheet.create({
   },
   askGiaInput: {
     borderWidth: 1,
-    borderColor: 'rgba(95,133,117,0.3)',
+    borderColor: "rgba(95,133,117,0.3)",
     borderRadius: 16,
     paddingHorizontal: 14,
     paddingVertical: 10,
     fontSize: 14,
-    color: '#2D4A3E',
-    backgroundColor: '#FFFFFF',
+    color: "#2D4A3E",
+    backgroundColor: "#FFFFFF",
   },
   askGiaButton: {
     marginTop: 8,
-    backgroundColor: '#5F8575',
+    backgroundColor: "#5F8575",
     borderRadius: 16,
     paddingVertical: 12,
-    alignItems: 'center',
+    alignItems: "center",
   },
   askGiaButtonText: {
-    color: '#FFFFFF',
+    color: "#FFFFFF",
     fontSize: BUTTON_TEXT_SIZE,
     fontWeight: BUTTON_TEXT_WEIGHT,
   },
@@ -1689,7 +1884,7 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   askGiaAnswerBubble: {
-    backgroundColor: '#F5F1ED',
+    backgroundColor: "#F5F1ED",
     borderRadius: 14,
     paddingHorizontal: 12,
     paddingVertical: 10,
@@ -1705,22 +1900,22 @@ const styles = StyleSheet.create({
     color: TEXT_SECONDARY,
   },
   gardenCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: "#FFFFFF",
     borderRadius: 24,
     padding: 16,
     borderWidth: 2,
-    borderColor: '#D8D5CF',
+    borderColor: "#D8D5CF",
     marginBottom: 12,
   },
   gardenHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     marginBottom: 12,
   },
   gardenTitle: {
     fontSize: CARD_TITLE_SIZE,
-    color: '#7B9B8C',
+    color: "#7B9B8C",
     fontWeight: CARD_TITLE_WEIGHT,
     marginBottom: 2,
   },
@@ -1731,9 +1926,9 @@ const styles = StyleSheet.create({
   gardenPond: {
     borderRadius: 18,
     padding: 14,
-    backgroundColor: '#D4F1F9',
-    justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: "#E7F1ED",
+    justifyContent: "center",
+    alignItems: "center",
     minHeight: 220,
   },
   gardenEmpty: {
@@ -1742,22 +1937,23 @@ const styles = StyleSheet.create({
   gardenEmptyText: {
     fontSize: BODY_SMALL_SIZE,
     color: TEXT_SECONDARY,
-    textAlign: 'center',
+    textAlign: "center",
   },
   gardenFlowerGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
+    flexDirection: "row",
+    flexWrap: "wrap",
   },
   gardenFlowerItem: {
-    width: '20%',
-    alignItems: 'center',
+    width: "20%",
+    alignItems: "center",
     marginBottom: 8,
   },
-  gardenFlowerEmoji: {
-    fontSize: 30,
+  gardenFlowerIcon: {
+    width: 48,
+    height: 48,
   },
   gardenStatsRow: {
-    flexDirection: 'row',
+    flexDirection: "row",
     marginTop: 16,
   },
   gardenStatCard: {
@@ -1765,12 +1961,12 @@ const styles = StyleSheet.create({
     borderRadius: 24,
     paddingVertical: 18,
     paddingHorizontal: 12,
-    backgroundColor: '#FFF7F2',
+    backgroundColor: "#FFF7F2",
     marginHorizontal: 4,
-    alignItems: 'center',
+    alignItems: "center",
     borderWidth: 1,
-    borderColor: '#F0E4DA',
-    shadowColor: '#000',
+    borderColor: "#F0E4DA",
+    shadowColor: "#000",
     shadowOpacity: 0.06,
     shadowRadius: 8,
     shadowOffset: { width: 0, height: 3 },
@@ -1780,32 +1976,32 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#F4C8DE',
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#7B9B8C",
     marginBottom: 6,
   },
   gardenStatIconCircleFlame: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#F49EC4',
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#F49EC4",
     marginBottom: 6,
   },
   gardenStatIconCircleCalendar: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#95C98E',
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#95C98E",
     marginBottom: 6,
   },
-  lotusIcon: {
-    fontSize: 20,
-    color: '#FFFFFF',
+  gardenStatLotusIcon: {
+    width: 36,
+    height: 36,
   },
   gardenStatValue: {
     fontSize: 20,
@@ -1815,23 +2011,23 @@ const styles = StyleSheet.create({
   gardenStatLabel: {
     fontSize: LABEL_SMALL_SIZE,
     color: TEXT_SECONDARY,
-    fontStyle: 'italic',
-    textAlign: 'center',
+    fontStyle: "italic",
+    textAlign: "center",
   },
   reminderToastContainer: {
-    position: 'absolute',
+    position: "absolute",
     top: 12,
     left: 16,
     right: 16,
     zIndex: 20,
   },
   reminderToast: {
-    backgroundColor: '#5F8575',
+    backgroundColor: "#5F8575",
     borderRadius: 16,
     paddingVertical: 10,
     paddingHorizontal: 14,
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
   },
   reminderTextWrapper: {
     flex: 1,
@@ -1839,63 +2035,62 @@ const styles = StyleSheet.create({
   },
   reminderTitle: {
     fontSize: 13,
-    color: '#FFFFFF',
-    fontWeight: '600',
+    color: "#FFFFFF",
+    fontWeight: "600",
     marginBottom: 2,
   },
   reminderMessage: {
     fontSize: 12,
-    color: 'rgba(255,255,255,0.9)',
+    color: "rgba(255,255,255,0.9)",
   },
   reminderClose: {
     padding: 4,
   },
   confettiOverlay: {
     ...StyleSheet.absoluteFillObject,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     zIndex: 30,
-    backgroundColor: 'rgba(0,0,0,0.2)',
+    backgroundColor: "rgba(0,0,0,0.2)",
   },
   confettiInner: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: "#FFFFFF",
     borderRadius: 24,
     paddingHorizontal: 24,
     paddingVertical: 22,
     borderWidth: 2,
-    borderColor: '#7B9B8C',
-    alignItems: 'center',
-    width: '80%',
+    borderColor: "#7B9B8C",
+    alignItems: "center",
+    width: "80%",
     maxWidth: 360,
   },
-  confettiEmoji: {
-    fontSize: 40,
-    marginBottom: 8,
+  confettiLotusIcon: {
+    width: 72,
+    height: 72,
+    marginBottom: 10,
   },
   confettiTitle: {
     fontSize: 20,
-    color: '#5A7A6B',
-    fontStyle: 'italic',
+    color: "#5A7A6B",
+    fontStyle: "italic",
     marginBottom: 6,
   },
   confettiSubtitle: {
     fontSize: 14,
-    color: '#6B7370',
+    color: "#6B7370",
     marginBottom: 12,
-    textAlign: 'center',
+    textAlign: "center",
   },
   confettiButton: {
     marginTop: 4,
-    backgroundColor: '#5F8575',
+    backgroundColor: "#5F8575",
     borderRadius: 999,
     paddingHorizontal: 20,
     paddingVertical: 10,
   },
   confettiButtonText: {
-    color: '#FFFFFF',
+    color: "#FFFFFF",
     fontSize: 14,
-    fontWeight: '600',
+    fontWeight: "600",
   },
 });
-
-

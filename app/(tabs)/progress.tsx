@@ -4,6 +4,7 @@ import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import React, { useMemo, useState } from 'react';
 import {
+  Alert,
   Dimensions,
   Image,
   Modal,
@@ -19,6 +20,7 @@ import { EmergencyHelp } from '../../components/EmergencyHelp';
 import { ExecutiveSummary } from '../../components/ExecutiveSummary';
 import { TabTopNavbar } from '../../components/TabTopNavbar';
 import { HEADER_PADDING_HORIZONTAL } from '../../constants/HeaderStyles';
+import { formatTimestamp, getLocalDateString, parseLocalDateString } from '../../lib/dateUtils';
 import {
   BODY_SIZE,
   BODY_SMALL_SIZE,
@@ -28,6 +30,10 @@ import {
   TEXT_PRIMARY,
   TEXT_SECONDARY
 } from '../../constants/Typography';
+import { useAuth } from '../../context/AuthContext';
+import { useProgressPhotos } from '../../hooks/useProgressPhotos';
+import { useSummaryData } from '../../hooks/useSummaryData';
+import { supabase } from '../../lib/supabaseClient';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const GRID_COLUMNS = 3;
@@ -39,60 +45,28 @@ const PHOTO_SIZE =
 interface ProgressPhoto {
   id: string;
   date: string;
+  createdAt?: string;
+  storagePath: string;
   imageUrl: string;
   notes?: string;
 }
 
 export default function ProgressScreen() {
-  const basePhotos: ProgressPhoto[] = useMemo(
-    () => [
-      {
-        id: '1',
-        date: '2025-12-31',
-        imageUrl:
-          'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y="75" font-size="75">👤</text></svg>',
-        notes: 'Starting my journey',
-      },
-      {
-        id: '2',
-        date: '2026-01-08',
-        imageUrl:
-          'https://images.unsplash.com/photo-1629095923147-53d986573d57?w=400&h=400&fit=crop',
-        notes: 'Week 1 - seeing some improvement',
-      },
-      {
-        id: '3',
-        date: '2026-01-15',
-        imageUrl:
-          'https://images.unsplash.com/photo-1616394584738-fc6e612e71b9?w=400&h=400&fit=crop',
-        notes: 'Week 2 - less redness',
-      },
-      {
-        id: '4',
-        date: '2026-01-22',
-        imageUrl:
-          'https://images.unsplash.com/photo-1629095923147-53d986573d57?w=400&h=400&fit=crop&sat=-20',
-        notes: 'Week 3 - smoother texture',
-      },
-      {
-        id: '5',
-        date: '2026-01-29',
-        imageUrl:
-          'https://images.unsplash.com/photo-1616394584738-fc6e612e71b9?w=400&h=400&fit=crop&sat=-20',
-        notes: 'Week 4 - feeling confident!',
-      },
-      {
-        id: '6',
-        date: '2026-02-05',
-        imageUrl:
-          'https://images.unsplash.com/photo-1629095923147-53d986573d57?w=400&h=400&fit=crop&brightness=10',
-        notes: 'Week 5 - great progress',
-      },
-    ],
-    []
+  const { user, profile, refreshProfile } = useAuth();
+  const { photos: storedPhotos, loading: photosLoading, uploadPhoto, deletePhoto } = useProgressPhotos();
+  const { data: summaryData } = useSummaryData();
+  const allPhotos: ProgressPhoto[] = useMemo(
+    () =>
+      storedPhotos.map((p) => ({
+        id: p.id,
+        date: p.date,
+        createdAt: p.createdAt,
+        storagePath: p.storagePath,
+        imageUrl: p.imageUrl,
+        notes: p.notes,
+      })),
+    [storedPhotos]
   );
-
-  const [uploadedPhotos, setUploadedPhotos] = useState<ProgressPhoto[]>([]);
 
   const [showUpload, setShowUpload] = useState(false);
   const [selectedPhoto, setSelectedPhoto] = useState<ProgressPhoto | null>(null);
@@ -106,19 +80,18 @@ export default function ProgressScreen() {
   const [selectedMonth, setSelectedMonth] = useState<string>('all');
   const [selectedDate, setSelectedDate] = useState<string>('all');
 
-  const [appointmentDate, setAppointmentDate] = useState<string>('');
+  const [appointmentDate, setAppointmentDate] = useState<string>(profile?.next_derm_appointment ?? '');
   const [isEditingAppointment, setIsEditingAppointment] = useState(false);
   const [showExecutiveSummary, setShowExecutiveSummary] = useState(false);
 
-  const allPhotos = useMemo(
-    () => [...basePhotos, ...uploadedPhotos],
-    [basePhotos, uploadedPhotos]
-  );
+  React.useEffect(() => {
+    setAppointmentDate(profile?.next_derm_appointment ?? '');
+  }, [profile?.next_derm_appointment]);
 
   const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
   const getYearsFromPhotos = () => {
-    const years = new Set(allPhotos.map((p) => new Date(p.date).getFullYear().toString()));
+    const years = new Set(allPhotos.map((p) => parseLocalDateString(p.date).getFullYear().toString()));
     return ['all', ...Array.from(years).sort()];
   };
 
@@ -126,8 +99,8 @@ export default function ProgressScreen() {
     if (year === 'all') return ['all'];
     const months = new Set(
       allPhotos
-        .filter((p) => new Date(p.date).getFullYear().toString() === year)
-        .map((p) => new Date(p.date).getMonth().toString())
+        .filter((p) => parseLocalDateString(p.date).getFullYear().toString() === year)
+        .map((p) => parseLocalDateString(p.date).getMonth().toString())
     );
     return [
       'all',
@@ -144,10 +117,10 @@ export default function ProgressScreen() {
     const dates = new Set(
       allPhotos
         .filter((p) => {
-          const d = new Date(p.date);
+          const d = parseLocalDateString(p.date);
           return d.getFullYear().toString() === year && d.getMonth().toString() === month;
         })
-        .map((p) => new Date(p.date).getDate().toString())
+        .map((p) => parseLocalDateString(p.date).getDate().toString())
     );
     return [
       'all',
@@ -160,16 +133,18 @@ export default function ProgressScreen() {
   };
 
   const filteredPhotos = allPhotos.filter((photo) => {
-    const d = new Date(photo.date);
+    const d = parseLocalDateString(photo.date);
     if (selectedYear !== 'all' && d.getFullYear().toString() !== selectedYear) return false;
     if (selectedMonth !== 'all' && d.getMonth().toString() !== selectedMonth) return false;
     if (selectedDate !== 'all' && d.getDate().toString() !== selectedDate) return false;
     return true;
   });
 
-  const sortedFilteredPhotos = [...filteredPhotos].sort(
-    (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
-  );
+  const sortedFilteredPhotos = [...filteredPhotos].sort((a, b) => {
+    const aTime = a.createdAt ? new Date(a.createdAt).getTime() : parseLocalDateString(a.date).getTime();
+    const bTime = b.createdAt ? new Date(b.createdAt).getTime() : parseLocalDateString(b.date).getTime();
+    return bTime - aTime;
+  });
 
   const getDaysUntilAppointment = () => {
     if (!appointmentDate) return null;
@@ -182,13 +157,21 @@ export default function ProgressScreen() {
 
   const daysUntil = getDaysUntilAppointment();
 
-  const handleSaveAppointment = () => {
-    if (!appointmentDate) return;
-    setIsEditingAppointment(false);
+  const handleSaveAppointment = async () => {
+    if (!appointmentDate || !user) return;
+    const { error } = await (supabase.from('profiles') as any)
+      .update({ next_derm_appointment: appointmentDate, updated_at: new Date().toISOString() })
+      .eq('id', user.id);
+    if (!error) {
+      await refreshProfile();
+      setIsEditingAppointment(false);
+    } else {
+      alert(error.message);
+    }
   };
 
   const handleCancelEdit = () => {
-    setAppointmentDate('');
+    setAppointmentDate(profile?.next_derm_appointment ?? '');
     setIsEditingAppointment(false);
   };
 
@@ -205,30 +188,33 @@ export default function ProgressScreen() {
     }
   };
 
+  const dateForUpload = getLocalDateString();
   const pickImageFromLibrary = async () => {
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!permission.granted) {
       alert('Permission to access photos is required.');
       return;
     }
-
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: true,
       aspect: [1, 1],
       quality: 0.8,
+      base64: true,
     });
-
     if (!result.canceled && result.assets[0]) {
-      const newPhoto: ProgressPhoto = {
-        id: Date.now().toString(),
-        date: new Date().toISOString().split('T')[0],
-        imageUrl: result.assets[0].uri,
-        notes: newNotes,
-      };
-      setUploadedPhotos((prev) => [...prev, newPhoto]);
-      setShowUpload(false);
-      setNewNotes('');
+      const base64 = result.assets[0].base64;
+      if (!base64) {
+        alert('Could not get image data. Try another photo.');
+        return;
+      }
+      try {
+        await uploadPhoto(base64, dateForUpload, newNotes);
+        setShowUpload(false);
+        setNewNotes('');
+      } catch (e) {
+        alert(e instanceof Error ? e.message : 'Upload failed');
+      }
     }
   };
 
@@ -242,18 +228,46 @@ export default function ProgressScreen() {
       allowsEditing: true,
       aspect: [1, 1],
       quality: 0.8,
+      base64: true,
     });
     if (!result.canceled && result.assets[0]) {
-      const newPhoto: ProgressPhoto = {
-        id: Date.now().toString(),
-        date: new Date().toISOString().split('T')[0],
-        imageUrl: result.assets[0].uri,
-        notes: newNotes,
-      };
-      setUploadedPhotos((prev) => [...prev, newPhoto]);
-      setShowUpload(false);
-      setNewNotes('');
+      const base64 = result.assets[0].base64;
+      if (!base64) {
+        alert('Could not get image data. Try taking the photo again.');
+        return;
+      }
+      try {
+        await uploadPhoto(base64, dateForUpload, newNotes);
+        setShowUpload(false);
+        setNewNotes('');
+      } catch (e) {
+        alert(e instanceof Error ? e.message : 'Upload failed');
+      }
     }
+  };
+
+  const confirmDeleteSelectedPhoto = () => {
+    if (!selectedPhoto) return;
+    Alert.alert(
+      'Delete photo?',
+      'This will remove the photo from your account and delete it from storage.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              const toDelete = selectedPhoto;
+              setSelectedPhoto(null);
+              await deletePhoto({ id: toDelete.id, storagePath: toDelete.storagePath });
+            } catch (e) {
+              Alert.alert('Delete failed', e instanceof Error ? e.message : 'Could not delete photo');
+            }
+          },
+        },
+      ]
+    );
   };
 
   return (
@@ -550,11 +564,13 @@ export default function ProgressScreen() {
                       resizeMode="cover"
                     />
                     <Text style={styles.comparisonDate}>
-                      {new Date(photo.date).toLocaleDateString('en-US', {
-                        month: 'short',
-                        day: 'numeric',
-                        year: 'numeric',
-                      })}
+                      {photo.createdAt
+                        ? formatTimestamp(photo.createdAt)
+                        : parseLocalDateString(photo.date).toLocaleDateString('en-US', {
+                            month: 'short',
+                            day: 'numeric',
+                            year: 'numeric',
+                          })}
                     </Text>
                   </View>
                 ))}
@@ -611,11 +627,13 @@ export default function ProgressScreen() {
                     />
                     <View style={styles.gridOverlay}>
                       <Text style={styles.gridDate}>
-                        {new Date(photo.date).toLocaleDateString('en-US', {
-                          day: 'numeric',
-                          month: 'short',
-                          year: 'numeric',
-                        })}
+                        {photo.createdAt
+                          ? formatTimestamp(photo.createdAt)
+                          : parseLocalDateString(photo.date).toLocaleDateString('en-US', {
+                              day: 'numeric',
+                              month: 'short',
+                              year: 'numeric',
+                            })}
                       </Text>
                     </View>
                   </TouchableOpacity>
@@ -711,17 +729,24 @@ export default function ProgressScreen() {
                   <Text style={styles.modalTitle}>Progress photo</Text>
                   {selectedPhoto && (
                     <Text style={styles.modalSubtitle}>
-                      {new Date(selectedPhoto.date).toLocaleDateString('en-US', {
-                        year: 'numeric',
-                        month: 'long',
-                        day: 'numeric',
-                      })}
+                      {selectedPhoto.createdAt
+                        ? formatTimestamp(selectedPhoto.createdAt)
+                        : parseLocalDateString(selectedPhoto.date).toLocaleDateString('en-US', {
+                            year: 'numeric',
+                            month: 'long',
+                            day: 'numeric',
+                          })}
                     </Text>
                   )}
                 </View>
-                <TouchableOpacity onPress={() => setSelectedPhoto(null)} hitSlop={12}>
-                  <Ionicons name="close" size={22} color="#6B7370" />
-                </TouchableOpacity>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                  <TouchableOpacity onPress={confirmDeleteSelectedPhoto} hitSlop={12}>
+                    <Ionicons name="trash-outline" size={22} color="#8B4545" />
+                  </TouchableOpacity>
+                  <TouchableOpacity onPress={() => setSelectedPhoto(null)} hitSlop={12}>
+                    <Ionicons name="close" size={22} color="#6B7370" />
+                  </TouchableOpacity>
+                </View>
               </View>
               {selectedPhoto && (
                 <ScrollView
@@ -749,9 +774,11 @@ export default function ProgressScreen() {
         {showExecutiveSummary && (
           <ExecutiveSummary
             onClose={() => setShowExecutiveSummary(false)}
-            condition="acne"
-            startDate="2026-01-01"
+            patientName={profile?.name}
+            condition={profile?.primary_condition ?? 'acne'}
+            startDate={profile?.created_at ? new Date(profile.created_at).toISOString().slice(0, 10) : '2026-01-01'}
             nextAppointment={appointmentDate || undefined}
+            summaryData={summaryData}
           />
         )}
       </View>

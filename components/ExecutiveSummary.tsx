@@ -25,35 +25,31 @@ import {
   TITLE_SECTION_WEIGHT,
 } from '../constants/Typography';
 
+import type { SummaryData } from '../hooks/useSummaryData';
+
 export interface ExecutiveSummaryProps {
   onClose: () => void;
   patientName?: string;
   condition: string;
   startDate: string;
   nextAppointment?: string;
+  /** When provided, summary metrics are computed from this data (e.g. from Supabase). */
+  summaryData?: SummaryData | null;
 }
 
-const SUMMARY_DATA = {
-  adherenceRate: 78,
-  totalRoutines: 45,
-  completedRoutines: 35,
-  avgMood: '😌' as const,
-  flareUpCount: 6,
-  improvingSymptoms: ['redness', 'texture'],
-  worseningSymptoms: ['dryness'],
-  stableSymptoms: ['breakouts'],
-  commonTriggers: ['stress', 'lack of sleep', 'weather changes'],
-  currentProducts: [
-    'CeraVe Hydrating Cleanser',
-    'The Ordinary Niacinamide 10%',
-    'La Roche-Posay Toleriane Double Repair',
-    'Neutrogena Clear Face SPF 55',
-  ],
-  concerns: [
-    'Increased dryness in last 2 weeks',
-    'Flare-ups correlate with stress',
-  ],
-  improvements: ['Less frequent breakouts', 'Improved skin texture'],
+const FALLBACK_SUMMARY: SummaryData = {
+  adherenceRate: 0,
+  totalRoutines: 0,
+  completedRoutines: 0,
+  avgMood: '😐',
+  flareUpCount: 0,
+  improvingSymptoms: [],
+  worseningSymptoms: [],
+  stableSymptoms: [],
+  commonTriggers: [],
+  currentProducts: [],
+  concerns: [],
+  improvements: [],
 };
 
 function buildSummaryText(
@@ -61,6 +57,7 @@ function buildSummaryText(
   condition: string,
   startDate: string,
   nextAppointment: string | undefined,
+  d: SummaryData,
   options: {
     includeAdherence: boolean;
     includeMood: boolean;
@@ -71,7 +68,6 @@ function buildSummaryText(
     includeProgress: boolean;
   }
 ): string {
-  const d = SUMMARY_DATA;
   let content = 'SKIN HEALTH EXECUTIVE SUMMARY\n';
   content += `Generated: ${new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}\n\n`;
   content += 'PATIENT INFORMATION\n';
@@ -109,7 +105,7 @@ function buildSummaryText(
   }
   if (options.includeMood) {
     content += 'EMOTIONAL WELL-BEING\n';
-    content += `Most Common Mood: ${d.avgMood === '😌' ? 'Good' : d.avgMood === '😐' ? 'Neutral' : 'Struggling'}\n\n`;
+    content += `Most Common Mood: ${d.avgMood === '😌' ? 'Good' : d.avgMood === '😢' ? 'Struggling' : 'Neutral'}\n\n`;
   }
   if (options.includeProgress) {
     content += "KEY OBSERVATIONS\n\nWhat's Working:\n";
@@ -153,6 +149,7 @@ export function ExecutiveSummary({
   condition,
   startDate,
   nextAppointment,
+  summaryData,
 }: ExecutiveSummaryProps) {
   const [step, setStep] = useState<'customize' | 'preview'>('customize');
   const [includeAdherence, setIncludeAdherence] = useState(true);
@@ -173,12 +170,15 @@ export function ExecutiveSummary({
     includeProgress,
   };
 
+  const d = summaryData ?? FALLBACK_SUMMARY;
+
   const handleShareOrDownload = async () => {
     const message = buildSummaryText(
       patientName,
       condition,
       startDate,
       nextAppointment,
+      d,
       options
     );
     try {
@@ -191,7 +191,6 @@ export function ExecutiveSummary({
     }
   };
 
-  const d = SUMMARY_DATA;
   const generatedDate = new Date().toLocaleDateString('en-US', {
     month: 'long',
     day: 'numeric',

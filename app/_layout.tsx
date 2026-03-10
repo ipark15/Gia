@@ -7,6 +7,8 @@ import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 import { useColorScheme } from 'react-native';
 import 'react-native-reanimated';
+import { RoutinePersistenceHandler } from '../components/RoutinePersistenceHandler';
+import { AuthProvider } from '../context/AuthContext';
 import { RoutineCompletionProvider } from '../context/RoutineCompletionContext';
 
 export {
@@ -50,15 +52,18 @@ function RootLayoutNav() {
   return (
     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
       <StatusBar style="dark" />
-      <RoutineCompletionProvider>
-        <Stack screenOptions={{ headerShown: false }}>
-          <Stack.Screen name="(onboarding)" />
-          <Stack.Screen name="(tabs)" />
-          <Stack.Screen name="routine-execution" />
-          <Stack.Screen name="treatment-plan" />
-          <Stack.Screen name="inventory" />
-        </Stack>
-      </RoutineCompletionProvider>
+      <AuthProvider>
+        <RoutineCompletionProvider>
+          <RoutinePersistenceHandler />
+          <Stack screenOptions={{ headerShown: false }}>
+            <Stack.Screen name="(onboarding)" />
+            <Stack.Screen name="(tabs)" />
+            <Stack.Screen name="routine-execution" />
+            <Stack.Screen name="treatment-plan" />
+            <Stack.Screen name="inventory" />
+          </Stack>
+        </RoutineCompletionProvider>
+      </AuthProvider>
     </ThemeProvider>
   );
 }

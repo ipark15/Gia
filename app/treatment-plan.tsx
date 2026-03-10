@@ -5,7 +5,9 @@ import React, { useState } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Inventory, OwnedProduct } from '../components/Inventory';
-import { TreatmentPlanPage } from '../components/TreatmentPlanPage';
+import { RoutineStep, TreatmentPlanPage } from '../components/TreatmentPlanPage';
+import { useAuth } from '../context/AuthContext';
+import { supabase } from '../lib/supabaseClient';
 
 const PLAN_BG = '#E8F0DC';
 
@@ -17,6 +19,33 @@ export default function TreatmentPlanScreen() {
   const initialTab = (params.tab === 'shopping' ? 'shopping' : 'routine') as Tab;
   const [activeTab, setActiveTab] = useState<Tab>(initialTab);
   const [ownedProducts, setOwnedProducts] = useState<OwnedProduct[]>([]);
+
+  const { profile, refreshProfile } = useAuth();
+
+  const dermProducts =
+    profile?.has_dermatologist_plan &&
+    Array.isArray(profile?.dermatologist_products) &&
+    (profile.dermatologist_products as unknown[]).length > 0
+      ? (profile.dermatologist_products as unknown as Array<{
+          id: string;
+          name: string;
+          brand: string;
+          instructions?: string;
+          timeOfDay: 'am' | 'pm' | 'both';
+          step: string;
+        }>)
+      : undefined;
+
+  const customRoutine = profile?.custom_routine as { amRoutine: RoutineStep[]; pmRoutine: RoutineStep[] } | null | undefined;
+
+  const handleSaveRoutine = async (amRoutine: RoutineStep[], pmRoutine: RoutineStep[]) => {
+    if (!profile) return;
+    await (supabase.from('profiles') as any).update({
+      custom_routine: { amRoutine, pmRoutine },
+      updated_at: new Date().toISOString(),
+    }).eq('id', profile.id);
+    await refreshProfile();
+  };
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
@@ -59,6 +88,10 @@ export default function TreatmentPlanScreen() {
             onBack={() => router.back()}
             onManageRules={() => { }}
             hideHeader
+            hasDermatologistPlan={profile?.has_dermatologist_plan ?? false}
+            dermatologistProducts={dermProducts}
+            customRoutine={customRoutine}
+            onSaveRoutine={handleSaveRoutine}
           />
         )}
         {activeTab === 'shopping' && (
