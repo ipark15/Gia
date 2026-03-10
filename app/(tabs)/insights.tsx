@@ -1,3 +1,4 @@
+import { useFocusEffect } from '@react-navigation/native';
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useCallback } from 'react';
@@ -12,8 +13,30 @@ const INSIGHTS_BG = '#E8EDE8';
 
 export default function InsightsScreen() {
   const { user, profile, refreshProfile } = useAuth();
-  const { entries, loading: checkInsLoading } = useCheckIns();
-  const { completedDays, completedDaysRaw, loading: statsLoading } = useRoutineStats();
+  const { entries, loading: checkInsLoading, refresh: refreshCheckIns } = useCheckIns();
+  const {
+    completedDays,
+    completedDaysRaw,
+    loading: statsLoading,
+    refresh: refreshStats,
+  } = useRoutineStats();
+
+  // Refresh when the tab gains focus (covers cases where realtime isn't connected).
+  useFocusEffect(
+    useCallback(() => {
+      void refreshCheckIns();
+      void refreshStats();
+    }, [refreshCheckIns, refreshStats])
+  );
+
+  const handleDeleteEntry = useCallback(
+    async (id: string) => {
+      if (!user) return;
+      await (supabase.from('check_ins') as any).delete().eq('id', id).eq('user_id', user.id);
+      // Realtime subscription in useCheckIns will trigger a refresh; no need to force another one.
+    },
+    [user?.id]
+  );
 
   const onUpdateDermAppointment = useCallback(
     async (date: string) => {
@@ -30,14 +53,15 @@ export default function InsightsScreen() {
     <SafeAreaView style={{ flex: 1, backgroundColor: INSIGHTS_BG }} edges={['top']}>
       <StatusBar style="dark" backgroundColor={INSIGHTS_BG} />
       <InsightsComponent
-        entries={checkInsLoading ? [] : entries}
+        entries={entries}
         hasDermatologistPlan={profile?.has_dermatologist_plan ?? false}
         nextDermAppointment={profile?.next_derm_appointment ?? ''}
         onUpdateDermAppointment={onUpdateDermAppointment}
         userCondition={profile?.primary_condition ?? 'acne'}
         onManageRules={() => router.push({ pathname: '/(onboarding)/registration', params: { step: '2' } })}
-        completedDays={statsLoading ? [] : completedDays}
-        completedDaysRaw={statsLoading ? [] : completedDaysRaw}
+        onDeleteEntry={handleDeleteEntry}
+        completedDays={completedDays}
+        completedDaysRaw={completedDaysRaw}
         onboardingSatisfaction={profile?.skin_satisfaction_baseline ?? 3}
       />
     </SafeAreaView>

@@ -24,6 +24,7 @@ import {
   TITLE_SECTION_SIZE,
   TITLE_SECTION_WEIGHT,
 } from '../constants/Typography';
+import { formatTimestamp } from '../lib/dateUtils';
 import { EmergencyHelp } from './EmergencyHelp';
 import { TabTopNavbar } from './TabTopNavbar';
 import WeeklyOverviewChart from './WeeklyOverviewChart';
@@ -31,6 +32,8 @@ import WeeklyOverviewChart from './WeeklyOverviewChart';
 export interface TimelineEntry {
   id: string;
   date: string;
+  /** When the check-in was created (ISO string). */
+  createdAt?: string;
   routineCompleted: boolean;
   flareTags?: string[];
   mood?: 'happy' | 'neutral' | 'sad';
@@ -53,17 +56,13 @@ export interface InsightsProps {
   onOpenSettings?: () => void;
   onViewTreatmentPlan?: () => void;
   onManageRules?: () => void;
+  /** Optional: delete a timeline entry by id. */
+  onDeleteEntry?: (id: string) => void;
   completedDays?: Array<{ date: string; stepsCompleted: number; totalSteps: number }>;
   /** Raw completion data for monthly summary (routines completed count for displayed month). */
   completedDaysRaw?: Array<{ date: string; morning_done: boolean; evening_done: boolean }>;
   onboardingSatisfaction?: number;
 }
-
-const MOCK_ENTRIES: TimelineEntry[] = [
-  { id: '1', date: '2026-02-09', routineCompleted: true, mood: 'happy', contextTags: ['sleep'], note: 'Skin felt calm today' },
-  { id: '2', date: '2026-02-08', routineCompleted: true, flareTags: ['redness', 'itch'], mood: 'sad', contextTags: ['stress', 'weather'] },
-  { id: '3', date: '2026-02-07', routineCompleted: false, mood: 'neutral', contextTags: ['sleep'], note: 'Missed routine but moisturized' },
-];
 
 const SYMPTOM_FILTERS = ['itch', 'redness', 'dryness', 'breakout', 'pain'];
 const CONTEXT_FILTERS = ['sleep', 'stress', 'product change', 'weather', 'period'];
@@ -86,6 +85,7 @@ export function Insights({
   onOpenSettings,
   onViewTreatmentPlan,
   onManageRules,
+  onDeleteEntry,
   completedDays = [],
   completedDaysRaw = [],
   onboardingSatisfaction = 3,
@@ -107,11 +107,12 @@ export function Insights({
   const [timelineExpanded, setTimelineExpanded] = useState(false);
   const recordingTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  const displayEntries = entries.length > 0 ? entries : MOCK_ENTRIES;
+  const displayEntries = entries;
 
   const filteredEntries = useMemo(() => {
     return [...displayEntries]
-      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+      // Newest first in the list (top of timeline)
+      .sort((a, b) => b.date.localeCompare(a.date))
       .filter((entry) => {
         if (selectedSymptoms.length > 0) {
           const has = selectedSymptoms.some((s) =>
@@ -197,27 +198,68 @@ export function Insights({
 
   const weeklyData = useMemo(() => getWeeklyData(), [completedDays, displayEntries, entries.length, onboardingSatisfaction]);
   const hasRealData = weeklyData.some((d) => (d.consistency != null && d.consistency > 0) || d.satisfaction != null);
-  const displayWeeklyData = hasRealData
-    ? weeklyData
-    : [
-      { day: 'Mon', date: '2026-03-03', consistency: 85, satisfaction: 4, routineCompleted: true, flareReported: false },
-      { day: 'Tue', date: '2026-03-04', consistency: 95, satisfaction: 5, routineCompleted: true, flareReported: false },
-      { day: 'Wed', date: '2026-03-05', consistency: 78, satisfaction: 3, routineCompleted: false, flareReported: true },
-      { day: 'Thu', date: '2026-03-06', consistency: 88, satisfaction: 4, routineCompleted: true, flareReported: false },
-      { day: 'Fri', date: '2026-03-07', consistency: 96, satisfaction: 5, routineCompleted: true, flareReported: false },
-      { day: 'Sat', date: '2026-03-08', consistency: 70, satisfaction: 3, routineCompleted: false, flareReported: false },
-      { day: 'Sun', date: '2026-03-09', consistency: 82, satisfaction: 4, routineCompleted: true, flareReported: false },
-    ];
 
   const generateProgressAnswer = (question: string): string => {
     const q = question.toLowerCase();
-    if (q.includes('progress') || q.includes('doing') || q.includes('going')) return "Looking good! 7 routines this month. Your skin's calmer when you stick with it. Keep going.";
-    if (q.includes('pattern') || q.includes('notice') || q.includes('trend')) return "Here's what I see: stress and weather changes trigger flare-ups. Better sleep means better skin. Simple as that.";
-    if (q.includes('month') || q.includes('february') || q.includes('week')) return "This month: 7 routines, 3 flare days. You're showing up way more than before. Nice work.";
-    if (q.includes('improve') || q.includes('better') || q.includes('help')) return "Stay consistent with your routine. Manage stress when you can. Your skin responds well to regular care.";
-    if (q.includes('flare') || q.includes('breakout')) return "3 flare days this month. Usually after stress or weather changes. Now you know what to watch for.";
-    if (q.includes('sleep') || q.includes('stress')) return "Sleep and stress are major for you. Better rest equals calmer skin. Your data proves it.";
-    return "You're building solid habits. Keep logging your check-ins. The patterns will keep getting clearer.";
+    if (!hasAnyData) {
+      return "Once you've logged a few routines and check-ins, I'll use your own data to highlight patterns in your skin and habits.";
+    }
+
+    if (q.includes('progress') || q.includes('doing') || q.includes('going')) {
+      if (totalRoutinesThisMonth > 0) {
+        return `So far this month you've completed around ${totalRoutinesThisMonth} routines and logged ${flareDaysThisMonth} flare days. Your skin tends to stay calmer when you're consistent—keep going.`;
+      }
+      return "Your routine data is just getting started. A few more days of check-ins will make your progress much clearer.";
+    }
+
+    if (q.includes('pattern') || q.includes('notice') || q.includes('trend')) {
+      if (mostCommonContext && mostCommonFlare) {
+        return `Your check-ins suggest that ${mostCommonContext} often shows up on days with ${mostCommonFlare} flares. When you notice that context, it's a good time to lean into your routine and gentle care.`;
+      }
+      if (mostCommonContext) {
+        return `A lot of your flare or low-satisfaction days mention ${mostCommonContext}. Watching that pattern can help you anticipate when your skin might need extra support.`;
+      }
+      return "Right now your data doesn't show a strong single trigger, but as you keep logging check-ins, patterns between flares, mood, and context will become clearer.";
+    }
+
+    if (q.includes('month') || q.includes('february') || q.includes('week')) {
+      if (totalRoutinesThisMonth > 0) {
+        return `This month you’ve logged about ${totalRoutinesThisMonth} routines and ${flareDaysThisMonth} flare days. You're showing up for your skin much more often than not—that consistency really matters.`;
+      }
+      return "There isn't much data yet for this month. Once you've logged a week or two of routines, I'll summarize how often you're showing up and how flares are changing.";
+    }
+
+    if (q.includes('improve') || q.includes('better') || q.includes('help')) {
+      if (avgWeeklyConsistency != null) {
+        if (avgWeeklyConsistency >= 75) {
+          return `You're already quite consistent (about ${avgWeeklyConsistency}% of prescribed routines over the last week). The biggest next lever is gentle, steady care and keeping an eye on your main triggers.`;
+        }
+        return `Right now you're completing your full routine roughly ${avgWeeklyConsistency}% of the time over the last week. The best way to improve your skin from here is to make it easier to hit your routine on most days.`;
+      }
+      return "The clearest way to help your skin is to log routines and check-ins regularly. Once there's a bit more data, I can point out where small habit changes would have the biggest impact.";
+    }
+
+    if (q.includes('flare') || q.includes('breakout')) {
+      if (flareDaysThisMonth > 0 && mostCommonContext) {
+        return `You've logged about ${flareDaysThisMonth} flare days this month, often on days when ${mostCommonContext} shows up. When you see that context coming, it's a good signal to be extra gentle with your skin and stick to your plan.`;
+      }
+      if (flareDaysThisMonth > 0) {
+        return `You've logged about ${flareDaysThisMonth} flare days this month. Over time, your check-ins will help connect those flares to sleep, stress, products, or other triggers.`;
+      }
+      return "You haven't logged many flare days yet. As you track more, I'll help you see when and why breakouts tend to show up.";
+    }
+
+    if (q.includes('sleep') || q.includes('stress')) {
+      if (recentEntry && (recentEntry.sleepHours != null || recentEntry.stressLevel != null)) {
+        const parts: string[] = [];
+        if (recentEntry.sleepHours != null) parts.push(`around ${recentEntry.sleepHours} hours of sleep`);
+        if (recentEntry.stressLevel != null) parts.push(`a stress level of ${recentEntry.stressLevel} out of 5`);
+        return `Your recent check-ins include ${parts.join(' and ')}. Keeping sleep steady and stress lower on most days usually lines up with calmer skin in your data.`;
+      }
+      return "As you log more sleep and stress data with your check-ins, I'll be able to show you more clearly how they relate to your flare days and satisfaction.";
+    }
+
+    return "You're building a useful dataset about your skin. Keep logging routines and how things feel—I'll keep using that information to surface patterns and simple takeaways.";
   };
 
   const handleAskQuestion = (q: string) => {
@@ -286,6 +328,49 @@ export function Insights({
     ).length;
     return { routinesCompleted, flareDays };
   }, [year, month, completedDaysRaw, displayEntries]);
+
+  // Simple aggregates for the Ask Gia helper, derived from real data.
+  const totalRoutinesThisMonth = monthlySummary.routinesCompleted;
+  const flareDaysThisMonth = monthlySummary.flareDays;
+  const avgWeeklyConsistency =
+    hasRealData && weeklyData.length > 0
+      ? Math.round(
+        weeklyData.reduce((sum, d) => sum + (d.consistency ?? 0), 0) /
+        weeklyData.filter((d) => d.consistency != null).length
+      )
+      : null;
+  const recentEntry = entries.length > 0 ? [...entries].sort((a, b) => b.date.localeCompare(a.date))[0] : null;
+  const hasAnyData = entries.length > 0 || completedDays.length > 0;
+
+  const allContexts = entries.flatMap((e) => e.contextTags ?? []);
+  const mostCommonContext =
+    allContexts.length > 0
+      ? allContexts.reduce<{ tag: string; count: number }>((acc, tag) => {
+        const count = allContexts.filter((t) => t === tag).length;
+        return count > acc.count ? { tag, count } : acc;
+      }, { tag: allContexts[0], count: 0 }).tag
+      : null;
+
+  const allFlareTags = entries.flatMap((e) => e.flareTags ?? []);
+  const mostCommonFlare =
+    allFlareTags.length > 0
+      ? allFlareTags.reduce<{ tag: string; count: number }>((acc, tag) => {
+        const count = allFlareTags.filter((t) => t === tag).length;
+        return count > acc.count ? { tag, count } : acc;
+      }, { tag: allFlareTags[0], count: 0 }).tag
+      : null;
+
+  const displayWeeklyData = hasRealData
+    ? weeklyData
+    : [
+      { day: 'Mon', date: '2026-03-03', consistency: 85, satisfaction: 4, routineCompleted: true, flareReported: false },
+      { day: 'Tue', date: '2026-03-04', consistency: 95, satisfaction: 5, routineCompleted: true, flareReported: false },
+      { day: 'Wed', date: '2026-03-05', consistency: 78, satisfaction: 3, routineCompleted: false, flareReported: true },
+      { day: 'Thu', date: '2026-03-06', consistency: 88, satisfaction: 4, routineCompleted: true, flareReported: false },
+      { day: 'Fri', date: '2026-03-07', consistency: 96, satisfaction: 5, routineCompleted: true, flareReported: false },
+      { day: 'Sat', date: '2026-03-08', consistency: 70, satisfaction: 3, routineCompleted: false, flareReported: false },
+      { day: 'Sun', date: '2026-03-09', consistency: 82, satisfaction: 4, routineCompleted: true, flareReported: false },
+    ];
 
   const getCompletionForDate = (day: number) => {
     const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
@@ -391,55 +476,6 @@ export function Insights({
                 </TouchableOpacity>
               </TouchableOpacity>
             </Modal>
-          )}
-
-          {/* Filters */}
-          <TouchableOpacity style={styles.filtersToggle} onPress={() => setShowFilters(!showFilters)} activeOpacity={0.85}>
-            <View style={styles.filtersToggleLeft}>
-              <Ionicons name="filter-outline" size={18} color="#7B9B8C" />
-              <Text style={styles.filtersToggleText}>Filters</Text>
-            </View>
-            <Ionicons name={showFilters ? 'chevron-up' : 'chevron-down'} size={18} color="#6B7370" />
-          </TouchableOpacity>
-
-          {showFilters && (
-            <View style={styles.filtersPanel}>
-              <Text style={styles.filterSectionLabel}>Symptoms</Text>
-              <View style={styles.tagRow}>
-                {SYMPTOM_FILTERS.map((s) => (
-                  <TouchableOpacity key={s} style={[styles.filterTag, selectedSymptoms.includes(s) && styles.filterTagActive]} onPress={() => toggleFilter(s, 'symptom')}>
-                    <Text style={[styles.filterTagText, selectedSymptoms.includes(s) && styles.filterTagTextActive]}>{s}</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-              <Text style={styles.filterSectionLabel}>Context</Text>
-              <View style={styles.tagRow}>
-                {CONTEXT_FILTERS.map((c) => (
-                  <TouchableOpacity key={c} style={[styles.filterTag, selectedContext.includes(c) && styles.filterTagActive]} onPress={() => toggleFilter(c, 'context')}>
-                    <Text style={[styles.filterTagText, selectedContext.includes(c) && styles.filterTagTextActive]}>{c}</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-              <Text style={styles.filterSectionLabel}>Mood</Text>
-              <View style={styles.moodRow}>
-                {[1, 2, 3, 4, 5].map((v) => (
-                  <TouchableOpacity
-                    key={v}
-                    style={[styles.moodCircleBtn, selectedMood === v && styles.moodCircleBtnActive]}
-                    onPress={() => setSelectedMood(selectedMood === v ? null : v)}
-                  >
-                    <Text style={styles.moodCircleEmoji}>{MOOD_EMOJI[v]}</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-              <Text style={styles.moodScaleLabel}>not satisfied</Text>
-              <Text style={[styles.moodScaleLabel, styles.moodScaleLabelRight]}>very satisfied</Text>
-              {(selectedSymptoms.length > 0 || selectedContext.length > 0 || selectedMood != null) && (
-                <TouchableOpacity onPress={clearAllFilters} style={styles.clearFiltersBtn}>
-                  <Text style={styles.clearFiltersText}>Clear all filters</Text>
-                </TouchableOpacity>
-              )}
-            </View>
           )}
 
           {/* View monthly summary toggle */}
@@ -569,6 +605,55 @@ export function Insights({
             </View>
           </View>
 
+          {/* Filters (applies to timeline below) */}
+          <TouchableOpacity style={styles.filtersToggle} onPress={() => setShowFilters(!showFilters)} activeOpacity={0.85}>
+            <View style={styles.filtersToggleLeft}>
+              <Ionicons name="filter-outline" size={18} color="#7B9B8C" />
+              <Text style={styles.filtersToggleText}>Filters</Text>
+            </View>
+            <Ionicons name={showFilters ? 'chevron-up' : 'chevron-down'} size={18} color="#6B7370" />
+          </TouchableOpacity>
+
+          {showFilters && (
+            <View style={styles.filtersPanel}>
+              <Text style={styles.filterSectionLabel}>Symptoms</Text>
+              <View style={styles.tagRow}>
+                {SYMPTOM_FILTERS.map((s) => (
+                  <TouchableOpacity key={s} style={[styles.filterTag, selectedSymptoms.includes(s) && styles.filterTagActive]} onPress={() => toggleFilter(s, 'symptom')}>
+                    <Text style={[styles.filterTagText, selectedSymptoms.includes(s) && styles.filterTagTextActive]}>{s}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+              <Text style={styles.filterSectionLabel}>Context</Text>
+              <View style={styles.tagRow}>
+                {CONTEXT_FILTERS.map((c) => (
+                  <TouchableOpacity key={c} style={[styles.filterTag, selectedContext.includes(c) && styles.filterTagActive]} onPress={() => toggleFilter(c, 'context')}>
+                    <Text style={[styles.filterTagText, selectedContext.includes(c) && styles.filterTagTextActive]}>{c}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+              <Text style={styles.filterSectionLabel}>Mood</Text>
+              <View style={styles.moodRow}>
+                {[1, 2, 3, 4, 5].map((v) => (
+                  <TouchableOpacity
+                    key={v}
+                    style={[styles.moodCircleBtn, selectedMood === v && styles.moodCircleBtnActive]}
+                    onPress={() => setSelectedMood(selectedMood === v ? null : v)}
+                  >
+                    <Text style={styles.moodCircleEmoji}>{MOOD_EMOJI[v]}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+              <Text style={styles.moodScaleLabel}>not satisfied</Text>
+              <Text style={[styles.moodScaleLabel, styles.moodScaleLabelRight]}>very satisfied</Text>
+              {(selectedSymptoms.length > 0 || selectedContext.length > 0 || selectedMood != null) && (
+                <TouchableOpacity onPress={clearAllFilters} style={styles.clearFiltersBtn}>
+                  <Text style={styles.clearFiltersText}>Clear all filters</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          )}
+
           {/* Timeline */}
           <Text style={styles.timelineTitle}>Timeline</Text>
           {filteredEntries.length === 0 ? (
@@ -593,14 +678,31 @@ export function Insights({
                   </View>
                   <View style={styles.timelineCard}>
                     <View style={styles.timelineCardHeader}>
-                      <Text style={styles.timelineDate}>
-                        {parseLocalDate(entry.date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
-                      </Text>
-                      {entry.routineCompleted && (
-                        <View style={styles.timelineRoutineBadge}>
-                          <Ionicons name="checkmark" size={10} color="#FFFFFF" />
-                          <Text style={styles.timelineRoutineBadgeText}>routine complete</Text>
-                        </View>
+                      <View>
+                        <Text style={styles.timelineDate}>
+                          {entry.createdAt
+                            ? formatTimestamp(entry.createdAt)
+                            : parseLocalDate(entry.date).toLocaleDateString('en-US', {
+                                weekday: 'short',
+                                month: 'short',
+                                day: 'numeric',
+                              })}
+                        </Text>
+                        {entry.routineCompleted && (
+                          <View style={styles.timelineRoutineBadge}>
+                            <Ionicons name="checkmark" size={10} color="#FFFFFF" />
+                            <Text style={styles.timelineRoutineBadgeText}>routine complete</Text>
+                          </View>
+                        )}
+                      </View>
+                      {onDeleteEntry && (
+                        <TouchableOpacity
+                          onPress={() => onDeleteEntry(entry.id)}
+                          hitSlop={12}
+                          style={styles.timelineDeleteButton}
+                        >
+                          <Ionicons name="trash-outline" size={16} color="#8B4545" />
+                        </TouchableOpacity>
                       )}
                     </View>
                     {entry.mood && (
@@ -697,7 +799,7 @@ export function Insights({
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#E8EDE8' },
   scroll: { flex: 1 },
-  scrollContent: { paddingTop: 24, paddingBottom: 120 },
+  scrollContent: { paddingTop: 24, paddingBottom: 24 },
   headerWrap: { width: '100%', paddingHorizontal: HEADER_PADDING_HORIZONTAL },
   contentWrap: { width: '100%', maxWidth: 672, alignSelf: 'center', paddingHorizontal: HEADER_PADDING_HORIZONTAL },
   askGiaBtn: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 16, borderRadius: 20, backgroundColor: '#7B9B8C', marginBottom: 24, borderWidth: 2, borderColor: '#7B9B8C' },
@@ -826,6 +928,7 @@ const styles = StyleSheet.create({
   timelineMoodIcon: { width: 32, height: 32, borderRadius: 16, backgroundColor: '#F49EC4', alignItems: 'center', justifyContent: 'center' },
   timelineMoodEmoji: { fontSize: 18 },
   timelineMoodLabel: { fontSize: LABEL_SIZE, color: TEXT_SECONDARY },
+  timelineDeleteButton: { padding: 4, marginLeft: 8 },
   timelineTagsSection: { marginBottom: 8 },
   timelineTagsLabel: { fontSize: 10, color: TEXT_SECONDARY, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 6 },
   flareTag: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999, backgroundColor: '#FFE0E0', borderWidth: 1, borderColor: 'rgba(255,176,176,0.3)' },

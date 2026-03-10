@@ -10,15 +10,26 @@ export type CompletedDayRow = {
   evening_done: boolean;
 };
 
+export type RoutineCompletionEvent = {
+  completedAt: string;
+  type: 'morning' | 'evening';
+};
+
 export type RoutineStats = {
   completedDays: Array<{ date: string; stepsCompleted: number; totalSteps: number }>;
   /** Raw rows for computing monthly stats (routines completed per month). */
   completedDaysRaw: Array<{ date: string; morning_done: boolean; evening_done: boolean }>;
+  /** Full history of each routine completion with timestamp (for timeline display). */
+  routineCompletions: RoutineCompletionEvent[];
+  /** Consecutive days (including today) with at least one routine completed. */
   currentStreak: number;
+  /** Distinct weeks in which the user completed at least one routine. */
   weekCount: number;
+  /** Total days (all time) with at least one routine completed (not necessarily consecutive). */
+  daysTracked: number;
   morningRoutinesDone: number;
   eveningRoutinesDone: number;
-  /** Total flowers planted (one per routine completion, all time). */
+  /** Total number of routines completed (one per morning/evening completion). */
   flowersPlanted: number;
   loading: boolean;
   refresh: () => Promise<void>;
@@ -30,7 +41,12 @@ function parseDate(s: string): Date {
 }
 
 function toDateStr(d: Date): string {
-  return d.toISOString().slice(0, 10);
+  // Use local date parts so comparisons match Postgres `date` values (YYYY-MM-DD),
+  // avoiding UTC shifts from `toISOString()`.
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
 }
 
 function getStartOfWeek(d: Date): Date {
@@ -67,23 +83,54 @@ function computeWeekCount(rows: CompletedDayRow[]): number {
   rows.forEach((r) => {
     const d = parseDate(r.date);
     if (r.morning_done || r.evening_done) {
-      weeks.add(getStartOfWeek(d).toISOString().slice(0, 10));
+      weeks.add(toDateStr(getStartOfWeek(d)));
     }
   });
   return weeks.size;
 }
 
-/** Total routine completions (one flower per morning or evening completion, all time). */
-function computeFlowersPlanted(rows: CompletedDayRow[]): number {
-  return rows.reduce(
-    (sum, r) => sum + (r.morning_done ? 1 : 0) + (r.evening_done ? 1 : 0),
-    0
-  );
+/** Total number of routines completed (flowers) = count of all morning + evening completions. */
+function computeFlowersPlanted(completionRows: RoutineCompletionRow[]): number {
+  return completionRows.length;
+}
+
+type RoutineCompletionRow = { completed_at: string; type: 'morning' | 'evening' };
+
+/** Convert completed_at (ISO) to local date string YYYY-MM-DD. */
+function completedAtToDateStr(completedAt: string): string {
+  const d = new Date(completedAt);
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+/** Convert routine_completions rows into CompletedDayRow[] (grouped by date). */
+function completionsToCompletedDays(rows: RoutineCompletionRow[]): CompletedDayRow[] {
+  const totalSteps = 5;
+  const byDate = new Map<string, { morning: boolean; evening: boolean }>();
+  for (const r of rows) {
+    const date = completedAtToDateStr(r.completed_at);
+    const prev = byDate.get(date) ?? { morning: false, evening: false };
+    if (r.type === 'morning') prev.morning = true;
+    else prev.evening = true;
+    byDate.set(date, prev);
+  }
+  return Array.from(byDate.entries())
+    .map(([date, { morning, evening }]) => ({
+      date,
+      morning_done: morning,
+      evening_done: evening,
+      steps_completed: (morning ? 3 : 0) + (evening ? 2 : 0),
+      total_steps: totalSteps,
+    }))
+    .sort((a, b) => b.date.localeCompare(a.date));
 }
 
 export function useRoutineStats(): RoutineStats {
   const { user } = useAuth();
   const [completedDays, setCompletedDays] = useState<CompletedDayRow[]>([]);
+  const [rawCompletions, setRawCompletions] = useState<RoutineCompletionRow[]>([]);
   const [loading, setLoading] = useState(true);
 
   const fetchCompletedDays = useCallback(async () => {
@@ -94,15 +141,18 @@ export function useRoutineStats(): RoutineStats {
     }
     setLoading(true);
     const { data, error } = await supabase
-      .from('completed_days')
-      .select('date, steps_completed, total_steps, morning_done, evening_done')
+      .from('routine_completions')
+      .select('completed_at, type')
       .eq('user_id', user.id)
-      .order('date', { ascending: false })
-      .limit(365);
+      .order('completed_at', { ascending: false })
+      .limit(3650);
     if (error) {
       setCompletedDays([]);
+      setRawCompletions([]);
     } else {
-      setCompletedDays((data as CompletedDayRow[]) ?? []);
+      const rows = (data as RoutineCompletionRow[]) ?? [];
+      setRawCompletions(rows);
+      setCompletedDays(completionsToCompletedDays(rows));
     }
     setLoading(false);
   }, [user?.id]);
@@ -134,11 +184,16 @@ export function useRoutineStats(): RoutineStats {
       morning_done: r.morning_done,
       evening_done: r.evening_done,
     })),
+    routineCompletions: rawCompletions.map((r) => ({
+      completedAt: r.completed_at,
+      type: r.type,
+    })),
     currentStreak: computeStreak(completedDays),
     weekCount: computeWeekCount(completedDays),
+    daysTracked: completedDays.length,
     morningRoutinesDone,
     eveningRoutinesDone,
-    flowersPlanted: computeFlowersPlanted(completedDays),
+    flowersPlanted: computeFlowersPlanted(rawCompletions),
     loading,
     refresh: fetchCompletedDays,
   };

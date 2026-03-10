@@ -20,6 +20,7 @@ import { EmergencyHelp } from '../../components/EmergencyHelp';
 import { ExecutiveSummary } from '../../components/ExecutiveSummary';
 import { TabTopNavbar } from '../../components/TabTopNavbar';
 import { HEADER_PADDING_HORIZONTAL } from '../../constants/HeaderStyles';
+import { formatTimestamp, getLocalDateString, parseLocalDateString } from '../../lib/dateUtils';
 import {
   BODY_SIZE,
   BODY_SMALL_SIZE,
@@ -44,6 +45,7 @@ const PHOTO_SIZE =
 interface ProgressPhoto {
   id: string;
   date: string;
+  createdAt?: string;
   storagePath: string;
   imageUrl: string;
   notes?: string;
@@ -58,6 +60,7 @@ export default function ProgressScreen() {
       storedPhotos.map((p) => ({
         id: p.id,
         date: p.date,
+        createdAt: p.createdAt,
         storagePath: p.storagePath,
         imageUrl: p.imageUrl,
         notes: p.notes,
@@ -88,7 +91,7 @@ export default function ProgressScreen() {
   const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
   const getYearsFromPhotos = () => {
-    const years = new Set(allPhotos.map((p) => new Date(p.date).getFullYear().toString()));
+    const years = new Set(allPhotos.map((p) => parseLocalDateString(p.date).getFullYear().toString()));
     return ['all', ...Array.from(years).sort()];
   };
 
@@ -96,8 +99,8 @@ export default function ProgressScreen() {
     if (year === 'all') return ['all'];
     const months = new Set(
       allPhotos
-        .filter((p) => new Date(p.date).getFullYear().toString() === year)
-        .map((p) => new Date(p.date).getMonth().toString())
+        .filter((p) => parseLocalDateString(p.date).getFullYear().toString() === year)
+        .map((p) => parseLocalDateString(p.date).getMonth().toString())
     );
     return [
       'all',
@@ -114,10 +117,10 @@ export default function ProgressScreen() {
     const dates = new Set(
       allPhotos
         .filter((p) => {
-          const d = new Date(p.date);
+          const d = parseLocalDateString(p.date);
           return d.getFullYear().toString() === year && d.getMonth().toString() === month;
         })
-        .map((p) => new Date(p.date).getDate().toString())
+        .map((p) => parseLocalDateString(p.date).getDate().toString())
     );
     return [
       'all',
@@ -130,16 +133,18 @@ export default function ProgressScreen() {
   };
 
   const filteredPhotos = allPhotos.filter((photo) => {
-    const d = new Date(photo.date);
+    const d = parseLocalDateString(photo.date);
     if (selectedYear !== 'all' && d.getFullYear().toString() !== selectedYear) return false;
     if (selectedMonth !== 'all' && d.getMonth().toString() !== selectedMonth) return false;
     if (selectedDate !== 'all' && d.getDate().toString() !== selectedDate) return false;
     return true;
   });
 
-  const sortedFilteredPhotos = [...filteredPhotos].sort(
-    (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
-  );
+  const sortedFilteredPhotos = [...filteredPhotos].sort((a, b) => {
+    const aTime = a.createdAt ? new Date(a.createdAt).getTime() : parseLocalDateString(a.date).getTime();
+    const bTime = b.createdAt ? new Date(b.createdAt).getTime() : parseLocalDateString(b.date).getTime();
+    return bTime - aTime;
+  });
 
   const getDaysUntilAppointment = () => {
     if (!appointmentDate) return null;
@@ -183,7 +188,7 @@ export default function ProgressScreen() {
     }
   };
 
-  const dateForUpload = new Date().toISOString().split('T')[0];
+  const dateForUpload = getLocalDateString();
   const pickImageFromLibrary = async () => {
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!permission.granted) {
@@ -559,11 +564,13 @@ export default function ProgressScreen() {
                       resizeMode="cover"
                     />
                     <Text style={styles.comparisonDate}>
-                      {new Date(photo.date).toLocaleDateString('en-US', {
-                        month: 'short',
-                        day: 'numeric',
-                        year: 'numeric',
-                      })}
+                      {photo.createdAt
+                        ? formatTimestamp(photo.createdAt)
+                        : parseLocalDateString(photo.date).toLocaleDateString('en-US', {
+                            month: 'short',
+                            day: 'numeric',
+                            year: 'numeric',
+                          })}
                     </Text>
                   </View>
                 ))}
@@ -620,11 +627,13 @@ export default function ProgressScreen() {
                     />
                     <View style={styles.gridOverlay}>
                       <Text style={styles.gridDate}>
-                        {new Date(photo.date).toLocaleDateString('en-US', {
-                          day: 'numeric',
-                          month: 'short',
-                          year: 'numeric',
-                        })}
+                        {photo.createdAt
+                          ? formatTimestamp(photo.createdAt)
+                          : parseLocalDateString(photo.date).toLocaleDateString('en-US', {
+                              day: 'numeric',
+                              month: 'short',
+                              year: 'numeric',
+                            })}
                       </Text>
                     </View>
                   </TouchableOpacity>
@@ -720,11 +729,13 @@ export default function ProgressScreen() {
                   <Text style={styles.modalTitle}>Progress photo</Text>
                   {selectedPhoto && (
                     <Text style={styles.modalSubtitle}>
-                      {new Date(selectedPhoto.date).toLocaleDateString('en-US', {
-                        year: 'numeric',
-                        month: 'long',
-                        day: 'numeric',
-                      })}
+                      {selectedPhoto.createdAt
+                        ? formatTimestamp(selectedPhoto.createdAt)
+                        : parseLocalDateString(selectedPhoto.date).toLocaleDateString('en-US', {
+                            year: 'numeric',
+                            month: 'long',
+                            day: 'numeric',
+                          })}
                     </Text>
                   )}
                 </View>

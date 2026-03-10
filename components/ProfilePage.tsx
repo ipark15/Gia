@@ -53,6 +53,8 @@ export interface ProfilePageProps {
   registrationData: RegistrationData;
   onEdit: () => void;
   currentStreak: number;
+  /** Total days (all time) with at least one routine completed. */
+  daysTracked?: number;
   onManageRules?: () => void;
   treatmentPlanId?: string;
   /** Morning and evening step counts from the treatment plan (for display on the card). */
@@ -75,6 +77,7 @@ export function ProfilePage({
   registrationData,
   onEdit,
   currentStreak,
+  daysTracked,
   onManageRules,
   treatmentPlanId = '',
   routineMorningSteps,
@@ -88,7 +91,7 @@ export function ProfilePage({
 }: ProfilePageProps) {
   const [showHelpModal, setShowHelpModal] = useState(false);
 
-  const totalCompletedDays = completedDays.length;
+  const totalCompletedDays = daysTracked ?? completedDays.length;
   const completionRate =
     completedDays.length > 0
       ? Math.round(
@@ -294,7 +297,7 @@ const styles = StyleSheet.create({
   scroll: { flex: 1 },
   scrollContent: {
     paddingTop: 24,
-    paddingBottom: 120,
+    paddingBottom: 24,
   },
   headerWrap: {
     width: '100%',

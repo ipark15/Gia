@@ -17,6 +17,8 @@ function base64ToArrayBuffer(base64: string): ArrayBuffer {
 export type ProgressPhotoItem = {
   id: string;
   date: string;
+  /** When the photo was uploaded (ISO string). */
+  createdAt: string;
   storagePath: string;
   imageUrl: string;
   notes?: string;
@@ -44,9 +46,9 @@ export function useProgressPhotos(): {
     setLoading(true);
     const { data, error } = await supabase
       .from('progress_photos')
-      .select('id, date, storage_path, notes')
+      .select('id, date, created_at, storage_path, notes')
       .eq('user_id', user.id)
-      .order('date', { ascending: false });
+      .order('created_at', { ascending: false });
     if (error) {
       setPhotos([]);
       setLoading(false);
@@ -58,6 +60,7 @@ export function useProgressPhotos(): {
       return {
         id: row.id,
         date: row.date,
+        createdAt: row.created_at,
         storagePath: row.storage_path,
         imageUrl: urlData.publicUrl,
         notes: row.notes ?? undefined,

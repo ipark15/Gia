@@ -11,7 +11,7 @@ const PROFILE_BG = '#E8EDE8';
 
 export default function ProfileScreen() {
   const { user, profile } = useAuth();
-  const { completedDays, currentStreak, loading: statsLoading } = useRoutineStats();
+  const { completedDays, currentStreak, daysTracked, loading: statsLoading } = useRoutineStats();
   const planId = profile?.selected_treatment_plan_id ?? 'acne-basic';
   const { morningSteps, eveningSteps } = useMemo(() => {
     const { amRoutine, pmRoutine } = getProductRecommendations(planId);
@@ -43,10 +43,11 @@ export default function ProfileScreen() {
     <SafeAreaView style={{ flex: 1, backgroundColor: PROFILE_BG }} edges={['top']}>
       <StatusBar style="dark" backgroundColor={PROFILE_BG} />
       <ProfilePage
-        completedDays={statsLoading ? [] : completedDays}
+        completedDays={completedDays}
         registrationData={registrationData}
         onEdit={() => router.push({ pathname: '/(onboarding)/registration', params: { step: '2' } })}
-        currentStreak={statsLoading ? 0 : currentStreak}
+        currentStreak={currentStreak}
+        daysTracked={daysTracked}
         onManageRules={() => router.push({ pathname: '/(onboarding)/registration', params: { step: '2' } })}
         treatmentPlanId={planId}
         routineMorningSteps={morningSteps}

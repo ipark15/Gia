@@ -63,6 +63,26 @@ export interface Database {
           updated_at?: string;
         };
       };
+      routine_completions: {
+        Row: {
+          id: string;
+          user_id: string;
+          completed_at: string;
+          type: 'morning' | 'evening';
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          completed_at?: string;
+          type: 'morning' | 'evening';
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          completed_at?: string;
+          type?: 'morning' | 'evening';
+        };
+      };
       completed_days: {
         Row: {
           id: string;
@@ -109,6 +129,7 @@ export interface Database {
           flare_tags: string[];
           context_tags: string[];
           note: string | null;
+          photo_path: string | null;
           sleep_hours: number | null;
           stress_level: number | null;
           on_period: boolean | null;
@@ -125,6 +146,7 @@ export interface Database {
           flare_tags?: string[];
           context_tags?: string[];
           note?: string | null;
+          photo_path?: string | null;
           sleep_hours?: number | null;
           stress_level?: number | null;
           on_period?: boolean | null;
@@ -141,6 +163,7 @@ export interface Database {
           flare_tags?: string[];
           context_tags?: string[];
           note?: string | null;
+          photo_path?: string | null;
           sleep_hours?: number | null;
           stress_level?: number | null;
           on_period?: boolean | null;
