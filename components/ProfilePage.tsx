@@ -67,9 +67,9 @@ export interface ProfilePageProps {
   accountData?: {
     name: string;
     email: string;
-    password: string;
   };
-  onUpdateAccount?: (data: { name: string; email: string; password: string }) => void;
+  onUpdateAccount?: (data: { name: string; email: string; password: string }) => Promise<void>;
+  onSignOut?: () => void;
 }
 
 export function ProfilePage({
@@ -88,6 +88,7 @@ export function ProfilePage({
   onOpenInventory,
   accountData,
   onUpdateAccount,
+  onSignOut,
 }: ProfilePageProps) {
   const [showHelpModal, setShowHelpModal] = useState(false);
 
@@ -269,7 +270,7 @@ export function ProfilePage({
 
             {/* Account Management */}
             <AccountManagementSection
-              accountData={accountData ?? { name: 'User', email: 'user@example.com', password: 'password123' }}
+              accountData={accountData ?? { name: 'User', email: 'user@example.com' }}
               onUpdateAccount={onUpdateAccount}
             />
 
@@ -278,6 +279,14 @@ export function ProfilePage({
               <TouchableOpacity style={styles.manageRulesBtn} onPress={onManageRules} activeOpacity={0.9}>
                 <Ionicons name="flag" size={20} color="#FFFFFF" />
                 <Text style={styles.manageRulesBtnText}>Manage routine rules</Text>
+              </TouchableOpacity>
+            ) : null}
+
+            {/* Sign out */}
+            {onSignOut ? (
+              <TouchableOpacity style={styles.signOutBtn} onPress={onSignOut} activeOpacity={0.9}>
+                <Ionicons name="log-out-outline" size={20} color="#E11D48" />
+                <Text style={styles.signOutBtnText}>Sign out</Text>
               </TouchableOpacity>
             ) : null}
           </View>
@@ -555,4 +564,17 @@ const styles = StyleSheet.create({
     borderRadius: 20,
   },
   manageRulesBtnText: { fontSize: BUTTON_TEXT_SIZE, color: '#FFFFFF', fontWeight: BUTTON_TEXT_WEIGHT },
+  signOutBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+    paddingVertical: 16,
+    paddingHorizontal: 24,
+    borderRadius: 20,
+    borderWidth: 2,
+    borderColor: 'rgba(225,29,72,0.3)',
+    backgroundColor: 'rgba(225,29,72,0.06)',
+  },
+  signOutBtnText: { fontSize: BUTTON_TEXT_SIZE, color: '#E11D48', fontWeight: BUTTON_TEXT_WEIGHT },
 });

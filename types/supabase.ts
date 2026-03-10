@@ -23,6 +23,7 @@ export interface Database {
           selected_treatment_plans: Json;
           selected_treatment_plan_id: string | null;
           next_derm_appointment: string | null;
+          custom_routine: Json | null;
           created_at: string;
           updated_at: string;
         };
@@ -41,6 +42,7 @@ export interface Database {
           selected_treatment_plans?: Json;
           selected_treatment_plan_id?: string | null;
           next_derm_appointment?: string | null;
+          custom_routine?: Json | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -59,6 +61,7 @@ export interface Database {
           selected_treatment_plans?: Json;
           selected_treatment_plan_id?: string | null;
           next_derm_appointment?: string | null;
+          custom_routine?: Json | null;
           created_at?: string;
           updated_at?: string;
         };

@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import React, { useState } from 'react';
 import {
+  ActivityIndicator,
   StyleSheet,
   Text,
   TextInput,
@@ -12,9 +13,8 @@ export interface AccountManagementSectionProps {
   accountData: {
     name: string;
     email: string;
-    password: string;
   };
-  onUpdateAccount?: (data: { name: string; email: string; password: string }) => void;
+  onUpdateAccount?: (data: { name: string; email: string; password: string }) => Promise<void>;
 }
 
 export function AccountManagementSection({
@@ -24,17 +24,30 @@ export function AccountManagementSection({
   const [isEditing, setIsEditing] = useState(false);
   const [name, setName] = useState(accountData.name);
   const [email, setEmail] = useState(accountData.email);
-  const [password, setPassword] = useState(accountData.password);
+  const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [emailNotice, setEmailNotice] = useState(false);
 
-  const handleSave = () => {
-    onUpdateAccount?.({ name, email, password });
-    setIsEditing(false);
+  const handleSave = async () => {
+    if (!onUpdateAccount) return;
+    const emailChanged = email.trim() !== accountData.email;
+    setIsSaving(true);
+    try {
+      await onUpdateAccount({ name, email: email.trim(), password });
+      setIsEditing(false);
+      setPassword('');
+      if (emailChanged) setEmailNotice(true);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleCancel = () => {
     setName(accountData.name);
     setEmail(accountData.email);
-    setPassword(accountData.password);
+    setPassword('');
+    setShowPassword(false);
     setIsEditing(false);
   };
 
@@ -68,21 +81,34 @@ export function AccountManagementSection({
             keyboardType="email-address"
             autoCapitalize="none"
           />
-          <Text style={styles.label}>Password</Text>
-          <TextInput
-            style={styles.input}
-            value={password}
-            onChangeText={setPassword}
-            placeholder="••••••••"
-            placeholderTextColor="#9CA3AF"
-            secureTextEntry
-          />
+          <Text style={styles.label}>New password (leave blank to keep current)</Text>
+          <View style={styles.passwordRow}>
+            <TextInput
+              style={[styles.input, styles.passwordInput]}
+              value={password}
+              onChangeText={setPassword}
+              placeholder="••••••••"
+              placeholderTextColor="#9CA3AF"
+              secureTextEntry={!showPassword}
+            />
+            <TouchableOpacity
+              style={styles.eyeBtn}
+              onPress={() => setShowPassword((v) => !v)}
+              hitSlop={8}
+            >
+              <Ionicons name={showPassword ? 'eye-off-outline' : 'eye-outline'} size={20} color="#9CA3AF" />
+            </TouchableOpacity>
+          </View>
           <View style={styles.buttonRow}>
-            <TouchableOpacity style={styles.cancelBtn} onPress={handleCancel} activeOpacity={0.85}>
+            <TouchableOpacity style={styles.cancelBtn} onPress={handleCancel} activeOpacity={0.85} disabled={isSaving}>
               <Text style={styles.cancelBtnText}>Cancel</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.saveBtn} onPress={handleSave} activeOpacity={0.85}>
-              <Text style={styles.saveBtnText}>Save</Text>
+            <TouchableOpacity style={styles.saveBtn} onPress={handleSave} activeOpacity={0.85} disabled={isSaving}>
+              {isSaving ? (
+                <ActivityIndicator size="small" color="#FFFFFF" />
+              ) : (
+                <Text style={styles.saveBtnText}>Save</Text>
+              )}
             </TouchableOpacity>
           </View>
         </View>
@@ -92,8 +118,14 @@ export function AccountManagementSection({
           <Text style={styles.displayValue}>{accountData.name}</Text>
           <Text style={styles.displayLabel}>Email</Text>
           <Text style={styles.displayValue}>{accountData.email}</Text>
+          {emailNotice && (
+            <View style={styles.emailNotice}>
+              <Ionicons name="mail-outline" size={16} color="#5F8575" />
+              <Text style={styles.emailNoticeText}>Check your new email address to confirm the change.</Text>
+            </View>
+          )}
           {onUpdateAccount && (
-            <TouchableOpacity style={styles.editBtn} onPress={() => setIsEditing(true)} activeOpacity={0.85}>
+            <TouchableOpacity style={styles.editBtn} onPress={() => { setEmailNotice(false); setIsEditing(true); }} activeOpacity={0.85}>
               <Ionicons name="pencil-outline" size={18} color="#7B9B8C" />
               <Text style={styles.editBtnText}>Edit account</Text>
             </TouchableOpacity>
@@ -135,6 +167,18 @@ const styles = StyleSheet.create({
   },
   form: {
     gap: 12,
+  },
+  passwordRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  passwordInput: {
+    flex: 1,
+  },
+  eyeBtn: {
+    position: 'absolute',
+    right: 12,
+    padding: 4,
   },
   label: {
     fontSize: 12,
@@ -212,5 +256,22 @@ const styles = StyleSheet.create({
     color: '#7B9B8C',
     fontStyle: 'italic',
     fontWeight: '600',
+  },
+  emailNotice: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 8,
+    marginTop: 12,
+    padding: 12,
+    borderRadius: 12,
+    backgroundColor: '#E8F5E9',
+    borderWidth: 1,
+    borderColor: 'rgba(95,133,117,0.3)',
+  },
+  emailNoticeText: {
+    flex: 1,
+    fontSize: 13,
+    color: '#2D4A3E',
+    lineHeight: 18,
   },
 });

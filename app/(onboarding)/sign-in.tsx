@@ -27,6 +27,7 @@ export default function SignIn() {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -155,14 +156,23 @@ export default function SignIn() {
             </View>
             <View style={styles.field}>
               <Text style={styles.label}>Password</Text>
-              <TextInput
-                style={styles.input}
-                value={password}
-                onChangeText={setPassword}
-                secureTextEntry
-                placeholder={mode === 'create' ? 'At least 6 characters' : 'Enter your password'}
-                placeholderTextColor="#8A9088"
-              />
+              <View style={styles.passwordRow}>
+                <TextInput
+                  style={[styles.input, styles.passwordInput]}
+                  value={password}
+                  onChangeText={setPassword}
+                  secureTextEntry={!showPassword}
+                  placeholder={mode === 'create' ? 'At least 6 characters' : 'Enter your password'}
+                  placeholderTextColor="#8A9088"
+                />
+                <TouchableOpacity
+                  style={styles.eyeBtn}
+                  onPress={() => setShowPassword((v) => !v)}
+                  hitSlop={8}
+                >
+                  <Ionicons name={showPassword ? 'eye-off-outline' : 'eye-outline'} size={20} color="#8A9088" />
+                </TouchableOpacity>
+              </View>
               {password.length > 0 && password.length < 6 && (
                 <Text style={styles.errorText}>Password must be at least 6 characters</Text>
               )}
@@ -292,6 +302,18 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#2D4A3E',
     backgroundColor: '#FFFFFF',
+  },
+  passwordRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  passwordInput: {
+    flex: 1,
+  },
+  eyeBtn: {
+    position: 'absolute',
+    right: 12,
+    padding: 4,
   },
   errorText: {
     marginTop: 4,

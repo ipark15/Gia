@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
+  ActivityIndicator,
   Linking,
   Modal,
   ScrollView,
@@ -34,9 +35,17 @@ export interface TreatmentPlanPageProps {
   onManageRules?: () => void;
   /** When true, hide the top header (back + title). Use when embedded in a tabbed screen. */
   hideHeader?: boolean;
+  /** Whether this user has a dermatologist plan. */
+  hasDermatologistPlan?: boolean;
+  /** The user's prescribed dermatologist products (from registration). */
+  dermatologistProducts?: DermatologistProduct[];
+  /** User-saved customizations from a previous edit. Overrides derm/OTC defaults. */
+  customRoutine?: { amRoutine: RoutineStep[]; pmRoutine: RoutineStep[] } | null;
+  /** Called when the user saves edits. Should persist to the database. */
+  onSaveRoutine?: (amRoutine: RoutineStep[], pmRoutine: RoutineStep[]) => Promise<void>;
 }
 
-interface Product {
+export interface Product {
   brand: string;
   name: string;
   keyIngredient: string;
@@ -44,9 +53,33 @@ interface Product {
   note?: string;
 }
 
-interface RoutineStep {
+export interface RoutineStep {
   step: string;
   products: Product[];
+}
+
+interface DermatologistProduct {
+  id: string;
+  name: string;
+  brand: string;
+  instructions?: string;
+  timeOfDay: 'am' | 'pm' | 'both';
+  step: string;
+}
+
+function dermProductsToRoutine(products: DermatologistProduct[]): { amRoutine: RoutineStep[]; pmRoutine: RoutineStep[] } {
+  const toStep = (p: DermatologistProduct): RoutineStep => ({
+    step: p.step,
+    products: [{
+      brand: p.brand || 'Prescribed',
+      name: p.name,
+      keyIngredient: p.instructions || 'As prescribed by your dermatologist',
+    }],
+  });
+  return {
+    amRoutine: products.filter(p => p.timeOfDay === 'am' || p.timeOfDay === 'both').map(toStep),
+    pmRoutine: products.filter(p => p.timeOfDay === 'pm' || p.timeOfDay === 'both').map(toStep),
+  };
 }
 
 function getProductUrl(product: { brand: string; name: string; amazonUrl?: string }): string {
@@ -57,11 +90,33 @@ function getProductUrl(product: { brand: string; name: string; amazonUrl?: strin
   return `https://www.amazon.com/s?k=${searchQuery}`;
 }
 
-export function TreatmentPlanPage({ planId, onBack, onManageRules, hideHeader }: TreatmentPlanPageProps) {
-  const { amRoutine, pmRoutine } = getProductRecommendations(planId);
+export function TreatmentPlanPage({
+  planId,
+  onBack,
+  onManageRules,
+  hideHeader,
+  hasDermatologistPlan,
+  dermatologistProducts,
+  customRoutine,
+  onSaveRoutine,
+}: TreatmentPlanPageProps) {
+  const { amRoutine: otcAm, pmRoutine: otcPm } = getProductRecommendations(planId);
+
+  // Priority: customRoutine > derm products > OTC plan
+  const baseRoutine = useMemo(() => {
+    if (customRoutine) {
+      return { amRoutine: customRoutine.amRoutine, pmRoutine: customRoutine.pmRoutine };
+    }
+    if (hasDermatologistPlan && dermatologistProducts && dermatologistProducts.length > 0) {
+      return dermProductsToRoutine(dermatologistProducts);
+    }
+    return { amRoutine: otcAm, pmRoutine: otcPm };
+  }, [customRoutine, hasDermatologistPlan, dermatologistProducts, otcAm, otcPm]);
+
   const [isEditMode, setIsEditMode] = useState(false);
-  const [editedAmRoutine, setEditedAmRoutine] = useState<RoutineStep[]>(amRoutine);
-  const [editedPmRoutine, setEditedPmRoutine] = useState<RoutineStep[]>(pmRoutine);
+  const [isSaving, setIsSaving] = useState(false);
+  const [editedAmRoutine, setEditedAmRoutine] = useState<RoutineStep[]>(baseRoutine.amRoutine);
+  const [editedPmRoutine, setEditedPmRoutine] = useState<RoutineStep[]>(baseRoutine.pmRoutine);
   const [editingProduct, setEditingProduct] = useState<{
     routine: 'am' | 'pm';
     stepIndex: number;
@@ -76,13 +131,27 @@ export function TreatmentPlanPage({ planId, onBack, onManageRules, hideHeader }:
     note: '',
   });
 
-  const handleSaveChanges = () => {
+  const handleEnterEditMode = () => {
+    setEditedAmRoutine([...baseRoutine.amRoutine.map(s => ({ ...s, products: [...s.products] }))]);
+    setEditedPmRoutine([...baseRoutine.pmRoutine.map(s => ({ ...s, products: [...s.products] }))]);
+    setIsEditMode(true);
+  };
+
+  const handleSaveChanges = async () => {
+    if (onSaveRoutine) {
+      setIsSaving(true);
+      try {
+        await onSaveRoutine(editedAmRoutine, editedPmRoutine);
+      } finally {
+        setIsSaving(false);
+      }
+    }
     setIsEditMode(false);
   };
 
   const handleCancelEdit = () => {
-    setEditedAmRoutine(amRoutine);
-    setEditedPmRoutine(pmRoutine);
+    setEditedAmRoutine([...baseRoutine.amRoutine.map(s => ({ ...s, products: [...s.products] }))]);
+    setEditedPmRoutine([...baseRoutine.pmRoutine.map(s => ({ ...s, products: [...s.products] }))]);
     setIsEditMode(false);
     setEditingProduct(null);
   };
@@ -184,8 +253,8 @@ export function TreatmentPlanPage({ planId, onBack, onManageRules, hideHeader }:
     setProductForm({ brand: '', name: '', keyIngredient: '', amazonUrl: '', note: '' });
   };
 
-  const displayAmRoutine = isEditMode ? editedAmRoutine : amRoutine;
-  const displayPmRoutine = isEditMode ? editedPmRoutine : pmRoutine;
+  const displayAmRoutine = isEditMode ? editedAmRoutine : baseRoutine.amRoutine;
+  const displayPmRoutine = isEditMode ? editedPmRoutine : baseRoutine.pmRoutine;
 
   const openProduct = (product: Product) => {
     Linking.openURL(getProductUrl(product));
@@ -219,13 +288,17 @@ export function TreatmentPlanPage({ planId, onBack, onManageRules, hideHeader }:
         <View style={styles.infoBanner}>
           <Ionicons name="information-circle-outline" size={20} color="#5F8575" />
           <Text style={styles.infoText}>
-            Evidence-based products recommended by dermatologists for your skin concerns
+            {customRoutine
+              ? 'Your customized routine. Tap edit to make further changes.'
+              : hasDermatologistPlan && dermatologistProducts && dermatologistProducts.length > 0
+                ? "Your dermatologist's prescribed products. Tap edit to customize."
+                : 'Evidence-based products recommended by dermatologists for your skin concerns'}
           </Text>
         </View>
 
         {/* Edit toggle */}
         {!isEditMode ? (
-          <TouchableOpacity style={styles.editCta} onPress={() => setIsEditMode(true)} activeOpacity={0.9}>
+          <TouchableOpacity style={styles.editCta} onPress={handleEnterEditMode} activeOpacity={0.9}>
             <View style={styles.editIconWrap}>
               <Ionicons name="pencil" size={18} color="#FFFFFF" />
             </View>
@@ -236,9 +309,13 @@ export function TreatmentPlanPage({ planId, onBack, onManageRules, hideHeader }:
           </TouchableOpacity>
         ) : (
           <View style={styles.editActionsRow}>
-            <TouchableOpacity style={styles.saveBtn} onPress={handleSaveChanges} activeOpacity={0.9}>
-              <Ionicons name="checkmark" size={20} color="#FFFFFF" />
-              <Text style={styles.saveBtnText}>Save changes</Text>
+            <TouchableOpacity style={styles.saveBtn} onPress={handleSaveChanges} activeOpacity={0.9} disabled={isSaving}>
+              {isSaving ? (
+                <ActivityIndicator size="small" color="#FFFFFF" />
+              ) : (
+                <Ionicons name="checkmark" size={20} color="#FFFFFF" />
+              )}
+              <Text style={styles.saveBtnText}>{isSaving ? 'Saving...' : 'Save changes'}</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.cancelEditBtn} onPress={handleCancelEdit} activeOpacity={0.9}>
               <Ionicons name="close" size={20} color="#6B8B7D" />
