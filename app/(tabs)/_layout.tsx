@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Tabs } from 'expo-router';
 import React from 'react';
+import { Platform } from 'react-native';
 
 function TabBarIcon(props: {
   name: React.ComponentProps<typeof Ionicons>['name'];
@@ -18,6 +19,7 @@ export default function TabLayout() {
         tabBarStyle: {
           backgroundColor: '#FAF8F5',
           borderTopColor: '#E8DED0',
+          ...(Platform.OS === 'web' && { height: 56, paddingBottom: 0, paddingTop: 4 }),
         },
         headerStyle: {
           backgroundColor: '#FAF8F5',
