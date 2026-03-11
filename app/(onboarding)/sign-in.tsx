@@ -15,6 +15,9 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { supabase } from '../../lib/supabaseClient';
 
+const isValidEmail = (e: string) => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(e);
+const isValidPassword = (p: string) => p.length >= 8 && /[a-zA-Z]/.test(p) && /[0-9]/.test(p);
+
 function isProfileComplete(profile: { primary_condition?: string | null; conditions?: unknown[]; selected_treatment_plan_id?: string | null } | null): boolean {
   if (!profile) return false;
   if (profile.primary_condition) return true;
@@ -73,7 +76,7 @@ export default function SignIn() {
     setLoading(true);
     try {
       const emailClean = email.trim().toLowerCase().replace(/\s+/g, '');
-      if (!emailClean || !emailClean.includes('@')) {
+      if (!emailClean || !isValidEmail(emailClean)) {
         setError('Please enter a valid email address.');
         setLoading(false);
         return;
@@ -101,12 +104,11 @@ export default function SignIn() {
     }
   };
 
-  const isSignInValid = email.trim().length > 0 && password.length >= 6 && !loading;
+  const isSignInValid = email.trim().length > 0 && password.length > 0 && !loading;
   const isCreateValid =
     name.trim().length > 0 &&
-    email.trim().length > 0 &&
-    email.includes('@') &&
-    password.length >= 6 &&
+    isValidEmail(email.trim()) &&
+    isValidPassword(password) &&
     termsAccepted &&
     !loading;
 
@@ -164,7 +166,7 @@ export default function SignIn() {
                   value={password}
                   onChangeText={setPassword}
                   secureTextEntry={!showPassword}
-                  placeholder={mode === 'create' ? 'At least 6 characters' : 'Enter your password'}
+                  placeholder={mode === 'create' ? 'At least 8 characters, include a number' : 'Enter your password'}
                   placeholderTextColor="#8A9088"
                 />
                 <TouchableOpacity
@@ -175,8 +177,8 @@ export default function SignIn() {
                   <Ionicons name={showPassword ? 'eye-off-outline' : 'eye-outline'} size={20} color="#8A9088" />
                 </TouchableOpacity>
               </View>
-              {password.length > 0 && password.length < 6 && (
-                <Text style={styles.errorText}>Password must be at least 6 characters</Text>
+              {mode === 'create' && password.length > 0 && !isValidPassword(password) && (
+                <Text style={styles.errorText}>At least 8 characters with a letter and a number</Text>
               )}
             </View>
             {mode === 'create' && (

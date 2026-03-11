@@ -36,9 +36,22 @@ export function AccountManagementSection({
   const [showPassword, setShowPassword] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [emailNotice, setEmailNotice] = useState(false);
+  const [validationError, setValidationError] = useState<string | null>(null);
+
+  const isValidEmail = (e: string) => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(e);
+  const isValidPassword = (p: string) => p.length >= 8 && /[a-zA-Z]/.test(p) && /[0-9]/.test(p);
 
   const handleSave = async () => {
     if (!onUpdateAccount) return;
+    setValidationError(null);
+    if (!isValidEmail(email.trim())) {
+      setValidationError('Please enter a valid email address.');
+      return;
+    }
+    if (password.length > 0 && !isValidPassword(password)) {
+      setValidationError('New password must be at least 8 characters and include a letter and a number.');
+      return;
+    }
     const emailChanged = email.trim() !== accountData.email;
     setIsSaving(true);
     try {
@@ -107,6 +120,9 @@ export function AccountManagementSection({
               <Ionicons name={showPassword ? 'eye-off-outline' : 'eye-outline'} size={20} color="#9CA3AF" />
             </TouchableOpacity>
           </View>
+          {validationError ? (
+            <Text style={styles.errorText}>{validationError}</Text>
+          ) : null}
           <View style={styles.buttonRow}>
             <TouchableOpacity style={styles.cancelBtn} onPress={handleCancel} activeOpacity={0.85} disabled={isSaving}>
               <Text style={styles.cancelBtnText}>Cancel</Text>
@@ -204,6 +220,11 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: '#2D4A3E',
     marginBottom: 8,
+  },
+  errorText: {
+    fontSize: 13,
+    color: '#EF4444',
+    marginBottom: 4,
   },
   buttonRow: {
     flexDirection: 'row',
