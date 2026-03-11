@@ -1,4 +1,5 @@
 import { router } from 'expo-router';
+import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import React, { useEffect } from 'react';
 import {
@@ -47,8 +48,9 @@ export default function FrontPage(_props: FrontPageProps) {
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
-      <StatusBar style="dark" backgroundColor="#D4F1F9" />
+    <LinearGradient colors={['#D4F1F9', '#F5E6F0', '#E8F0DC']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ flex: 1 }}>
+      <StatusBar style="dark" />
+      <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.overlay}>
         <View style={styles.content}>
           {/* Logo */}
@@ -80,14 +82,14 @@ export default function FrontPage(_props: FrontPageProps) {
           </TouchableOpacity>
         </View>
       </View>
-    </SafeAreaView>
+      </SafeAreaView>
+    </LinearGradient>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#D4F1F9',
   },
   overlay: {
     flex: 1,

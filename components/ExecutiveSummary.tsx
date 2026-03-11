@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import React, { useState } from 'react';
 import {
   Dimensions,
@@ -10,6 +11,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { G } from '../constants/Gradients';
 import {
   BODY_SIZE,
   BODY_SMALL_SIZE,
@@ -200,7 +202,7 @@ export function ExecutiveSummary({
   return (
     <Modal visible transparent animationType="slide" onRequestClose={onClose}>
       <View style={styles.overlay}>
-        <View style={styles.card}>
+        <LinearGradient colors={G.cardWhite.colors} start={G.cardWhite.start} end={G.cardWhite.end} style={styles.card}>
           <View style={styles.header}>
             <Text style={styles.headerTitle}>
               {step === 'customize' ? 'Customize your summary' : 'Summary preview'}
@@ -217,11 +219,11 @@ export function ExecutiveSummary({
           >
             {step === 'customize' && (
               <>
-                <View style={styles.infoBox}>
+                <LinearGradient colors={G.infoGreen.colors} start={G.infoGreen.start} end={G.infoGreen.end} style={styles.infoBox}>
                   <Text style={styles.infoText}>
                     Select which information you'd like to share with your dermatologist.
                   </Text>
-                </View>
+                </LinearGradient>
 
                 <Text style={styles.sectionHeading}>Select data to include:</Text>
 
@@ -273,6 +275,7 @@ export function ExecutiveSummary({
                   onPress={() => setStep('preview')}
                   activeOpacity={0.9}
                 >
+                  <LinearGradient colors={G.btnExecutiveSummary.colors} start={G.btnExecutiveSummary.start} end={G.btnExecutiveSummary.end} style={{ ...StyleSheet.absoluteFillObject, borderRadius: 18 }} />
                   <Text style={styles.previewButtonText}>preview summary</Text>
                 </TouchableOpacity>
               </>
@@ -280,7 +283,7 @@ export function ExecutiveSummary({
 
             {step === 'preview' && (
               <>
-                <View style={styles.previewCard}>
+                <LinearGradient colors={G.docBg.colors} start={G.docBg.start} end={G.docBg.end} style={styles.previewCard}>
                   <View style={styles.previewHeader}>
                     <Text style={styles.previewTitle}>Skin Health Executive Summary</Text>
                     <Text style={styles.previewGenerated}>Generated: {generatedDate}</Text>
@@ -314,12 +317,12 @@ export function ExecutiveSummary({
                     <View style={styles.previewBlock}>
                       <Text style={styles.previewBlockTitle}>Symptom Trends</Text>
                       {d.improvingSymptoms.length > 0 && (
-                        <View style={[styles.trendRow, styles.trendImproving]}>
+                        <LinearGradient colors={G.cardSuccess.colors} start={G.cardSuccess.start} end={G.cardSuccess.end} style={[styles.trendRow, styles.trendImproving]}>
                           <Ionicons name="trending-up" size={14} color="#5F8575" />
                           <Text style={styles.trendText}>
                             Improving: {d.improvingSymptoms.join(', ')}
                           </Text>
-                        </View>
+                        </LinearGradient>
                       )}
                       {d.stableSymptoms.length > 0 && (
                         <View style={[styles.trendRow, styles.trendStable]}>
@@ -330,12 +333,12 @@ export function ExecutiveSummary({
                         </View>
                       )}
                       {d.worseningSymptoms.length > 0 && (
-                        <View style={[styles.trendRow, styles.trendWorsening]}>
+                        <LinearGradient colors={G.statusFlare.colors} start={G.statusFlare.start} end={G.statusFlare.end} style={[styles.trendRow, styles.trendWorsening]}>
                           <Ionicons name="trending-down" size={14} color="#8B4545" />
                           <Text style={styles.trendText}>
                             Worsening: {d.worseningSymptoms.join(', ')}
                           </Text>
-                        </View>
+                        </LinearGradient>
                       )}
                     </View>
                   )}
@@ -377,18 +380,18 @@ export function ExecutiveSummary({
                   {includeProgress && (
                     <View style={styles.previewBlock}>
                       <Text style={styles.previewBlockTitle}>Key Observations</Text>
-                      <View style={[styles.obsBox, styles.obsImproving]}>
+                      <LinearGradient colors={G.cardSuccess.colors} start={G.cardSuccess.start} end={G.cardSuccess.end} style={[styles.obsBox, styles.obsImproving]}>
                         <Text style={styles.obsBoxTitle}>What's Working:</Text>
                         {d.improvements.map((i, idx) => (
                           <Text key={idx} style={styles.previewBullet}>• {i}</Text>
                         ))}
-                      </View>
-                      <View style={[styles.obsBox, styles.obsConcerns]}>
+                      </LinearGradient>
+                      <LinearGradient colors={G.statusFlare.colors} start={G.statusFlare.start} end={G.statusFlare.end} style={[styles.obsBox, styles.obsConcerns]}>
                         <Text style={styles.obsBoxTitle}>Current Concerns:</Text>
                         {d.concerns.map((c, idx) => (
                           <Text key={idx} style={styles.previewBullet}>• {c}</Text>
                         ))}
-                      </View>
+                      </LinearGradient>
                     </View>
                   )}
 
@@ -397,13 +400,14 @@ export function ExecutiveSummary({
                       This summary was generated from patient self-tracking data via the gia skincare companion app.
                     </Text>
                   </View>
-                </View>
+                </LinearGradient>
 
                 <TouchableOpacity
                   style={styles.downloadButton}
                   onPress={handleShareOrDownload}
                   activeOpacity={0.9}
                 >
+                  <LinearGradient colors={G.btnExecutiveSummary.colors} start={G.btnExecutiveSummary.start} end={G.btnExecutiveSummary.end} style={{ ...StyleSheet.absoluteFillObject, borderRadius: 18 }} />
                   <Ionicons name="download-outline" size={20} color="#FFFFFF" />
                   <Text style={styles.downloadButtonText}>download / share summary</Text>
                 </TouchableOpacity>
@@ -427,7 +431,7 @@ export function ExecutiveSummary({
               </>
             )}
           </ScrollView>
-        </View>
+        </LinearGradient>
       </View>
     </Modal>
   );
@@ -445,7 +449,6 @@ const styles = StyleSheet.create({
     width: '100%',
     maxWidth: 480,
     height: Dimensions.get('window').height * 0.85,
-    backgroundColor: '#FAF8F5',
     borderRadius: 24,
     borderWidth: 2,
     borderColor: '#D8D5CF',
@@ -478,12 +481,12 @@ const styles = StyleSheet.create({
     paddingBottom: 32,
   },
   infoBox: {
-    backgroundColor: '#E8F5E9',
     borderRadius: 18,
     padding: 14,
     borderWidth: 1,
     borderColor: 'rgba(123,155,140,0.25)',
     marginBottom: 20,
+    overflow: 'hidden',
   },
   infoText: {
     fontSize: BODY_SMALL_SIZE,
@@ -542,12 +545,12 @@ const styles = StyleSheet.create({
     color: TEXT_SECONDARY,
   },
   previewButton: {
-    backgroundColor: '#5F8575',
     paddingVertical: 14,
     paddingHorizontal: 20,
     borderRadius: 18,
     alignItems: 'center',
     marginTop: 8,
+    overflow: 'hidden',
   },
   previewButtonText: {
     color: '#FFFFFF',
@@ -555,12 +558,12 @@ const styles = StyleSheet.create({
     fontWeight: BUTTON_TEXT_WEIGHT,
   },
   previewCard: {
-    backgroundColor: '#F5F1ED',
     borderRadius: 18,
     padding: 18,
     borderWidth: 2,
     borderColor: '#D8D5CF',
     marginBottom: 20,
+    overflow: 'hidden',
   },
   previewHeader: {
     borderBottomWidth: 2,
@@ -606,13 +609,13 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   trendImproving: {
-    backgroundColor: '#E8F5E9',
+    overflow: 'hidden',
   },
   trendStable: {
     backgroundColor: '#E8F0DC',
   },
   trendWorsening: {
-    backgroundColor: '#FFE0E0',
+    overflow: 'hidden',
   },
   trendText: {
     fontSize: LABEL_SIZE,
@@ -626,10 +629,10 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   obsImproving: {
-    backgroundColor: '#E8F5E9',
+    overflow: 'hidden',
   },
   obsConcerns: {
-    backgroundColor: '#FFE0E0',
+    overflow: 'hidden',
   },
   obsBoxTitle: {
     fontSize: LABEL_SIZE,
@@ -652,11 +655,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#5F8575',
     paddingVertical: 14,
     paddingHorizontal: 20,
     borderRadius: 18,
     marginBottom: 10,
+    overflow: 'hidden',
   },
   downloadButtonText: {
     color: '#FFFFFF',

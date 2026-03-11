@@ -1,5 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
+import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import React, { useState } from 'react';
 import {
@@ -110,8 +111,9 @@ export default function SignIn() {
     !loading;
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
-      <StatusBar style="dark" backgroundColor="#FAF8F5" />
+    <LinearGradient colors={['#D4F1F9', '#F5E6F0', '#E8F0DC']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ flex: 1 }}>
+      <StatusBar style="dark" />
+      <SafeAreaView style={styles.container} edges={['top']}>
       <TouchableOpacity style={styles.backArrow} onPress={() => router.back()}>
         <Ionicons name="arrow-back" size={24} color="#7B9B8C" />
       </TouchableOpacity>
@@ -242,14 +244,14 @@ export default function SignIn() {
           </View>
         </View>
       </ScrollView>
-    </SafeAreaView>
+      </SafeAreaView>
+    </LinearGradient>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FAF8F5',
   },
   backArrow: {
     padding: 16,

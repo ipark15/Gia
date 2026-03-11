@@ -1,9 +1,11 @@
 import { router, useLocalSearchParams } from 'expo-router';
+import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import { useCallback } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { RoutineExecution } from '../components/RoutineExecution';
 import { RoutineStep } from '../components/TreatmentPlanPage';
+import { G } from '../constants/Gradients';
 import { useAuth } from '../context/AuthContext';
 import { useRoutineCompletion } from '../context/RoutineCompletionContext';
 
@@ -53,10 +55,10 @@ export default function RoutineExecutionScreen() {
     router.back();
   };
 
-  const ROUTINE_BG = '#F5F1ED';
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: ROUTINE_BG }} edges={['top']}>
-      <StatusBar style="dark" backgroundColor={ROUTINE_BG} />
+    <LinearGradient colors={G.pageHome.colors} start={G.pageHome.start} end={G.pageHome.end} style={{ flex: 1 }}>
+      <StatusBar style="dark" />
+      <SafeAreaView style={{ flex: 1 }} edges={['top']}>
       <RoutineExecution
         planId={planId}
         dermatologistProducts={dermProducts}
@@ -66,6 +68,7 @@ export default function RoutineExecutionScreen() {
         onSwitchToGentler={handleSwitchToGentler}
         onBack={handleBack}
       />
-    </SafeAreaView>
+      </SafeAreaView>
+    </LinearGradient>
   );
 }

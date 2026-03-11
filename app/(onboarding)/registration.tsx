@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import Slider from '@react-native-community/slider';
 import { router, useLocalSearchParams } from 'expo-router';
+import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import React, { useEffect, useState } from 'react';
 import {
@@ -17,6 +18,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { DermatologistPlanUpload } from '../../components/DermatologistPlanUpload';
 import { useAuth } from '../../context/AuthContext';
 import { supabase } from '../../lib/supabaseClient';
+import { G } from '../../constants/Gradients';
 
 interface DermatologistProduct {
   id: string;
@@ -343,12 +345,15 @@ export default function Registration() {
   ];
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
-      <StatusBar style="dark" backgroundColor="#FAF8F5" />
-      {/* Back Button */}
-      <TouchableOpacity style={styles.backArrow} onPress={handleBack}>
-        <Ionicons name="arrow-back" size={24} color="#7B9B8C" />
-      </TouchableOpacity>
+    <LinearGradient colors={G.pageDerm.colors} start={G.pageDerm.start} end={G.pageDerm.end} style={{ flex: 1 }}>
+      <StatusBar style="dark" />
+      <SafeAreaView style={styles.container} edges={['top']}>
+      {/* Back Button — only show on first step to exit registration */}
+      {step === 1 && (
+        <TouchableOpacity style={styles.backArrow} onPress={handleBack}>
+          <Ionicons name="arrow-back" size={24} color="#7B9B8C" />
+        </TouchableOpacity>
+      )}
 
       <ScrollView
         style={styles.scrollView}
@@ -821,14 +826,14 @@ export default function Registration() {
           </View>
         </View>
       </Modal>
-    </SafeAreaView>
+      </SafeAreaView>
+    </LinearGradient>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FAF8F5',
   },
   backArrow: {
     position: 'absolute',

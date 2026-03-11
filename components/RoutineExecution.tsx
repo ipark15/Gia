@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Linking,
@@ -8,6 +9,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { G } from '../constants/Gradients';
 import Svg, { Circle } from 'react-native-svg';
 import { AskGiaChat } from './AskGiaChat';
 import { getProductRecommendations } from './TreatmentProducts';
@@ -221,7 +223,7 @@ export function RoutineExecution({
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.inner}>
-          {onBack && (
+          {onBack && currentStepIndex === 0 && (
             <TouchableOpacity onPress={onBack} style={styles.backRow} activeOpacity={0.8}>
               <Ionicons name="arrow-back" size={20} color="#6B7370" />
               <Text style={styles.backText}>back</Text>
@@ -285,7 +287,7 @@ export function RoutineExecution({
             </View>
           </TouchableOpacity>
 
-          <View style={styles.card}>
+          <LinearGradient colors={G.cardWhite.colors} start={G.cardWhite.start} end={G.cardWhite.end} style={styles.card}>
             <Text style={styles.stepName}>{currentStep.step}</Text>
             <Text style={styles.instruction}>
               Apply gently and let absorb before moving to the next step.
@@ -363,6 +365,7 @@ export function RoutineExecution({
             )}
 
             <TouchableOpacity style={styles.primaryButton} onPress={handleNextStep} activeOpacity={0.9}>
+              <LinearGradient colors={G.btnGreenLight.colors} start={G.btnGreenLight.start} end={G.btnGreenLight.end} style={{ ...StyleSheet.absoluteFillObject, borderRadius: 20 }} />
               <Text style={styles.primaryButtonText}>
                 {isLastStep ? 'Complete routine' : 'Next step'}
               </Text>
@@ -372,7 +375,7 @@ export function RoutineExecution({
             <TouchableOpacity style={styles.skipButton} onPress={handleSkipStep} activeOpacity={0.8}>
               <Text style={styles.skipButtonText}>Skip this step</Text>
             </TouchableOpacity>
-          </View>
+          </LinearGradient>
 
           <TouchableOpacity
             style={styles.gentlerLink}
@@ -389,6 +392,7 @@ export function RoutineExecution({
             onPress={() => setShowGiaChat(true)}
             activeOpacity={0.9}
           >
+            <LinearGradient colors={G.btnAskGia.colors} start={G.btnAskGia.start} end={G.btnAskGia.end} style={{ ...StyleSheet.absoluteFillObject, borderRadius: 20 }} />
             <Ionicons name="chatbubble-ellipses-outline" size={20} color="#FFFFFF" />
             <Text style={styles.askGiaButtonText}>ask gia</Text>
             <Text style={styles.askGiaOptional}>(optional)</Text>
@@ -412,7 +416,6 @@ export function RoutineExecution({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F5F1ED',
   },
   scroll: { flex: 1 },
   scrollContent: { paddingHorizontal: 24, paddingVertical: 24, paddingBottom: 48 },
@@ -422,7 +425,6 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#F5F1ED',
   },
   loadingText: { fontSize: 16, color: '#6B7370' },
 
@@ -485,12 +487,12 @@ const styles = StyleSheet.create({
   },
 
   card: {
-    backgroundColor: '#FFFFFF',
     borderRadius: 24,
     padding: 24,
     borderWidth: 1,
     borderColor: '#D8D5CF',
     marginBottom: 24,
+    overflow: 'hidden',
   },
   stepName: {
     fontSize: 24,
@@ -523,7 +525,6 @@ const styles = StyleSheet.create({
   productsList: {
     marginTop: 12,
     padding: 16,
-    backgroundColor: '#FFFFFF',
     borderRadius: 14,
     borderWidth: 1,
     borderColor: '#D8D5CF',
@@ -562,11 +563,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    backgroundColor: '#7B9B8C',
     paddingVertical: 16,
     paddingHorizontal: 24,
     borderRadius: 20,
     marginBottom: 12,
+    overflow: 'hidden',
   },
   primaryButtonText: { fontSize: 18, fontWeight: '600', color: '#FFFFFF' },
   skipButton: {
@@ -595,8 +596,8 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     paddingHorizontal: 24,
     borderRadius: 20,
-    backgroundColor: '#5F8575',
     marginBottom: 8,
+    overflow: 'hidden',
   },
   askGiaButtonText: { fontSize: 16, color: '#FFFFFF', fontStyle: 'italic', fontWeight: '600' },
   askGiaOptional: { fontSize: 14, color: 'rgba(255,255,255,0.8)' },

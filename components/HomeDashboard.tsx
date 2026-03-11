@@ -1,5 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
+import { LinearGradient } from "expo-linear-gradient";
 import React, { useMemo, useState } from "react";
 import {
   Alert,
@@ -11,6 +12,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { G } from "../constants/Gradients";
 import {
   HEADER_ACTION_STRIP_WIDTH,
   HEADER_BUTTON_GAP,
@@ -673,7 +675,7 @@ export function HomeDashboard({
 
         <View style={styles.inner}>
           {nextRoutineInfo && (
-            <View style={styles.completionBanner}>
+            <LinearGradient colors={G.statusCompleted.colors} start={G.statusCompleted.start} end={G.statusCompleted.end} style={styles.completionBanner}>
               <View style={styles.completionBannerLeft}>
                 <Text style={styles.completionBannerTitle}>
                   {isAllDoneForDay && hasMorning && hasEvening
@@ -690,7 +692,7 @@ export function HomeDashboard({
               <Text style={styles.completionBannerIcon}>
                 {isAllDoneForDay ? "✨" : "○"}
               </Text>
-            </View>
+            </LinearGradient>
           )}
 
           {!isCurrentRoutineCompleted && (
@@ -700,6 +702,7 @@ export function HomeDashboard({
                 style={styles.primaryCta}
                 activeOpacity={0.95}
               >
+                <LinearGradient colors={G.btnPink.colors} start={G.btnPink.start} end={G.btnPink.end} style={{ ...StyleSheet.absoluteFillObject, borderRadius: 24 }} />
                 <View style={styles.primaryCtaContent}>
                   <View style={styles.primaryCtaIconCircle}>
                     <Ionicons
@@ -722,7 +725,7 @@ export function HomeDashboard({
             </View>
           )}
 
-          <View style={styles.checkInCard}>
+          <LinearGradient colors={G.cardWhite.colors} start={G.cardWhite.start} end={G.cardWhite.end} style={styles.checkInCard}>
             <TouchableOpacity
               onPress={() => setCheckInExpanded((v) => !v)}
               style={styles.checkInHeader}
@@ -1106,13 +1109,14 @@ export function HomeDashboard({
                   onPress={handleSaveCheckIn}
                   activeOpacity={0.9}
                 >
+                  <LinearGradient colors={G.btnGreenLight.colors} start={G.btnGreenLight.start} end={G.btnGreenLight.end} style={{ ...StyleSheet.absoluteFillObject, borderRadius: 16 }} />
                   <Text style={styles.saveCheckInText}>save check-in</Text>
                 </TouchableOpacity>
               </View>
             )}
-          </View>
+          </LinearGradient>
 
-          <View style={styles.askGiaCard}>
+          <LinearGradient colors={G.cardWhite.colors} start={G.cardWhite.start} end={G.cardWhite.end} style={styles.askGiaCard}>
             <TouchableOpacity
               onPress={() => {
                 const expanded = !askExpanded;
@@ -1125,6 +1129,7 @@ export function HomeDashboard({
               style={styles.askGiaHeader}
               activeOpacity={0.9}
             >
+              <LinearGradient colors={G.btnAskGia.colors} start={G.btnAskGia.start} end={G.btnAskGia.end} style={{ ...StyleSheet.absoluteFillObject }} />
               <View style={styles.askGiaHeaderInner}>
                 <View style={styles.askGiaIcon}>
                   <Ionicons
@@ -1218,9 +1223,9 @@ export function HomeDashboard({
                 )}
               </View>
             )}
-          </View>
+          </LinearGradient>
 
-          <View style={styles.gardenCard}>
+          <LinearGradient colors={G.cardWhite.colors} start={G.cardWhite.start} end={G.cardWhite.end} style={styles.gardenCard}>
             <View style={styles.gardenHeader}>
               <View>
                 <Text style={styles.gardenTitle}>Your garden</Text>
@@ -1231,7 +1236,7 @@ export function HomeDashboard({
               </View>
             </View>
 
-            <View style={styles.gardenPond}>
+            <LinearGradient colors={G.gardenPond.colors} start={G.gardenPond.start} end={G.gardenPond.end} style={styles.gardenPond}>
               {flowersPlanted === 0 ? (
                 <View style={styles.gardenEmpty}>
                   <Text style={styles.gardenEmptyText}>
@@ -1265,7 +1270,7 @@ export function HomeDashboard({
                   </View>
                 );
               })()}
-            </View>
+            </LinearGradient>
 
             {/* Tier legend */}
             <View style={styles.gardenLegend}>
@@ -1284,8 +1289,8 @@ export function HomeDashboard({
             </View>
 
             <View style={styles.gardenStatsRow}>
-              <View style={styles.gardenStatCard}>
-                <View style={styles.gardenStatIconCirclePink}>
+              <LinearGradient colors={G.cardWhite.colors} start={G.cardWhite.start} end={G.cardWhite.end} style={styles.gardenStatCard}>
+                <LinearGradient colors={G.iconSkyGreen.colors} start={G.iconSkyGreen.start} end={G.iconSkyGreen.end} style={styles.gardenStatIconCirclePink}>
                   <Image
                     source={
                       computeGarden(flowersPlanted).purple > 0
@@ -1297,26 +1302,26 @@ export function HomeDashboard({
                     style={styles.gardenStatLotusIcon}
                     resizeMode="contain"
                   />
-                </View>
+                </LinearGradient>
                 <Text style={styles.gardenStatValue}>{flowersPlanted}</Text>
                 <Text style={styles.gardenStatLabel}>{"flowers\nbloomed"}</Text>
-              </View>
-              <View style={styles.gardenStatCard}>
-                <View style={styles.gardenStatIconCircleFlame}>
+              </LinearGradient>
+              <LinearGradient colors={G.cardWhite.colors} start={G.cardWhite.start} end={G.cardWhite.end} style={styles.gardenStatCard}>
+                <LinearGradient colors={G.iconPink.colors} start={G.iconPink.start} end={G.iconPink.end} style={styles.gardenStatIconCircleFlame}>
                   <Ionicons name="flame" size={20} color="#FFFFFF" />
-                </View>
+                </LinearGradient>
                 <Text style={styles.gardenStatValue}>{currentStreak}</Text>
                 <Text style={styles.gardenStatLabel}>{"day\nstreak"}</Text>
-              </View>
-              <View style={styles.gardenStatCard}>
-                <View style={styles.gardenStatIconCircleCalendar}>
+              </LinearGradient>
+              <LinearGradient colors={G.cardWhite.colors} start={G.cardWhite.start} end={G.cardWhite.end} style={styles.gardenStatCard}>
+                <LinearGradient colors={G.iconGreenDark.colors} start={G.iconGreenDark.start} end={G.iconGreenDark.end} style={styles.gardenStatIconCircleCalendar}>
                   <Ionicons name="calendar-outline" size={20} color="#FFFFFF" />
-                </View>
+                </LinearGradient>
                 <Text style={styles.gardenStatValue}>{weekCount}</Text>
                 <Text style={styles.gardenStatLabel}>{"weeks\nactive"}</Text>
-              </View>
+              </LinearGradient>
             </View>
-          </View>
+          </LinearGradient>
         </View>
       </ScrollView>
     </View>
@@ -1346,7 +1351,6 @@ function generateAnswer(question: string): string {
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: "#E8F0DC",
   },
   scroll: {
     flex: 1,
@@ -1398,7 +1402,6 @@ const styles = StyleSheet.create({
     backgroundColor: "#FFFFFF",
   },
   completionBanner: {
-    backgroundColor: "#5F8575",
     borderRadius: 24,
     paddingVertical: 20,
     paddingHorizontal: 18,
@@ -1406,6 +1409,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
+    overflow: "hidden",
   },
   completionBannerLeft: {
     flex: 1,
@@ -1432,7 +1436,6 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    backgroundColor: "#E879B9",
     borderRadius: 24,
     paddingVertical: 22,
     paddingHorizontal: 18,
@@ -1441,6 +1444,7 @@ const styles = StyleSheet.create({
     shadowRadius: 12,
     shadowOffset: { width: 0, height: 6 },
     elevation: 4,
+    overflow: "hidden",
   },
   primaryCtaContent: {
     flexDirection: "row",
@@ -1465,7 +1469,6 @@ const styles = StyleSheet.create({
     fontSize: LABEL_SIZE,
   },
   checkInCard: {
-    backgroundColor: "#FFFFFF",
     borderRadius: 24,
     overflow: "hidden",
     marginBottom: 16,
@@ -1838,11 +1841,11 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   saveCheckInButton: {
-    backgroundColor: "#5F8575",
     borderRadius: 16,
     paddingVertical: 14,
     alignItems: "center",
     marginTop: 4,
+    overflow: "hidden",
   },
   saveCheckInText: {
     color: "#FFFFFF",
@@ -1851,7 +1854,6 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
   askGiaCard: {
-    backgroundColor: "#FFFFFF",
     borderRadius: 20,
     marginBottom: 16,
     borderWidth: 1,
@@ -1861,7 +1863,7 @@ const styles = StyleSheet.create({
   askGiaHeader: {
     paddingHorizontal: 18,
     paddingVertical: 20,
-    backgroundColor: "#7B9B8C",
+    overflow: "hidden",
   },
   askGiaHeaderInner: {
     flexDirection: "row",
@@ -1968,12 +1970,12 @@ const styles = StyleSheet.create({
     color: TEXT_SECONDARY,
   },
   gardenCard: {
-    backgroundColor: "#FFFFFF",
     borderRadius: 24,
     padding: 16,
     borderWidth: 2,
     borderColor: "#D8D5CF",
     marginBottom: 12,
+    overflow: "hidden",
   },
   gardenHeader: {
     flexDirection: "row",
@@ -1994,10 +1996,10 @@ const styles = StyleSheet.create({
   gardenPond: {
     borderRadius: 18,
     padding: 14,
-    backgroundColor: "#E7F1ED",
     justifyContent: "center",
     alignItems: "center",
     minHeight: 220,
+    overflow: "hidden",
   },
   gardenEmpty: {
     paddingHorizontal: 20,
@@ -2050,7 +2052,6 @@ const styles = StyleSheet.create({
     borderRadius: 24,
     paddingVertical: 18,
     paddingHorizontal: 12,
-    backgroundColor: "#FFF7F2",
     marginHorizontal: 4,
     alignItems: "center",
     borderWidth: 1,
@@ -2060,6 +2061,7 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     shadowOffset: { width: 0, height: 3 },
     elevation: 2,
+    overflow: "hidden",
   },
   gardenStatIconCirclePink: {
     width: 40,
@@ -2067,8 +2069,8 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "#7B9B8C",
     marginBottom: 6,
+    overflow: "hidden",
   },
   gardenStatIconCircleFlame: {
     width: 40,
@@ -2076,8 +2078,8 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "#F49EC4",
     marginBottom: 6,
+    overflow: "hidden",
   },
   gardenStatIconCircleCalendar: {
     width: 40,
@@ -2085,8 +2087,8 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "#95C98E",
     marginBottom: 6,
+    overflow: "hidden",
   },
   gardenStatLotusIcon: {
     width: 36,

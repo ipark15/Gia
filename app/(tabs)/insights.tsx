@@ -1,15 +1,15 @@
 import { useFocusEffect } from '@react-navigation/native';
 import { router } from 'expo-router';
+import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import { useCallback } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Insights as InsightsComponent } from '../../components/Insights';
+import { G } from '../../constants/Gradients';
 import { useAuth } from '../../context/AuthContext';
 import { useCheckIns } from '../../hooks/useCheckIns';
 import { useRoutineStats } from '../../hooks/useRoutineStats';
 import { supabase } from '../../lib/supabaseClient';
-
-const INSIGHTS_BG = '#E8EDE8';
 
 export default function InsightsScreen() {
   const { user, profile, refreshProfile } = useAuth();
@@ -50,8 +50,9 @@ export default function InsightsScreen() {
   );
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: INSIGHTS_BG }} edges={['top']}>
-      <StatusBar style="dark" backgroundColor={INSIGHTS_BG} />
+    <LinearGradient colors={G.pageInsights.colors} start={G.pageInsights.start} end={G.pageInsights.end} style={{ flex: 1 }}>
+      <StatusBar style="dark" />
+      <SafeAreaView style={{ flex: 1 }} edges={['top']}>
       <InsightsComponent
         entries={entries}
         hasDermatologistPlan={profile?.has_dermatologist_plan ?? false}
@@ -64,6 +65,7 @@ export default function InsightsScreen() {
         completedDaysRaw={completedDaysRaw}
         onboardingSatisfaction={profile?.skin_satisfaction_baseline ?? 3}
       />
-    </SafeAreaView>
+      </SafeAreaView>
+    </LinearGradient>
   );
 }

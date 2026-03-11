@@ -16,6 +16,8 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { LinearGradient } from 'expo-linear-gradient';
+import { G } from '../../constants/Gradients';
 import { EmergencyHelp } from '../../components/EmergencyHelp';
 import { ExecutiveSummary } from '../../components/ExecutiveSummary';
 import { TabTopNavbar } from '../../components/TabTopNavbar';
@@ -271,9 +273,9 @@ export default function ProgressScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={['top']}>
-      <StatusBar style="dark" backgroundColor="#F5E6F0" />
-      <View style={styles.root}>
+    <LinearGradient colors={G.pageInsights.colors} start={G.pageInsights.start} end={G.pageInsights.end} style={styles.root}>
+      <StatusBar style="dark" />
+      <SafeAreaView style={styles.safeArea} edges={['top']}>
         <ScrollView
           style={styles.scroll}
           contentContainerStyle={styles.scrollContent}
@@ -781,19 +783,17 @@ export default function ProgressScreen() {
             summaryData={summaryData}
           />
         )}
-      </View>
-    </SafeAreaView>
+      </SafeAreaView>
+    </LinearGradient>
   );
 }
 
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#F5E6F0',
   },
   root: {
     flex: 1,
-    backgroundColor: '#F5E6F0',
   },
   scroll: {
     flex: 1,

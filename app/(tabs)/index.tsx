@@ -1,17 +1,17 @@
 import { useFocusEffect } from '@react-navigation/native';
 import { router } from 'expo-router';
+import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import React, { useCallback, useEffect, useState } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import type { CheckInData } from '../../components/HomeDashboard';
 import { HomeDashboard } from '../../components/HomeDashboard';
+import { G } from '../../constants/Gradients';
 import { useAuth } from '../../context/AuthContext';
 import { useRoutineCompletion } from '../../context/RoutineCompletionContext';
 import { useRoutineStats } from '../../hooks/useRoutineStats';
 import { getLocalDateString } from '../../lib/dateUtils';
 import { supabase } from '../../lib/supabaseClient';
-
-const HOME_BG = '#E8F0DC';
 
 function base64ToArrayBuffer(base64: string): ArrayBuffer {
   const binary = atob(base64);
@@ -184,8 +184,9 @@ export default function HomeScreen() {
   const nextAppointment = profile?.next_derm_appointment ?? undefined;
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: HOME_BG }} edges={['top']}>
-      <StatusBar style="dark" backgroundColor={HOME_BG} />
+    <LinearGradient colors={G.pageHome.colors} start={G.pageHome.start} end={G.pageHome.end} style={{ flex: 1 }}>
+      <StatusBar style="dark" />
+      <SafeAreaView style={{ flex: 1 }} edges={['top']}>
       <HomeDashboard
         onStartRoutine={handleStartRoutine}
         preferredRoutines={preferredRoutines}
@@ -210,6 +211,7 @@ export default function HomeScreen() {
         onRoutineCelebrationDismiss={() => setShowRoutineCelebration(false)}
         nextAppointment={nextAppointment}
       />
-    </SafeAreaView>
+      </SafeAreaView>
+    </LinearGradient>
   );
 }

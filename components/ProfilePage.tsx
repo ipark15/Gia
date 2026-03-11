@@ -301,7 +301,6 @@ export function ProfilePage({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#E8EDE8',
   },
   scroll: { flex: 1 },
   scrollContent: {

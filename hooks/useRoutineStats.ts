@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabaseClient';
 
@@ -37,6 +37,8 @@ export type RoutineStats = {
   todayEveningCompleted: boolean;
   loading: boolean;
   refresh: () => Promise<void>;
+  /** Optimistically add a completion immediately (before DB write) so stats update without lag. */
+  addOptimisticCompletion: (type: 'morning' | 'evening') => void;
 };
 
 function parseDate(s: string): Date {
@@ -133,13 +135,15 @@ function completionsToCompletedDays(rows: RoutineCompletionRow[]): CompletedDayR
 
 export function useRoutineStats(): RoutineStats {
   const { user } = useAuth();
-  const [completedDays, setCompletedDays] = useState<CompletedDayRow[]>([]);
   const [rawCompletions, setRawCompletions] = useState<RoutineCompletionRow[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // Derived from rawCompletions so a single state update fans out to all stats.
+  const completedDays = useMemo(() => completionsToCompletedDays(rawCompletions), [rawCompletions]);
+
   const fetchCompletedDays = useCallback(async () => {
     if (!user) {
-      setCompletedDays([]);
+      setRawCompletions([]);
       setLoading(false);
       return;
     }
@@ -151,15 +155,16 @@ export function useRoutineStats(): RoutineStats {
       .order('completed_at', { ascending: false })
       .limit(3650);
     if (error) {
-      setCompletedDays([]);
       setRawCompletions([]);
     } else {
-      const rows = (data as RoutineCompletionRow[]) ?? [];
-      setRawCompletions(rows);
-      setCompletedDays(completionsToCompletedDays(rows));
+      setRawCompletions((data as RoutineCompletionRow[]) ?? []);
     }
     setLoading(false);
   }, [user?.id]);
+
+  const addOptimisticCompletion = useCallback((type: 'morning' | 'evening') => {
+    setRawCompletions((prev) => [{ completed_at: new Date().toISOString(), type }, ...prev]);
+  }, []);
 
   useEffect(() => {
     fetchCompletedDays();
@@ -207,5 +212,6 @@ export function useRoutineStats(): RoutineStats {
     todayEveningCompleted,
     loading,
     refresh: fetchCompletedDays,
+    addOptimisticCompletion,
   };
 }
