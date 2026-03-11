@@ -154,6 +154,22 @@ function MoodFace({
   );
 }
 
+// ─── Flower tier system ───────────────────────────────────────────────────────
+// Each routine completion earns 1 pink lotus.
+// 20 pink  → 1 yellow lotus  (lotus2.png)
+// 20 yellow → 1 purple lotus  (lotus3.png)
+
+const PINK_PER_YELLOW = 15;
+const YELLOW_PER_PURPLE = 15;
+
+function computeGarden(total: number): { pink: number; yellow: number; purple: number } {
+  const purple = Math.floor(total / (PINK_PER_YELLOW * YELLOW_PER_PURPLE));
+  const afterPurple = total % (PINK_PER_YELLOW * YELLOW_PER_PURPLE);
+  const yellow = Math.floor(afterPurple / PINK_PER_YELLOW);
+  const pink = afterPurple % PINK_PER_YELLOW;
+  return { pink, yellow, purple };
+}
+
 type RoutineType = "morning" | "evening";
 
 export function HomeDashboard({
@@ -1222,28 +1238,62 @@ export function HomeDashboard({
                     Complete your first routine to plant a Victoria regia 🪷
                   </Text>
                 </View>
-              ) : (
-                <View style={styles.gardenFlowerGrid}>
-                  {Array.from({
-                    length: Math.min(flowersPlanted, 24),
-                  }).map((_, i) => (
-                    <View key={i} style={styles.gardenFlowerItem}>
-                      <Image
-                        source={require("../assets/images/lotus.png")}
-                        style={styles.gardenFlowerIcon}
-                        resizeMode="contain"
-                      />
-                    </View>
-                  ))}
-                </View>
-              )}
+              ) : (() => {
+                const { pink, yellow, purple } = computeGarden(flowersPlanted);
+                const items: { tier: 'pink' | 'yellow' | 'purple' }[] = [
+                  ...Array(purple).fill({ tier: 'purple' as const }),
+                  ...Array(yellow).fill({ tier: 'yellow' as const }),
+                  ...Array(pink).fill({ tier: 'pink' as const }),
+                ];
+                return (
+                  <View style={styles.gardenFlowerGrid}>
+                    {items.map((item, i) => (
+                      <View key={i} style={styles.gardenFlowerItem}>
+                        <Image
+                          source={
+                            item.tier === 'purple'
+                              ? require("../assets/images/lotus3.png")
+                              : item.tier === 'yellow'
+                              ? require("../assets/images/lotus2.png")
+                              : require("../assets/images/lotus.png")
+                          }
+                          style={styles.gardenFlowerIcon}
+                          resizeMode="contain"
+                        />
+                      </View>
+                    ))}
+                  </View>
+                );
+              })()}
+            </View>
+
+            {/* Tier legend */}
+            <View style={styles.gardenLegend}>
+              <View style={styles.gardenLegendItem}>
+                <Image source={require("../assets/images/lotus.png")} style={styles.gardenLegendIcon} resizeMode="contain" />
+                <Text style={styles.gardenLegendText}>= 1 routine</Text>
+              </View>
+              <View style={styles.gardenLegendItem}>
+                <Image source={require("../assets/images/lotus2.png")} style={styles.gardenLegendIcon} resizeMode="contain" />
+                <Text style={styles.gardenLegendText}>= {PINK_PER_YELLOW}</Text>
+              </View>
+              <View style={styles.gardenLegendItem}>
+                <Image source={require("../assets/images/lotus3.png")} style={styles.gardenLegendIcon} resizeMode="contain" />
+                <Text style={styles.gardenLegendText}>= {PINK_PER_YELLOW * YELLOW_PER_PURPLE}</Text>
+              </View>
             </View>
 
             <View style={styles.gardenStatsRow}>
               <View style={styles.gardenStatCard}>
                 <View style={styles.gardenStatIconCirclePink}>
                   <Image
-                    source={require("../assets/images/lotus.png")}
+                    source={
+                      computeGarden(flowersPlanted).purple > 0
+                        ? require("../assets/images/lotus3.png")
+                        : computeGarden(flowersPlanted).yellow > 0
+                        ? require("../assets/images/lotus2.png")
+                        : require("../assets/images/lotus.png")
+                    }
                     style={styles.gardenStatLotusIcon}
                     resizeMode="contain"
                   />
@@ -1944,7 +1994,7 @@ const styles = StyleSheet.create({
   gardenPond: {
     borderRadius: 18,
     padding: 14,
-    backgroundColor: "#95C98E",
+    backgroundColor: "#E7F1ED",
     justifyContent: "center",
     alignItems: "center",
     minHeight: 220,
@@ -1969,6 +2019,27 @@ const styles = StyleSheet.create({
   gardenFlowerIcon: {
     width: 48,
     height: 48,
+  },
+  gardenLegend: {
+    flexDirection: "row",
+    justifyContent: "center",
+    gap: 16,
+    marginTop: 10,
+    marginBottom: 2,
+  },
+  gardenLegendItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+  },
+  gardenLegendIcon: {
+    width: 18,
+    height: 18,
+  },
+  gardenLegendText: {
+    fontSize: LABEL_SMALL_SIZE,
+    color: TEXT_SECONDARY,
+    fontStyle: "italic",
   },
   gardenStatsRow: {
     flexDirection: "row",
