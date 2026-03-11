@@ -1,0 +1,696 @@
+import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
+import React, { useState } from 'react';
+import {
+  Dimensions,
+  Modal,
+  ScrollView,
+  Share,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from 'react-native';
+import { G } from '../constants/Gradients';
+import {
+  BODY_SIZE,
+  BODY_SMALL_SIZE,
+  BUTTON_TEXT_SIZE,
+  BUTTON_TEXT_WEIGHT,
+  CARD_TITLE_SIZE,
+  CARD_TITLE_WEIGHT,
+  LABEL_SIZE,
+  LABEL_SMALL_SIZE,
+  TEXT_PRIMARY,
+  TEXT_SECONDARY,
+  TITLE_SECTION_SIZE,
+  TITLE_SECTION_WEIGHT,
+} from '../constants/Typography';
+
+import type { SummaryData } from '../hooks/useSummaryData';
+
+export interface ExecutiveSummaryProps {
+  onClose: () => void;
+  patientName?: string;
+  condition: string;
+  startDate: string;
+  nextAppointment?: string;
+  /** When provided, summary metrics are computed from this data (e.g. from Supabase). */
+  summaryData?: SummaryData | null;
+}
+
+const FALLBACK_SUMMARY: SummaryData = {
+  adherenceRate: 0,
+  totalRoutines: 0,
+  completedRoutines: 0,
+  avgMood: '😐',
+  flareUpCount: 0,
+  improvingSymptoms: [],
+  worseningSymptoms: [],
+  stableSymptoms: [],
+  commonTriggers: [],
+  currentProducts: [],
+  concerns: [],
+  improvements: [],
+};
+
+function buildSummaryText(
+  patientName: string,
+  condition: string,
+  startDate: string,
+  nextAppointment: string | undefined,
+  d: SummaryData,
+  options: {
+    includeAdherence: boolean;
+    includeMood: boolean;
+    includeSymptoms: boolean;
+    includeProducts: boolean;
+    includeFlareUps: boolean;
+    includeTriggers: boolean;
+    includeProgress: boolean;
+  }
+): string {
+  let content = 'SKIN HEALTH EXECUTIVE SUMMARY\n';
+  content += `Generated: ${new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}\n\n`;
+  content += 'PATIENT INFORMATION\n';
+  content += `Name: ${patientName}\n`;
+  content += `Primary Condition: ${condition}\n`;
+  content += `Tracking Since: ${new Date(startDate).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}\n`;
+  if (nextAppointment) {
+    content += `Next Appointment: ${new Date(nextAppointment).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}\n`;
+  }
+  content += '\n---\n\n';
+
+  if (options.includeAdherence) {
+    content += 'TREATMENT ADHERENCE\n';
+    content += `Overall Adherence Rate: ${d.adherenceRate}%\n`;
+    content += `Routines Completed: ${d.completedRoutines}/${d.totalRoutines}\n\n`;
+  }
+  if (options.includeSymptoms) {
+    content += 'SYMPTOM TRENDS\n';
+    if (d.improvingSymptoms.length > 0) content += `Improving: ${d.improvingSymptoms.join(', ')}\n`;
+    if (d.stableSymptoms.length > 0) content += `Stable: ${d.stableSymptoms.join(', ')}\n`;
+    if (d.worseningSymptoms.length > 0) content += `Worsening: ${d.worseningSymptoms.join(', ')}\n`;
+    content += '\n';
+  }
+  if (options.includeFlareUps) {
+    content += 'FLARE-UP ACTIVITY\n';
+    content += `Total Flare-Ups: ${d.flareUpCount} in tracking period\n\n`;
+  }
+  if (options.includeTriggers) {
+    content += 'IDENTIFIED TRIGGERS\n';
+    content += d.commonTriggers.map((t) => `- ${t}`).join('\n') + '\n\n';
+  }
+  if (options.includeProducts) {
+    content += 'CURRENT TREATMENT REGIMEN\n';
+    content += d.currentProducts.map((p) => `- ${p}`).join('\n') + '\n\n';
+  }
+  if (options.includeMood) {
+    content += 'EMOTIONAL WELL-BEING\n';
+    content += `Most Common Mood: ${d.avgMood === '😌' ? 'Good' : d.avgMood === '😢' ? 'Struggling' : 'Neutral'}\n\n`;
+  }
+  if (options.includeProgress) {
+    content += "KEY OBSERVATIONS\n\nWhat's Working:\n";
+    content += d.improvements.map((i) => `- ${i}`).join('\n') + '\n\n';
+    content += 'Current Concerns:\n';
+    content += d.concerns.map((c) => `- ${c}`).join('\n') + '\n';
+  }
+  content += '\n---\n\n';
+  content += 'This summary was generated from patient self-tracking data via the gia skincare companion app.';
+  return content;
+}
+
+interface DataToggleProps {
+  label: string;
+  description: string;
+  checked: boolean;
+  onChange: (checked: boolean) => void;
+}
+
+function DataToggle({ label, description, checked, onChange }: DataToggleProps) {
+  return (
+    <TouchableOpacity
+      style={[styles.toggleRow, checked ? styles.toggleRowChecked : styles.toggleRowUnchecked]}
+      onPress={() => onChange(!checked)}
+      activeOpacity={0.85}
+    >
+      <View style={[styles.toggleCheck, checked ? styles.toggleCheckChecked : styles.toggleCheckUnchecked]}>
+        {checked && <Ionicons name="checkmark" size={16} color="#FFFFFF" />}
+      </View>
+      <View style={styles.toggleTextBlock}>
+        <Text style={styles.toggleLabel}>{label}</Text>
+        <Text style={styles.toggleDescription}>{description}</Text>
+      </View>
+    </TouchableOpacity>
+  );
+}
+
+export function ExecutiveSummary({
+  onClose,
+  patientName = 'Patient',
+  condition,
+  startDate,
+  nextAppointment,
+  summaryData,
+}: ExecutiveSummaryProps) {
+  const [step, setStep] = useState<'customize' | 'preview'>('customize');
+  const [includeAdherence, setIncludeAdherence] = useState(true);
+  const [includeMood, setIncludeMood] = useState(true);
+  const [includeSymptoms, setIncludeSymptoms] = useState(true);
+  const [includeProducts, setIncludeProducts] = useState(true);
+  const [includeFlareUps, setIncludeFlareUps] = useState(true);
+  const [includeTriggers, setIncludeTriggers] = useState(true);
+  const [includeProgress, setIncludeProgress] = useState(true);
+
+  const options = {
+    includeAdherence,
+    includeMood,
+    includeSymptoms,
+    includeProducts,
+    includeFlareUps,
+    includeTriggers,
+    includeProgress,
+  };
+
+  const d = summaryData ?? FALLBACK_SUMMARY;
+
+  const handleShareOrDownload = async () => {
+    const message = buildSummaryText(
+      patientName,
+      condition,
+      startDate,
+      nextAppointment,
+      d,
+      options
+    );
+    try {
+      await Share.share({
+        message,
+        title: 'Skin Health Summary',
+      });
+    } catch {
+      // User cancelled or share failed
+    }
+  };
+
+  const generatedDate = new Date().toLocaleDateString('en-US', {
+    month: 'long',
+    day: 'numeric',
+    year: 'numeric',
+  });
+
+  return (
+    <Modal visible transparent animationType="slide" onRequestClose={onClose}>
+      <View style={styles.overlay}>
+        <LinearGradient colors={G.cardWhite.colors} start={G.cardWhite.start} end={G.cardWhite.end} style={styles.card}>
+          <View style={styles.header}>
+            <Text style={styles.headerTitle}>
+              {step === 'customize' ? 'Customize your summary' : 'Summary preview'}
+            </Text>
+            <TouchableOpacity onPress={onClose} style={styles.closeBtn} hitSlop={12}>
+              <Ionicons name="close" size={24} color="#6B7370" />
+            </TouchableOpacity>
+          </View>
+
+          <ScrollView
+            style={styles.scroll}
+            contentContainerStyle={styles.scrollContent}
+            showsVerticalScrollIndicator={false}
+          >
+            {step === 'customize' && (
+              <>
+                <LinearGradient colors={G.infoGreen.colors} start={G.infoGreen.start} end={G.infoGreen.end} style={styles.infoBox}>
+                  <Text style={styles.infoText}>
+                    Select which information you'd like to share with your dermatologist.
+                  </Text>
+                </LinearGradient>
+
+                <Text style={styles.sectionHeading}>Select data to include:</Text>
+
+                <DataToggle
+                  label="treatment adherence"
+                  description="how consistently you've followed your routine"
+                  checked={includeAdherence}
+                  onChange={setIncludeAdherence}
+                />
+                <DataToggle
+                  label="symptom trends"
+                  description="which symptoms are improving, stable, or worsening"
+                  checked={includeSymptoms}
+                  onChange={setIncludeSymptoms}
+                />
+                <DataToggle
+                  label="flare-up activity"
+                  description="frequency and patterns of flare-ups"
+                  checked={includeFlareUps}
+                  onChange={setIncludeFlareUps}
+                />
+                <DataToggle
+                  label="identified triggers"
+                  description="patterns you've noticed (stress, sleep, weather, etc.)"
+                  checked={includeTriggers}
+                  onChange={setIncludeTriggers}
+                />
+                <DataToggle
+                  label="current products"
+                  description="your active skincare routine and products"
+                  checked={includeProducts}
+                  onChange={setIncludeProducts}
+                />
+                <DataToggle
+                  label="mood tracking"
+                  description="emotional well-being related to skin health"
+                  checked={includeMood}
+                  onChange={setIncludeMood}
+                />
+                <DataToggle
+                  label="progress observations"
+                  description="what's working and current concerns"
+                  checked={includeProgress}
+                  onChange={setIncludeProgress}
+                />
+
+                <TouchableOpacity
+                  style={styles.previewButton}
+                  onPress={() => setStep('preview')}
+                  activeOpacity={0.9}
+                >
+                  <LinearGradient colors={G.btnExecutiveSummary.colors} start={G.btnExecutiveSummary.start} end={G.btnExecutiveSummary.end} style={{ ...StyleSheet.absoluteFillObject, borderRadius: 18 }} />
+                  <Text style={styles.previewButtonText}>preview summary</Text>
+                </TouchableOpacity>
+              </>
+            )}
+
+            {step === 'preview' && (
+              <>
+                <LinearGradient colors={G.docBg.colors} start={G.docBg.start} end={G.docBg.end} style={styles.previewCard}>
+                  <View style={styles.previewHeader}>
+                    <Text style={styles.previewTitle}>Skin Health Executive Summary</Text>
+                    <Text style={styles.previewGenerated}>Generated: {generatedDate}</Text>
+                  </View>
+
+                  <View style={styles.previewBlock}>
+                    <Text style={styles.previewBlockTitle}>Patient Information</Text>
+                    <Text style={styles.previewLine}>Name: {patientName}</Text>
+                    <Text style={styles.previewLine}>Primary Condition: {condition}</Text>
+                    <Text style={styles.previewLine}>
+                      Tracking Since: {new Date(startDate).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+                    </Text>
+                    {nextAppointment && (
+                      <Text style={styles.previewLine}>
+                        Next Appointment: {new Date(nextAppointment).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
+                      </Text>
+                    )}
+                  </View>
+
+                  {includeAdherence && (
+                    <View style={styles.previewBlock}>
+                      <Text style={styles.previewBlockTitle}>Treatment Adherence</Text>
+                      <Text style={styles.previewLine}>Overall Rate: {d.adherenceRate}%</Text>
+                      <Text style={styles.previewLine}>
+                        Routines: {d.completedRoutines}/{d.totalRoutines}
+                      </Text>
+                    </View>
+                  )}
+
+                  {includeSymptoms && (
+                    <View style={styles.previewBlock}>
+                      <Text style={styles.previewBlockTitle}>Symptom Trends</Text>
+                      {d.improvingSymptoms.length > 0 && (
+                        <LinearGradient colors={G.cardSuccess.colors} start={G.cardSuccess.start} end={G.cardSuccess.end} style={[styles.trendRow, styles.trendImproving]}>
+                          <Ionicons name="trending-up" size={14} color="#5F8575" />
+                          <Text style={styles.trendText}>
+                            Improving: {d.improvingSymptoms.join(', ')}
+                          </Text>
+                        </LinearGradient>
+                      )}
+                      {d.stableSymptoms.length > 0 && (
+                        <View style={[styles.trendRow, styles.trendStable]}>
+                          <Ionicons name="remove" size={14} color="#7B9B8C" />
+                          <Text style={styles.trendText}>
+                            Stable: {d.stableSymptoms.join(', ')}
+                          </Text>
+                        </View>
+                      )}
+                      {d.worseningSymptoms.length > 0 && (
+                        <LinearGradient colors={G.statusFlare.colors} start={G.statusFlare.start} end={G.statusFlare.end} style={[styles.trendRow, styles.trendWorsening]}>
+                          <Ionicons name="trending-down" size={14} color="#8B4545" />
+                          <Text style={styles.trendText}>
+                            Worsening: {d.worseningSymptoms.join(', ')}
+                          </Text>
+                        </LinearGradient>
+                      )}
+                    </View>
+                  )}
+
+                  {includeFlareUps && (
+                    <View style={styles.previewBlock}>
+                      <Text style={styles.previewBlockTitle}>Flare-up Activity</Text>
+                      <Text style={styles.previewLine}>Total: {d.flareUpCount} flare-ups</Text>
+                    </View>
+                  )}
+
+                  {includeTriggers && (
+                    <View style={styles.previewBlock}>
+                      <Text style={styles.previewBlockTitle}>Identified Triggers</Text>
+                      {d.commonTriggers.map((t, i) => (
+                        <Text key={i} style={styles.previewBullet}>• {t}</Text>
+                      ))}
+                    </View>
+                  )}
+
+                  {includeProducts && (
+                    <View style={styles.previewBlock}>
+                      <Text style={styles.previewBlockTitle}>Current Regimen</Text>
+                      {d.currentProducts.map((p, i) => (
+                        <Text key={i} style={styles.previewBullet}>• {p}</Text>
+                      ))}
+                    </View>
+                  )}
+
+                  {includeMood && (
+                    <View style={styles.previewBlock}>
+                      <Text style={styles.previewBlockTitle}>Emotional Well-being</Text>
+                      <Text style={styles.previewLine}>
+                        Most Common Mood: {d.avgMood === '😌' ? 'Good' : d.avgMood === '😐' ? 'Neutral' : 'Struggling'}
+                      </Text>
+                    </View>
+                  )}
+
+                  {includeProgress && (
+                    <View style={styles.previewBlock}>
+                      <Text style={styles.previewBlockTitle}>Key Observations</Text>
+                      <LinearGradient colors={G.cardSuccess.colors} start={G.cardSuccess.start} end={G.cardSuccess.end} style={[styles.obsBox, styles.obsImproving]}>
+                        <Text style={styles.obsBoxTitle}>What's Working:</Text>
+                        {d.improvements.map((i, idx) => (
+                          <Text key={idx} style={styles.previewBullet}>• {i}</Text>
+                        ))}
+                      </LinearGradient>
+                      <LinearGradient colors={G.statusFlare.colors} start={G.statusFlare.start} end={G.statusFlare.end} style={[styles.obsBox, styles.obsConcerns]}>
+                        <Text style={styles.obsBoxTitle}>Current Concerns:</Text>
+                        {d.concerns.map((c, idx) => (
+                          <Text key={idx} style={styles.previewBullet}>• {c}</Text>
+                        ))}
+                      </LinearGradient>
+                    </View>
+                  )}
+
+                  <View style={styles.previewFooter}>
+                    <Text style={styles.previewFooterText}>
+                      This summary was generated from patient self-tracking data via the gia skincare companion app.
+                    </Text>
+                  </View>
+                </LinearGradient>
+
+                <TouchableOpacity
+                  style={styles.downloadButton}
+                  onPress={handleShareOrDownload}
+                  activeOpacity={0.9}
+                >
+                  <LinearGradient colors={G.btnExecutiveSummary.colors} start={G.btnExecutiveSummary.start} end={G.btnExecutiveSummary.end} style={{ ...StyleSheet.absoluteFillObject, borderRadius: 18 }} />
+                  <Ionicons name="download-outline" size={20} color="#FFFFFF" />
+                  <Text style={styles.downloadButtonText}>download / share summary</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.shareButton}
+                  onPress={handleShareOrDownload}
+                  activeOpacity={0.9}
+                >
+                  <Ionicons name="share-outline" size={20} color="#5F8575" />
+                  <Text style={styles.shareButtonText}>share summary</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.backLink}
+                  onPress={() => setStep('customize')}
+                  activeOpacity={0.8}
+                >
+                  <Text style={styles.backLinkText}>← back to customize</Text>
+                </TouchableOpacity>
+              </>
+            )}
+          </ScrollView>
+        </LinearGradient>
+      </View>
+    </Modal>
+  );
+}
+
+const styles = StyleSheet.create({
+  overlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 16,
+  },
+  card: {
+    width: '100%',
+    maxWidth: 480,
+    height: Dimensions.get('window').height * 0.85,
+    borderRadius: 24,
+    borderWidth: 2,
+    borderColor: '#D8D5CF',
+    overflow: 'hidden',
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#D8D5CF',
+    backgroundColor: 'rgba(255,255,255,0.5)',
+  },
+  headerTitle: {
+    fontSize: TITLE_SECTION_SIZE,
+    fontWeight: TITLE_SECTION_WEIGHT,
+    color: TEXT_PRIMARY,
+  },
+  closeBtn: {
+    padding: 4,
+  },
+  scroll: {
+    flex: 1,
+  },
+  scrollContent: {
+    paddingHorizontal: 20,
+    paddingVertical: 20,
+    paddingBottom: 32,
+  },
+  infoBox: {
+    borderRadius: 18,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(123,155,140,0.25)',
+    marginBottom: 20,
+    overflow: 'hidden',
+  },
+  infoText: {
+    fontSize: BODY_SMALL_SIZE,
+    color: TEXT_PRIMARY,
+  },
+  sectionHeading: {
+    fontSize: CARD_TITLE_SIZE,
+    color: TEXT_PRIMARY,
+    fontWeight: CARD_TITLE_WEIGHT,
+    marginBottom: 12,
+  },
+  toggleRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    padding: 14,
+    borderRadius: 14,
+    borderWidth: 2,
+    marginBottom: 10,
+  },
+  toggleRowChecked: {
+    backgroundColor: '#E8F5E9',
+    borderColor: '#5F8575',
+  },
+  toggleRowUnchecked: {
+    backgroundColor: '#FFFFFF',
+    borderColor: '#D8D5CF',
+  },
+  toggleCheck: {
+    width: 24,
+    height: 24,
+    borderRadius: 6,
+    borderWidth: 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  toggleCheckChecked: {
+    backgroundColor: '#5F8575',
+    borderColor: '#5F8575',
+  },
+  toggleCheckUnchecked: {
+    backgroundColor: '#FFFFFF',
+    borderColor: '#D8D5CF',
+  },
+  toggleTextBlock: {
+    flex: 1,
+  },
+  toggleLabel: {
+    fontSize: BODY_SIZE,
+    fontWeight: CARD_TITLE_WEIGHT,
+    color: '#5F8575',
+    marginBottom: 2,
+  },
+  toggleDescription: {
+    fontSize: LABEL_SIZE,
+    color: TEXT_SECONDARY,
+  },
+  previewButton: {
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+    borderRadius: 18,
+    alignItems: 'center',
+    marginTop: 8,
+    overflow: 'hidden',
+  },
+  previewButtonText: {
+    color: '#FFFFFF',
+    fontSize: BUTTON_TEXT_SIZE,
+    fontWeight: BUTTON_TEXT_WEIGHT,
+  },
+  previewCard: {
+    borderRadius: 18,
+    padding: 18,
+    borderWidth: 2,
+    borderColor: '#D8D5CF',
+    marginBottom: 20,
+    overflow: 'hidden',
+  },
+  previewHeader: {
+    borderBottomWidth: 2,
+    borderBottomColor: '#D8D5CF',
+    paddingBottom: 12,
+    marginBottom: 12,
+  },
+  previewTitle: {
+    fontSize: CARD_TITLE_SIZE,
+    fontWeight: '700',
+    color: TEXT_PRIMARY,
+    marginBottom: 4,
+  },
+  previewGenerated: {
+    fontSize: LABEL_SMALL_SIZE,
+    color: TEXT_SECONDARY,
+  },
+  previewBlock: {
+    marginBottom: 14,
+  },
+  previewBlockTitle: {
+    fontSize: BODY_SMALL_SIZE,
+    fontWeight: '700',
+    color: TEXT_PRIMARY,
+    marginBottom: 6,
+  },
+  previewLine: {
+    fontSize: LABEL_SIZE,
+    color: TEXT_SECONDARY,
+    marginBottom: 2,
+  },
+  previewBullet: {
+    fontSize: LABEL_SIZE,
+    color: TEXT_SECONDARY,
+    marginBottom: 2,
+    paddingLeft: 12,
+  },
+  trendRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 8,
+    borderRadius: 10,
+    marginBottom: 6,
+  },
+  trendImproving: {
+    overflow: 'hidden',
+  },
+  trendStable: {
+    backgroundColor: '#E8F0DC',
+  },
+  trendWorsening: {
+    overflow: 'hidden',
+  },
+  trendText: {
+    fontSize: LABEL_SIZE,
+    color: TEXT_PRIMARY,
+    marginLeft: 8,
+    flex: 1,
+  },
+  obsBox: {
+    padding: 12,
+    borderRadius: 12,
+    marginBottom: 10,
+  },
+  obsImproving: {
+    overflow: 'hidden',
+  },
+  obsConcerns: {
+    overflow: 'hidden',
+  },
+  obsBoxTitle: {
+    fontSize: LABEL_SIZE,
+    fontWeight: CARD_TITLE_WEIGHT,
+    color: TEXT_PRIMARY,
+    marginBottom: 4,
+  },
+  previewFooter: {
+    borderTopWidth: 2,
+    borderTopColor: '#D8D5CF',
+    paddingTop: 14,
+    marginTop: 8,
+  },
+  previewFooterText: {
+    fontSize: LABEL_SMALL_SIZE,
+    color: TEXT_SECONDARY,
+    textAlign: 'center',
+  },
+  downloadButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+    borderRadius: 18,
+    marginBottom: 10,
+    overflow: 'hidden',
+  },
+  downloadButtonText: {
+    color: '#FFFFFF',
+    fontSize: BUTTON_TEXT_SIZE,
+    fontWeight: BUTTON_TEXT_WEIGHT,
+    marginLeft: 8,
+  },
+  shareButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FFFFFF',
+    borderWidth: 2,
+    borderColor: '#5F8575',
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+    borderRadius: 18,
+    marginBottom: 8,
+  },
+  shareButtonText: {
+    color: '#5F8575',
+    fontSize: BUTTON_TEXT_SIZE,
+    fontWeight: BUTTON_TEXT_WEIGHT,
+    marginLeft: 8,
+  },
+  backLink: {
+    alignSelf: 'center',
+    paddingVertical: 8,
+  },
+  backLinkText: {
+    fontSize: BODY_SMALL_SIZE,
+    color: TEXT_SECONDARY,
+  },
+});
