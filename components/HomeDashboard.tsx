@@ -67,7 +67,7 @@ type ActiveReminder = {
 };
 
 interface HomeDashboardProps {
-  onStartRoutine: (routineType: 'morning' | 'evening') => void;
+  onStartRoutine: (routineType: "morning" | "evening") => void;
   onActivateGreenhouse: () => void;
   onFreshStart: () => void;
   onCustomizeRoutine: () => void;
@@ -91,7 +91,7 @@ interface HomeDashboardProps {
   /** Whether the user has already completed their check-in today (from DB). */
   checkInCompletedToday?: boolean;
   /** Which routine types the user has enabled (derived from profile.times_of_day). */
-  preferredRoutines?: ('morning' | 'evening')[];
+  preferredRoutines?: ("morning" | "evening")[];
 }
 
 type ReminderToastProps = {
@@ -178,7 +178,7 @@ export function HomeDashboard({
   onRoutineCelebrationDismiss,
   nextAppointment,
   checkInCompletedToday = false,
-  preferredRoutines = ['morning', 'evening'],
+  preferredRoutines = ["morning", "evening"],
 }: HomeDashboardProps) {
   const [checkInExpanded, setCheckInExpanded] = useState(false);
   const [askExpanded, setAskExpanded] = useState(false);
@@ -223,19 +223,24 @@ export function HomeDashboard({
   const isEvening = timeOfDay >= 18 || timeOfDay < 6;
   const isMorning = timeOfDay >= 6 && timeOfDay < 12;
 
-  const hasMorning = preferredRoutines.includes('morning');
-  const hasEvening = preferredRoutines.includes('evening');
+  const hasMorning = preferredRoutines.includes("morning");
+  const hasEvening = preferredRoutines.includes("evening");
 
   // Determine which routine to show: if user only wants one type, always show that one.
   // If they want both, follow time of day.
   const currentRoutineType: RoutineType =
-    hasMorning && !hasEvening ? 'morning'
-    : hasEvening && !hasMorning ? 'evening'
-    : isEvening ? 'evening'
-    : 'morning';
+    hasMorning && !hasEvening
+      ? "morning"
+      : hasEvening && !hasMorning
+        ? "evening"
+        : isEvening
+          ? "evening"
+          : "morning";
 
   const isCurrentRoutineCompleted =
-    currentRoutineType === 'evening' ? eveningRoutineCompleted : morningRoutineCompleted;
+    currentRoutineType === "evening"
+      ? eveningRoutineCompleted
+      : morningRoutineCompleted;
 
   // True when every routine the user has opted into is done for the day.
   const isAllDoneForDay =
@@ -496,17 +501,30 @@ export function HomeDashboard({
   const getNextRoutineInfo = () => {
     if (isAllDoneForDay) {
       return {
-        message: hasMorning && hasEvening ? "Both routines completed!" : "Routine completed!",
+        message:
+          hasMorning && hasEvening
+            ? "Both routines completed!"
+            : "Routine completed!",
         time: "✨",
       };
     }
-    if (hasMorning && morningRoutineCompleted && hasEvening && !eveningRoutineCompleted) {
+    if (
+      hasMorning &&
+      morningRoutineCompleted &&
+      hasEvening &&
+      !eveningRoutineCompleted
+    ) {
       return {
         message: "Next up: night routine",
         time: "6:00 PM",
       };
     }
-    if (hasEvening && eveningRoutineCompleted && hasMorning && !morningRoutineCompleted) {
+    if (
+      hasEvening &&
+      eveningRoutineCompleted &&
+      hasMorning &&
+      !morningRoutineCompleted
+    ) {
       return {
         message: "Next up: morning routine",
         time: "",
@@ -1926,7 +1944,7 @@ const styles = StyleSheet.create({
   gardenPond: {
     borderRadius: 18,
     padding: 14,
-    backgroundColor: "#E7F1ED",
+    backgroundColor: "#95C98E",
     justifyContent: "center",
     alignItems: "center",
     minHeight: 220,
