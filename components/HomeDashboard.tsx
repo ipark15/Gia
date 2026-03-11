@@ -5,6 +5,7 @@ import React, { useMemo, useState } from "react";
 import {
   Alert,
   Image,
+  Platform,
   ScrollView,
   StyleSheet,
   Text,
@@ -2012,9 +2013,10 @@ const styles = StyleSheet.create({
   gardenFlowerGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
+    gap: Platform.OS === 'web' ? 8 : 0,
   },
   gardenFlowerItem: {
-    width: "20%",
+    width: Platform.OS === 'web' ? 56 : "20%",
     alignItems: "center",
     marginBottom: 8,
   },
