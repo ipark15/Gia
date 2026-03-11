@@ -27,7 +27,12 @@
     "web": {
       "bundler": "metro",
       "output": "static",
-      "favicon": "./assets/images/favicon.png"
+      "favicon": "./assets/images/favicon.png",
+      "themeColor": "#5F8575",
+      "backgroundColor": "#F5F1ED",
+      "name": "Gia",
+      "shortName": "Gia",
+      "description": "Your personal skincare routine companion"
     },
     "plugins": [
       "expo-router"
