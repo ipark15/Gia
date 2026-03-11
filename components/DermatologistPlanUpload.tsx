@@ -1,5 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
+import { LinearGradient } from 'expo-linear-gradient';
 import React, { useState } from 'react';
 import {
   Image,
@@ -11,6 +12,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { G } from '../constants/Gradients';
 
 interface Product {
   id: string;
@@ -125,7 +127,7 @@ export function DermatologistPlanUpload({ onBack, onContinue, onUpload }: Dermat
   };
 
   return (
-    <View style={styles.container}>
+    <LinearGradient colors={G.pageDerm.colors} start={G.pageDerm.start} end={G.pageDerm.end} style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={onBack} style={styles.closeButton}>
@@ -140,7 +142,7 @@ export function DermatologistPlanUpload({ onBack, onContinue, onUpload }: Dermat
 
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
         {/* Upload Photos Section */}
-        <View style={styles.section}>
+        <LinearGradient colors={G.cardWhite.colors} start={G.cardWhite.start} end={G.cardWhite.end} style={styles.section}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>treatment plan photos</Text>
             <Text style={styles.optionalLabel}>(optional)</Text>
@@ -169,10 +171,10 @@ export function DermatologistPlanUpload({ onBack, onContinue, onUpload }: Dermat
               ))}
             </View>
           )}
-        </View>
+        </LinearGradient>
 
         {/* Products Section */}
-        <View style={styles.section}>
+        <LinearGradient colors={G.cardWhite.colors} start={G.cardWhite.start} end={G.cardWhite.end} style={styles.section}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>prescribed products</Text>
             <Text style={styles.countLabel}>({products.length})</Text>
@@ -186,14 +188,16 @@ export function DermatologistPlanUpload({ onBack, onContinue, onUpload }: Dermat
               style={styles.addProductButton}
               onPress={() => setShowAddProduct(true)}
             >
+              <LinearGradient colors={G.btnGreenDark.colors} start={G.btnGreenDark.start} end={G.btnGreenDark.end} style={{ flex: 1, borderRadius: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, padding: 12 }}>
               <Ionicons name="add" size={18} color="#FFFFFF" />
               <Text style={styles.addProductButtonText}>add product</Text>
+              </LinearGradient>
             </TouchableOpacity>
           )}
 
           {/* Add Product Form */}
           {showAddProduct && (
-            <View style={styles.addProductForm}>
+            <LinearGradient colors={G.cardSuccess.colors} start={G.cardSuccess.start} end={G.cardSuccess.end} style={styles.addProductForm}>
               <Text style={styles.formTitle}>add prescribed product</Text>
 
               <View style={styles.formField}>
@@ -260,7 +264,9 @@ export function DermatologistPlanUpload({ onBack, onContinue, onUpload }: Dermat
 
               <View style={styles.formButtons}>
                 <TouchableOpacity style={styles.formAddButton} onPress={handleAddProduct}>
+                  <LinearGradient colors={G.btnGreenDark.colors} start={G.btnGreenDark.start} end={G.btnGreenDark.end} style={{ flex: 1, borderRadius: 8, padding: 12, alignItems: 'center' }}>
                   <Text style={styles.formAddButtonText}>add</Text>
+                  </LinearGradient>
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={styles.formCancelButton}
@@ -278,14 +284,14 @@ export function DermatologistPlanUpload({ onBack, onContinue, onUpload }: Dermat
                   <Text style={styles.formCancelButtonText}>cancel</Text>
                 </TouchableOpacity>
               </View>
-            </View>
+            </LinearGradient>
           )}
 
           {/* Products List */}
           {products.length > 0 && (
             <View style={styles.productsList}>
               {products.map((product) => (
-                <View key={product.id} style={styles.productCard}>
+                <LinearGradient key={product.id} colors={G.cardWhite.colors} start={G.cardWhite.start} end={G.cardWhite.end} style={styles.productCard}>
                   <View style={styles.productInfo}>
                     <Text style={styles.productName}>{product.name}</Text>
                     {product.brand && (
@@ -308,25 +314,27 @@ export function DermatologistPlanUpload({ onBack, onContinue, onUpload }: Dermat
                   >
                     <Ionicons name="trash-outline" size={16} color="#6B7370" />
                   </TouchableOpacity>
-                </View>
+                </LinearGradient>
               ))}
             </View>
           )}
-        </View>
+        </LinearGradient>
 
         {/* Info Box */}
-        <View style={styles.infoBox}>
+        <LinearGradient colors={G.infoGreen.colors} start={G.infoGreen.start} end={G.infoGreen.end} style={styles.infoBox}>
           <Text style={styles.infoText}>
             💡 your dermatologist-prescribed routine will be used instead of gia's OTC recommendations. you can always edit this in settings.
           </Text>
-        </View>
+        </LinearGradient>
 
         {/* Action Buttons */}
         <View style={styles.actionButtons}>
           {products.length > 0 && (
             <TouchableOpacity style={styles.continueButton} onPress={handleComplete}>
+              <LinearGradient colors={G.btnGreenDark.colors} start={G.btnGreenDark.start} end={G.btnGreenDark.end} style={{ flex: 1, borderRadius: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, padding: 16 }}>
               <Text style={styles.continueButtonText}>continue with my plan</Text>
               <Ionicons name="chevron-forward" size={20} color="#FFFFFF" />
+              </LinearGradient>
             </TouchableOpacity>
           )}
           <TouchableOpacity
@@ -397,14 +405,13 @@ export function DermatologistPlanUpload({ onBack, onContinue, onUpload }: Dermat
           </View>
         </View>
       </Modal>
-    </View>
+    </LinearGradient>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F5F1ED',
   },
   header: {
     flexDirection: 'row',
@@ -442,12 +449,12 @@ const styles = StyleSheet.create({
     padding: 16,
   },
   section: {
-    backgroundColor: '#FFFFFF',
     borderRadius: 12,
     padding: 16,
     marginBottom: 16,
     borderWidth: 1,
     borderColor: '#D8D5CF',
+    overflow: 'hidden',
   },
   sectionHeader: {
     flexDirection: 'row',
@@ -517,14 +524,9 @@ const styles = StyleSheet.create({
     padding: 4,
   },
   addProductButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    backgroundColor: '#5F8575',
-    padding: 12,
     borderRadius: 12,
     marginBottom: 16,
+    overflow: 'hidden',
   },
   addProductButtonText: {
     fontSize: 14,
@@ -532,12 +534,12 @@ const styles = StyleSheet.create({
     fontStyle: 'italic',
   },
   addProductForm: {
-    backgroundColor: '#E8F5E9',
     borderRadius: 12,
     padding: 16,
     marginBottom: 16,
     borderWidth: 1,
     borderColor: 'rgba(95, 133, 117, 0.2)',
+    overflow: 'hidden',
   },
   formTitle: {
     fontSize: 14,
@@ -591,10 +593,8 @@ const styles = StyleSheet.create({
   },
   formAddButton: {
     flex: 1,
-    backgroundColor: '#5F8575',
-    padding: 12,
     borderRadius: 8,
-    alignItems: 'center',
+    overflow: 'hidden',
   },
   formAddButtonText: {
     fontSize: 14,
@@ -616,11 +616,11 @@ const styles = StyleSheet.create({
   },
   productCard: {
     flexDirection: 'row',
-    backgroundColor: '#FFFFFF',
     borderRadius: 12,
     padding: 12,
     borderWidth: 1,
     borderColor: '#D8D5CF',
+    overflow: 'hidden',
   },
   productInfo: {
     flex: 1,
@@ -664,12 +664,12 @@ const styles = StyleSheet.create({
     padding: 4,
   },
   infoBox: {
-    backgroundColor: '#E8F5E9',
     borderRadius: 12,
     padding: 16,
     marginBottom: 16,
     borderWidth: 1,
     borderColor: 'rgba(95, 133, 117, 0.1)',
+    overflow: 'hidden',
   },
   infoText: {
     fontSize: 12,
@@ -683,13 +683,8 @@ const styles = StyleSheet.create({
   },
   continueButton: {
     flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    backgroundColor: '#5F8575',
-    padding: 16,
     borderRadius: 16,
+    overflow: 'hidden',
   },
   continueButtonText: {
     fontSize: 16,

@@ -12,19 +12,23 @@ import { supabase } from '../lib/supabaseClient';
 export function RoutinePersistenceHandler() {
   const { user } = useAuth();
   const { setPersistHandler } = useRoutineCompletion();
-  const { refresh } = useRoutineStats();
+  const { refresh, addOptimisticCompletion } = useRoutineStats();
 
   const persist = useCallback(
     async (type: 'morning' | 'evening') => {
       if (!user) return;
+      // Optimistically update stats immediately so the home screen reflects the
+      // new flower, streak, and week count the moment the user lands back.
+      addOptimisticCompletion(type);
       await (supabase.from('routine_completions') as any).insert({
         user_id: user.id,
         type,
         completed_at: new Date().toISOString(),
       });
+      // Sync from DB after the write to reconcile any drift.
       await refresh();
     },
-    [user?.id, refresh]
+    [user?.id, refresh, addOptimisticCompletion]
   );
 
   useEffect(() => {

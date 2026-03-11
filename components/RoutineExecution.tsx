@@ -1,5 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
-import React, { useMemo, useState } from 'react';
+import { LinearGradient } from 'expo-linear-gradient';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Linking,
   ScrollView,
@@ -8,6 +9,8 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { G } from '../constants/Gradients';
+import Svg, { Circle } from 'react-native-svg';
 import { AskGiaChat } from './AskGiaChat';
 import { getProductRecommendations } from './TreatmentProducts';
 
@@ -30,6 +33,33 @@ export interface RoutineExecutionProps {
   forceRoutineType?: 'morning' | 'evening';
 }
 
+const RING_SIZE = 120;
+const RING_RADIUS = 50;
+const RING_STROKE = 9;
+const RING_CIRCUMFERENCE = 2 * Math.PI * RING_RADIUS;
+
+/** Returns recommended duration in seconds based on step name. */
+function getStepDuration(stepName: string): number {
+  const name = stepName.toLowerCase();
+  if (name.includes('mask')) return 300;
+  if (name.includes('cleanser') || name.includes('cleanse')) return 90;
+  if (name.includes('exfoliant') || name.includes('exfoliat') || name.includes('scrub')) return 60;
+  if (name.includes('serum') || name.includes('treatment') || name.includes('spot')) return 60;
+  if (name.includes('moisturizer') || name.includes('moisturiz') || name.includes('cream')) return 45;
+  if (name.includes('toner') || name.includes('tone')) return 30;
+  if (name.includes('sunscreen') || name.includes('spf')) return 30;
+  if (name.includes('eye')) return 30;
+  if (name.includes('oil')) return 30;
+  if (name.includes('mist') || name.includes('spray')) return 20;
+  return 60;
+}
+
+function formatTime(seconds: number): string {
+  const m = Math.floor(seconds / 60);
+  const s = seconds % 60;
+  return `${m}:${String(s).padStart(2, '0')}`;
+}
+
 function getProductUrl(product: { brand: string; name: string; amazonUrl?: string }): string {
   if (product.amazonUrl) return product.amazonUrl;
   const searchQuery = encodeURIComponent(`${product.brand} ${product.name}`);
@@ -48,6 +78,9 @@ export function RoutineExecution({
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
   const [showProducts, setShowProducts] = useState(false);
   const [showGiaChat, setShowGiaChat] = useState(false);
+  const [stepDuration, setStepDuration] = useState(0);
+  const [timeLeft, setTimeLeft] = useState(0);
+  const [isPaused, setIsPaused] = useState(false);
 
   const timeOfDay = new Date().getHours();
   const isEvening = forceRoutineType
@@ -103,6 +136,39 @@ export function RoutineExecution({
   const isLastStep = currentStepIndex === fallbackRoutine.length - 1;
   const progress = fallbackRoutine.length > 0 ? ((currentStepIndex + 1) / fallbackRoutine.length) * 100 : 0;
 
+  // Keep a ref so auto-advance timeout can check current isLastStep value
+  const isLastStepRef = useRef(isLastStep);
+  useEffect(() => { isLastStepRef.current = isLastStep; }, [isLastStep]);
+
+  // Initialize timer whenever the step changes
+  useEffect(() => {
+    if (!currentStep) return;
+    const d = getStepDuration(currentStep.step);
+    setStepDuration(d);
+    setTimeLeft(d);
+    setIsPaused(false);
+  }, [currentStepIndex]);
+
+  // Countdown — ticks every second when not paused and time remains
+  useEffect(() => {
+    if (isPaused || timeLeft <= 0) return;
+    const id = setInterval(() => {
+      setTimeLeft((prev) => Math.max(0, prev - 1));
+    }, 1000);
+    return () => clearInterval(id);
+  }, [isPaused, timeLeft]);
+
+  // Auto-advance when timer hits zero, except on the last step
+  useEffect(() => {
+    if (timeLeft === 0 && stepDuration > 0 && !isLastStepRef.current) {
+      const id = setTimeout(() => {
+        setCurrentStepIndex((prev) => prev + 1);
+        setShowProducts(false);
+      }, 800);
+      return () => clearTimeout(id);
+    }
+  }, [timeLeft, stepDuration]);
+
   const handleNextStep = () => {
     if (isLastStep) {
       onComplete();
@@ -139,6 +205,11 @@ export function RoutineExecution({
     );
   }
 
+  // Ring calculations
+  const ringProgress = stepDuration > 0 ? timeLeft / stepDuration : 0;
+  const strokeDashoffset = RING_CIRCUMFERENCE * (1 - ringProgress);
+  const ringColor = timeLeft === 0 ? '#5F8575' : isPaused ? '#B0BAB4' : '#7B9B8C';
+
   const productList =
     currentStep.products?.filter(
       (p: { brand?: string }) => p.brand !== 'N/A' && p.brand !== ''
@@ -152,7 +223,7 @@ export function RoutineExecution({
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.inner}>
-          {onBack && (
+          {onBack && currentStepIndex === 0 && (
             <TouchableOpacity onPress={onBack} style={styles.backRow} activeOpacity={0.8}>
               <Ionicons name="arrow-back" size={20} color="#6B7370" />
               <Text style={styles.backText}>back</Text>
@@ -172,9 +243,52 @@ export function RoutineExecution({
             </Text>
           </View>
 
-          <View style={styles.card}>
+          {/* Circular timer ring */}
+          <TouchableOpacity
+            style={styles.ringContainer}
+            onPress={() => setIsPaused((p) => !p)}
+            activeOpacity={0.85}
+          >
+            <Svg
+              width={RING_SIZE}
+              height={RING_SIZE}
+              style={{ transform: [{ rotate: '-90deg' }] }}
+            >
+              {/* Background track */}
+              <Circle
+                cx={RING_SIZE / 2}
+                cy={RING_SIZE / 2}
+                r={RING_RADIUS}
+                stroke="#E2DED8"
+                strokeWidth={RING_STROKE}
+                fill="none"
+              />
+              {/* Progress arc */}
+              <Circle
+                cx={RING_SIZE / 2}
+                cy={RING_SIZE / 2}
+                r={RING_RADIUS}
+                stroke={ringColor}
+                strokeWidth={RING_STROKE}
+                fill="none"
+                strokeDasharray={RING_CIRCUMFERENCE}
+                strokeDashoffset={strokeDashoffset}
+                strokeLinecap="round"
+              />
+            </Svg>
+            {/* Centered time label */}
+            <View style={styles.ringCenter}>
+              <Text style={[styles.ringTime, { color: ringColor }]}>
+                {formatTime(timeLeft)}
+              </Text>
+              <Text style={styles.ringHint}>
+                {isPaused ? 'tap to resume' : 'tap to pause'}
+              </Text>
+            </View>
+          </TouchableOpacity>
+
+          <LinearGradient colors={G.cardWhite.colors} start={G.cardWhite.start} end={G.cardWhite.end} style={styles.card}>
             <Text style={styles.stepName}>{currentStep.step}</Text>
-            <Text style={styles.duration}>~2 minutes</Text>
             <Text style={styles.instruction}>
               Apply gently and let absorb before moving to the next step.
             </Text>
@@ -251,6 +365,7 @@ export function RoutineExecution({
             )}
 
             <TouchableOpacity style={styles.primaryButton} onPress={handleNextStep} activeOpacity={0.9}>
+              <LinearGradient colors={G.btnGreenLight.colors} start={G.btnGreenLight.start} end={G.btnGreenLight.end} style={{ ...StyleSheet.absoluteFillObject, borderRadius: 20 }} />
               <Text style={styles.primaryButtonText}>
                 {isLastStep ? 'Complete routine' : 'Next step'}
               </Text>
@@ -260,7 +375,7 @@ export function RoutineExecution({
             <TouchableOpacity style={styles.skipButton} onPress={handleSkipStep} activeOpacity={0.8}>
               <Text style={styles.skipButtonText}>Skip this step</Text>
             </TouchableOpacity>
-          </View>
+          </LinearGradient>
 
           <TouchableOpacity
             style={styles.gentlerLink}
@@ -277,6 +392,7 @@ export function RoutineExecution({
             onPress={() => setShowGiaChat(true)}
             activeOpacity={0.9}
           >
+            <LinearGradient colors={G.btnAskGia.colors} start={G.btnAskGia.start} end={G.btnAskGia.end} style={{ ...StyleSheet.absoluteFillObject, borderRadius: 20 }} />
             <Ionicons name="chatbubble-ellipses-outline" size={20} color="#FFFFFF" />
             <Text style={styles.askGiaButtonText}>ask gia</Text>
             <Text style={styles.askGiaOptional}>(optional)</Text>
@@ -300,7 +416,6 @@ export function RoutineExecution({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F5F1ED',
   },
   scroll: { flex: 1 },
   scrollContent: { paddingHorizontal: 24, paddingVertical: 24, paddingBottom: 48 },
@@ -310,7 +425,6 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#F5F1ED',
   },
   loadingText: { fontSize: 16, color: '#6B7370' },
 
@@ -329,7 +443,7 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
 
-  progressSection: { marginBottom: 24 },
+  progressSection: { marginBottom: 20 },
   progressTrack: {
     height: 6,
     backgroundColor: '#D8D5CF',
@@ -348,26 +462,44 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
 
+  // Circular timer ring
+  ringContainer: {
+    alignSelf: 'center',
+    width: RING_SIZE,
+    height: RING_SIZE,
+    marginBottom: 20,
+  },
+  ringCenter: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  ringTime: {
+    fontSize: 22,
+    fontWeight: '700',
+    letterSpacing: 1,
+  },
+  ringHint: {
+    fontSize: 9,
+    color: '#9CA8A3',
+    marginTop: 2,
+    letterSpacing: 0.3,
+  },
+
   card: {
-    backgroundColor: '#FFFFFF',
     borderRadius: 24,
     padding: 24,
     borderWidth: 1,
     borderColor: '#D8D5CF',
     marginBottom: 24,
+    overflow: 'hidden',
   },
   stepName: {
     fontSize: 24,
     fontWeight: '600',
     color: '#7B9B8C',
     textAlign: 'center',
-    marginBottom: 8,
-  },
-  duration: {
-    fontSize: 14,
-    color: '#6B7370',
-    textAlign: 'center',
-    marginBottom: 24,
+    marginBottom: 16,
   },
   instruction: {
     fontSize: 14,
@@ -393,7 +525,6 @@ const styles = StyleSheet.create({
   productsList: {
     marginTop: 12,
     padding: 16,
-    backgroundColor: '#FFFFFF',
     borderRadius: 14,
     borderWidth: 1,
     borderColor: '#D8D5CF',
@@ -432,11 +563,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    backgroundColor: '#7B9B8C',
     paddingVertical: 16,
     paddingHorizontal: 24,
     borderRadius: 20,
     marginBottom: 12,
+    overflow: 'hidden',
   },
   primaryButtonText: { fontSize: 18, fontWeight: '600', color: '#FFFFFF' },
   skipButton: {
@@ -465,8 +596,8 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     paddingHorizontal: 24,
     borderRadius: 20,
-    backgroundColor: '#5F8575',
     marginBottom: 8,
+    overflow: 'hidden',
   },
   askGiaButtonText: { fontSize: 16, color: '#FFFFFF', fontStyle: 'italic', fontWeight: '600' },
   askGiaOptional: { fontSize: 14, color: 'rgba(255,255,255,0.8)' },

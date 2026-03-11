@@ -224,7 +224,7 @@ export function ProfilePage({
                       </View>
                     ))}
                   </View>
-                  <Text style={styles.bodyText}>
+                  <Text style={[styles.bodyText, { flex: 1 }]}>
                     {satisfactionLabels[registrationData.satisfaction] ?? '—'}
                   </Text>
                 </View>
@@ -301,7 +301,6 @@ export function ProfilePage({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#E8EDE8',
   },
   scroll: { flex: 1 },
   scrollContent: {

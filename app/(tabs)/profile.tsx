@@ -1,15 +1,16 @@
 import { useFocusEffect } from '@react-navigation/native';
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useCallback, useMemo } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { G } from '../../constants/Gradients';
 import { ProfilePage } from '../../components/ProfilePage';
 import { getProductRecommendations } from '../../components/TreatmentProducts';
 import { useAuth } from '../../context/AuthContext';
 import { supabase } from '../../lib/supabaseClient';
 import { useRoutineStats } from '../../hooks/useRoutineStats';
 
-const PROFILE_BG = '#E8EDE8';
 
 export default function ProfileScreen() {
   const { user, profile, refreshProfile, signOut } = useAuth();
@@ -84,8 +85,9 @@ export default function ProfileScreen() {
   };
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: PROFILE_BG }} edges={['top']}>
-      <StatusBar style="dark" backgroundColor={PROFILE_BG} />
+    <LinearGradient colors={G.pageHome.colors} start={G.pageHome.start} end={G.pageHome.end} style={{ flex: 1 }}>
+      <StatusBar style="dark" />
+      <SafeAreaView style={{ flex: 1 }} edges={['top']}>
       <ProfilePage
         completedDays={completedDays}
         registrationData={registrationData}
@@ -108,6 +110,7 @@ export default function ProfileScreen() {
         onUpdateAccount={handleUpdateAccount}
         onSignOut={signOut}
       />
-    </SafeAreaView>
+      </SafeAreaView>
+    </LinearGradient>
   );
 }

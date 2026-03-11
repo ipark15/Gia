@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import React, { useMemo, useRef, useState } from 'react';
 import {
   Modal,
@@ -9,6 +10,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { G } from '../constants/Gradients';
 import { HEADER_PADDING_HORIZONTAL } from '../constants/HeaderStyles';
 import {
   BODY_SIZE,
@@ -408,6 +410,7 @@ export function Insights({
         <View style={styles.contentWrap}>
           {/* Ask Gia */}
           <TouchableOpacity style={styles.askGiaBtn} onPress={() => setAskExpanded(true)} activeOpacity={0.9}>
+            <LinearGradient colors={G.btnAskGia.colors} start={G.btnAskGia.start} end={G.btnAskGia.end} style={{ ...StyleSheet.absoluteFillObject, borderRadius: 20 }} />
             <View style={styles.askGiaIconWrap}>
               <Ionicons name="mic" size={24} color="#FFFFFF" />
             </View>
@@ -423,7 +426,7 @@ export function Insights({
             <Modal visible transparent animationType="slide">
               <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => { setAskExpanded(false); setAskQuestion(''); setChatMessages([]); }}>
                 <TouchableOpacity activeOpacity={1} onPress={(e) => e.stopPropagation()} style={styles.modalContentWrap}>
-                  <View style={styles.askModalCard}>
+                  <LinearGradient colors={G.cardWhite.colors} start={G.cardWhite.start} end={G.cardWhite.end} style={styles.askModalCard}>
                     <View style={styles.askModalHeader}>
                       <View style={styles.askModalHeaderLeft}>
                         <View style={styles.askModalHeaderIcon}>
@@ -457,6 +460,7 @@ export function Insights({
                         placeholderTextColor="#8A9088"
                       />
                       <TouchableOpacity style={styles.askSubmitBtn} onPress={() => handleAskQuestion(askQuestion)} activeOpacity={0.9}>
+                        <LinearGradient colors={G.btnAskGia.colors} start={G.btnAskGia.start} end={G.btnAskGia.end} style={{ ...StyleSheet.absoluteFillObject, borderRadius: 16 }} />
                         <Text style={styles.askSubmitText}>Ask Gia</Text>
                       </TouchableOpacity>
                       <Text style={styles.askDisclaimer}>*American Academy of Dermatology sourced answers</Text>
@@ -472,7 +476,7 @@ export function Insights({
                         </View>
                       )}
                     </ScrollView>
-                  </View>
+                  </LinearGradient>
                 </TouchableOpacity>
               </TouchableOpacity>
             </Modal>
@@ -480,6 +484,7 @@ export function Insights({
 
           {/* View monthly summary toggle */}
           <TouchableOpacity style={styles.summaryToggle} onPress={() => setShowSummary(!showSummary)} activeOpacity={0.85}>
+            <LinearGradient colors={G.cardWhite.colors} start={G.cardWhite.start} end={G.cardWhite.end} style={{ ...StyleSheet.absoluteFillObject, borderRadius: 16 }} />
             <View style={styles.summaryToggleInner}>
               <View style={styles.summaryToggleIcon}>
                 <Ionicons name="calendar-outline" size={18} color="#FFFFFF" />
@@ -489,19 +494,19 @@ export function Insights({
           </TouchableOpacity>
 
           {showSummary && (
-            <View style={styles.monthlySummary}>
+            <LinearGradient colors={G.cardWhite.colors} start={G.cardWhite.start} end={G.cardWhite.end} style={styles.monthlySummary}>
               <Text style={styles.monthlySummaryTitle}>Summary</Text>
               <View style={styles.statsGrid}>
-                <View style={styles.summaryStatBox}>
+                <LinearGradient colors={G.cardSuccess.colors} start={G.cardSuccess.start} end={G.cardSuccess.end} style={styles.summaryStatBox}>
                   <Text style={styles.summaryStatValue}>{monthlySummary.routinesCompleted}</Text>
                   <Text style={styles.summaryStatLabel}>routines completed</Text>
-                </View>
-                <View style={[styles.summaryStatBox, styles.summaryStatBoxFlare]}>
+                </LinearGradient>
+                <LinearGradient colors={G.statusFlare.colors} start={G.statusFlare.start} end={G.statusFlare.end} style={[styles.summaryStatBox, styles.summaryStatBoxFlare]}>
                   <Text style={styles.summaryStatValueFlare}>{monthlySummary.flareDays}</Text>
                   <Text style={styles.summaryStatLabelFlare}>flare days logged</Text>
-                </View>
+                </LinearGradient>
               </View>
-              <View style={styles.calendarCard}>
+              <LinearGradient colors={G.cardWhite.colors} start={G.cardWhite.start} end={G.cardWhite.end} style={styles.calendarCard}>
                 <View style={styles.calendarNav}>
                   <TouchableOpacity onPress={prevMonth} style={styles.calendarNavBtn}>
                     <Ionicons name="chevron-back" size={20} color="#7B9B8C" />
@@ -528,22 +533,32 @@ export function Insights({
                     const comp = getCompletionForDate(day);
                     const isToday = isCurrentMonth && day === today.getDate();
                     const hasAppointment = apptDay === day && apptMonth === month && apptYear === year;
-                    let cellStyle = styles.calendarCellEmpty;
+                    let cellGradient = G.calDisabled;
                     let textStyle = styles.calendarCellTextMuted;
+                    let cellStyle: object = styles.calendarCellEmpty;
                     if (comp) {
                       if (comp.stepsCompleted === comp.totalSteps) {
+                        cellGradient = G.calCompleted;
+                        textStyle = styles.calendarCellTextWhite;
                         cellStyle = styles.calendarCellComplete;
-                        textStyle = styles.calendarCellTextWhite;
                       } else if (comp.stepsCompleted > 0) {
-                        cellStyle = styles.calendarCellPartial;
+                        cellGradient = G.calPartial;
                         textStyle = styles.calendarCellTextWhite;
+                        cellStyle = styles.calendarCellPartial;
                       } else {
-                        cellStyle = styles.calendarCellMissed;
+                        cellGradient = G.statusMissed;
                         textStyle = styles.calendarCellTextBrown;
+                        cellStyle = styles.calendarCellMissed;
                       }
                     }
-                    return (
-                      <View key={day} style={[styles.calendarCell, cellStyle, isToday && styles.calendarCellToday]}>
+                    const hasColor = comp != null;
+                    return hasColor ? (
+                      <LinearGradient key={day} colors={cellGradient.colors} start={cellGradient.start} end={cellGradient.end} style={[styles.calendarCell, cellStyle, isToday && styles.calendarCellToday]}>
+                        <Text style={textStyle}>{day}</Text>
+                        {hasAppointment && <View style={styles.calendarApptDot} />}
+                      </LinearGradient>
+                    ) : (
+                      <View key={day} style={[styles.calendarCell, styles.calendarCellEmpty, isToday && styles.calendarCellToday]}>
                         <Text style={textStyle}>{day}</Text>
                         {hasAppointment && <View style={styles.calendarApptDot} />}
                       </View>
@@ -568,15 +583,15 @@ export function Insights({
                     <Text style={styles.legendText}>appointment</Text>
                   </View>
                 </View>
-              </View>
-              <View style={styles.encouragingBox}>
+              </LinearGradient>
+              <LinearGradient colors={G.infoGreen.colors} start={G.infoGreen.start} end={G.infoGreen.end} style={styles.encouragingBox}>
                 <Text style={styles.encouragingText}>This month, you showed up more often than not. That matters.</Text>
-              </View>
-            </View>
+              </LinearGradient>
+            </LinearGradient>
           )}
 
           {/* Weekly Overview */}
-          <View style={styles.weeklyCard}>
+          <LinearGradient colors={G.cardWhite.colors} start={G.cardWhite.start} end={G.cardWhite.end} style={styles.weeklyCard}>
             <View style={styles.weeklyHeader}>
               <View>
                 <Text style={styles.weeklyTitle}>Weekly Overview</Text>
@@ -588,25 +603,26 @@ export function Insights({
             </View>
             <WeeklyOverviewChart data={displayWeeklyData} />
             <View style={styles.chartLegend}>
-              <View style={styles.chartLegendItem}>
+              <LinearGradient colors={G.cardSuccess.colors} start={G.cardSuccess.start} end={G.cardSuccess.end} style={styles.chartLegendItem}>
                 <View style={styles.chartLegendDotConsistency} />
                 <View style={styles.chartLegendTextWrap}>
                   <Text style={styles.chartLegendTitle}>Routine Consistency</Text>
                   <Text style={styles.chartLegendDesc}>% of prescribed skincare routine completed daily</Text>
                 </View>
-              </View>
-              <View style={[styles.chartLegendItem, styles.chartLegendItemSatisfaction]}>
+              </LinearGradient>
+              <LinearGradient colors={G.cardPink.colors} start={G.cardPink.start} end={G.cardPink.end} style={[styles.chartLegendItem, styles.chartLegendItemSatisfaction]}>
                 <View style={styles.chartLegendDotSatisfaction} />
                 <View style={styles.chartLegendTextWrap}>
                   <Text style={styles.chartLegendTitle}>Skin Satisfaction</Text>
                   <Text style={styles.chartLegendDesc}>Self-reported satisfaction score (1-5 scale)</Text>
                 </View>
-              </View>
+              </LinearGradient>
             </View>
-          </View>
+          </LinearGradient>
 
           {/* Filters (applies to timeline below) */}
           <TouchableOpacity style={styles.filtersToggle} onPress={() => setShowFilters(!showFilters)} activeOpacity={0.85}>
+            <LinearGradient colors={G.cardWhite.colors} start={G.cardWhite.start} end={G.cardWhite.end} style={{ ...StyleSheet.absoluteFillObject, borderRadius: 20 }} />
             <View style={styles.filtersToggleLeft}>
               <Ionicons name="filter-outline" size={18} color="#7B9B8C" />
               <Text style={styles.filtersToggleText}>Filters</Text>
@@ -615,7 +631,7 @@ export function Insights({
           </TouchableOpacity>
 
           {showFilters && (
-            <View style={styles.filtersPanel}>
+            <LinearGradient colors={G.cardWhite.colors} start={G.cardWhite.start} end={G.cardWhite.end} style={styles.filtersPanel}>
               <Text style={styles.filterSectionLabel}>Symptoms</Text>
               <View style={styles.tagRow}>
                 {SYMPTOM_FILTERS.map((s) => (
@@ -651,7 +667,7 @@ export function Insights({
                   <Text style={styles.clearFiltersText}>Clear all filters</Text>
                 </TouchableOpacity>
               )}
-            </View>
+            </LinearGradient>
           )}
 
           {/* Timeline */}
@@ -676,7 +692,7 @@ export function Insights({
                   <View style={[styles.timelineDot, entry.routineCompleted && styles.timelineDotComplete]}>
                     {entry.routineCompleted && <Ionicons name="checkmark" size={10} color="#FFFFFF" />}
                   </View>
-                  <View style={styles.timelineCard}>
+                  <LinearGradient colors={G.cardWhite.colors} start={G.cardWhite.start} end={G.cardWhite.end} style={styles.timelineCard}>
                     <View style={styles.timelineCardHeader}>
                       <View>
                         <Text style={styles.timelineDate}>
@@ -775,11 +791,12 @@ export function Insights({
                         <Text style={styles.photoText}>photo attached</Text>
                       </View>
                     )}
-                  </View>
+                  </LinearGradient>
                 </View>
               ))}
               {filteredEntries.length > 4 && (
                 <TouchableOpacity style={styles.showMoreBtn} onPress={() => setTimelineExpanded(!timelineExpanded)} activeOpacity={0.85}>
+                  <LinearGradient colors={G.cardWhite.colors} start={G.cardWhite.start} end={G.cardWhite.end} style={{ ...StyleSheet.absoluteFillObject, borderRadius: 20 }} />
                   <Text style={styles.showMoreText}>
                     {timelineExpanded ? 'Show Less' : `Show ${filteredEntries.length - 4} More Entries`}
                   </Text>
@@ -797,19 +814,19 @@ export function Insights({
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#E8EDE8' },
+  container: { flex: 1 },
   scroll: { flex: 1 },
   scrollContent: { paddingTop: 24, paddingBottom: 24 },
   headerWrap: { width: '100%', paddingHorizontal: HEADER_PADDING_HORIZONTAL },
   contentWrap: { width: '100%', maxWidth: 672, alignSelf: 'center', paddingHorizontal: HEADER_PADDING_HORIZONTAL },
-  askGiaBtn: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 16, borderRadius: 20, backgroundColor: '#7B9B8C', marginBottom: 24, borderWidth: 2, borderColor: '#7B9B8C' },
+  askGiaBtn: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 16, borderRadius: 20, marginBottom: 24, borderWidth: 2, borderColor: '#7B9B8C', overflow: 'hidden' },
   askGiaIconWrap: { width: 48, height: 48, borderRadius: 12, backgroundColor: 'rgba(255,255,255,0.2)', alignItems: 'center', justifyContent: 'center' },
   askGiaTextWrap: { flex: 1 },
   askGiaTitle: { fontSize: CARD_TITLE_SIZE, color: '#FFFFFF', fontWeight: CARD_TITLE_WEIGHT },
   askGiaSubtitle: { fontSize: LABEL_SIZE, color: 'rgba(255,255,255,0.8)', marginTop: 2 },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end', padding: 16 },
   modalContentWrap: { maxHeight: '80%' },
-  askModalCard: { backgroundColor: '#FFFFFF', borderRadius: 24, borderWidth: 2, borderColor: 'rgba(123,155,140,0.3)', overflow: 'hidden' },
+  askModalCard: { borderRadius: 24, borderWidth: 2, borderColor: 'rgba(123,155,140,0.3)', overflow: 'hidden' },
   askModalHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 20, borderBottomWidth: 1, borderBottomColor: 'rgba(123,155,140,0.2)' },
   askModalHeaderLeft: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   askModalHeaderIcon: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#E8F5E9', alignItems: 'center', justifyContent: 'center' },
@@ -821,7 +838,7 @@ const styles = StyleSheet.create({
   commonQuestionBtn: { backgroundColor: '#E8F5E9', paddingVertical: 12, paddingHorizontal: 20, borderRadius: 16, marginBottom: 8 },
   commonQuestionText: { fontSize: BODY_SIZE, color: TEXT_PRIMARY },
   askInput: { height: 48, paddingHorizontal: 16, borderRadius: 16, borderWidth: 1, borderColor: 'rgba(95,133,117,0.2)', marginTop: 12, fontSize: BODY_SIZE, color: TEXT_PRIMARY },
-  askSubmitBtn: { backgroundColor: '#5F8575', paddingVertical: 14, borderRadius: 16, alignItems: 'center', marginTop: 12 },
+  askSubmitBtn: { paddingVertical: 14, borderRadius: 16, alignItems: 'center', marginTop: 12, overflow: 'hidden' },
   askSubmitText: { fontSize: BUTTON_TEXT_SIZE, color: '#FFFFFF', fontWeight: BUTTON_TEXT_WEIGHT },
   askDisclaimer: { fontSize: LABEL_SMALL_SIZE, color: TEXT_SECONDARY, marginTop: 8 },
   chatBlock: { marginTop: 20 },
@@ -830,10 +847,10 @@ const styles = StyleSheet.create({
   chatQuestion: { fontSize: BODY_SMALL_SIZE, color: TEXT_PRIMARY, marginBottom: 4 },
   chatAnswer: { fontSize: BODY_SMALL_SIZE, color: TEXT_SECONDARY },
 
-  filtersToggle: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 14, borderRadius: 20, borderWidth: 1, borderColor: 'rgba(123,155,140,0.3)', backgroundColor: '#FFFFFF', marginBottom: 16 },
+  filtersToggle: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 14, borderRadius: 20, borderWidth: 1, borderColor: 'rgba(123,155,140,0.3)', marginBottom: 16, overflow: 'hidden' },
   filtersToggleLeft: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   filtersToggleText: { color: '#5A7A6B', fontSize: BODY_SIZE, fontWeight: CARD_TITLE_WEIGHT },
-  filtersPanel: { padding: 20, borderRadius: 20, borderWidth: 1, borderColor: '#D8D5CF', backgroundColor: '#FFFFFF', marginBottom: 16 },
+  filtersPanel: { padding: 20, borderRadius: 20, borderWidth: 1, borderColor: '#D8D5CF', marginBottom: 16, overflow: 'hidden' },
   filterSectionLabel: { fontSize: LABEL_SIZE, color: TEXT_SECONDARY, marginBottom: 10 },
   tagRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 12 },
   filterTag: { paddingVertical: 8, paddingHorizontal: 16, borderRadius: 999, backgroundColor: '#F5F1ED' },
@@ -849,21 +866,21 @@ const styles = StyleSheet.create({
   clearFiltersBtn: { marginTop: 12 },
   clearFiltersText: { fontSize: BODY_SIZE, color: '#7B9B8C' },
 
-  summaryToggle: { padding: 16, borderRadius: 16, borderWidth: 2, borderColor: '#5F8575', backgroundColor: '#FFFFFF', marginBottom: 16, alignItems: 'center' },
+  summaryToggle: { padding: 16, borderRadius: 16, borderWidth: 2, borderColor: '#5F8575', marginBottom: 16, alignItems: 'center', overflow: 'hidden' },
   summaryToggleInner: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 12 },
   summaryToggleIcon: { width: 32, height: 32, borderRadius: 8, backgroundColor: '#5F8575', alignItems: 'center', justifyContent: 'center' },
   summaryToggleText: { fontSize: BODY_SIZE, color: '#5F8575' },
 
-  monthlySummary: { padding: 24, borderRadius: 24, backgroundColor: '#FFFFFF', borderWidth: 2, borderColor: 'rgba(123,155,140,0.3)', marginBottom: 24 },
+  monthlySummary: { padding: 24, borderRadius: 24, borderWidth: 2, borderColor: 'rgba(123,155,140,0.3)', marginBottom: 24, overflow: 'hidden' },
   monthlySummaryTitle: { fontSize: TITLE_SECTION_SIZE, color: TEXT_PRIMARY, fontWeight: TITLE_SECTION_WEIGHT, marginBottom: 16 },
   statsGrid: { flexDirection: 'row', gap: 16, marginBottom: 20 },
-  summaryStatBox: { flex: 1, padding: 20, borderRadius: 20, backgroundColor: '#E8F5E9', borderWidth: 1, borderColor: 'rgba(123,155,140,0.2)', alignItems: 'center' },
+  summaryStatBox: { flex: 1, padding: 20, borderRadius: 20, borderWidth: 1, borderColor: 'rgba(123,155,140,0.2)', alignItems: 'center', overflow: 'hidden' },
   summaryStatValue: { fontSize: 28, fontWeight: '700', color: '#5F8575', marginBottom: 4 },
   summaryStatLabel: { fontSize: LABEL_SIZE, color: TEXT_SECONDARY },
-  summaryStatBoxFlare: { backgroundColor: '#FFE0E0', borderColor: 'rgba(255,176,176,0.3)' },
+  summaryStatBoxFlare: { borderColor: 'rgba(255,176,176,0.3)' },
   summaryStatValueFlare: { fontSize: 28, fontWeight: '700', color: '#8B4545', marginBottom: 4 },
   summaryStatLabelFlare: { fontSize: LABEL_SIZE, color: '#8B4545' },
-  calendarCard: { backgroundColor: '#F5F1ED', borderRadius: 20, padding: 20, marginBottom: 16 },
+  calendarCard: { borderRadius: 20, padding: 20, marginBottom: 16, overflow: 'hidden' },
   calendarNav: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 },
   calendarNavBtn: { padding: 8 },
   calendarNavCenter: { alignItems: 'center' },
@@ -874,9 +891,9 @@ const styles = StyleSheet.create({
   calendarDayLabelText: { fontSize: LABEL_SIZE, color: TEXT_SECONDARY, fontWeight: '600' },
   calendarCell: { width: '14.28%', aspectRatio: 1, borderRadius: 12, alignItems: 'center', justifyContent: 'center', marginBottom: 4 },
   calendarCellEmpty: { backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#D8D5CF' },
-  calendarCellComplete: { backgroundColor: '#7B9B8C', borderWidth: 1, borderColor: 'transparent' },
-  calendarCellPartial: { backgroundColor: '#F49EC4', borderWidth: 1, borderColor: 'transparent' },
-  calendarCellMissed: { backgroundColor: '#FFBB8F', borderWidth: 1, borderColor: 'rgba(255,179,128,0.3)' },
+  calendarCellComplete: { borderWidth: 1, borderColor: 'transparent', overflow: 'hidden' },
+  calendarCellPartial: { borderWidth: 1, borderColor: 'transparent', overflow: 'hidden' },
+  calendarCellMissed: { borderWidth: 1, borderColor: 'rgba(255,179,128,0.3)', overflow: 'hidden' },
   calendarCellToday: { borderWidth: 2, borderColor: '#5F8575' },
   calendarCellTextMuted: { fontSize: LABEL_SIZE, color: '#B8B5AD' },
   calendarCellTextWhite: { fontSize: LABEL_SIZE, color: '#FFFFFF', fontWeight: CARD_TITLE_WEIGHT },
@@ -890,10 +907,10 @@ const styles = StyleSheet.create({
   legendDotMissed: { backgroundColor: '#FFBB8F', borderWidth: 1, borderColor: 'rgba(255,179,128,0.5)' },
   legendDotAppt: { width: 16, height: 16, borderRadius: 8, backgroundColor: '#FFF4D4', borderWidth: 2, borderColor: '#FFE8A3' },
   legendText: { fontSize: 10, color: TEXT_SECONDARY },
-  encouragingBox: { padding: 16, borderRadius: 12, backgroundColor: '#E8F5E9', borderWidth: 1, borderColor: 'rgba(123,155,140,0.2)' },
+  encouragingBox: { padding: 16, borderRadius: 12, borderWidth: 1, borderColor: 'rgba(123,155,140,0.2)', overflow: 'hidden' },
   encouragingText: { fontSize: BODY_SIZE, color: TEXT_PRIMARY, textAlign: 'center' },
 
-  weeklyCard: { padding: 24, borderRadius: 20, backgroundColor: '#FFFFFF', borderWidth: 2, borderColor: 'rgba(123,155,140,0.3)', marginBottom: 24 },
+  weeklyCard: { padding: 24, borderRadius: 20, borderWidth: 2, borderColor: 'rgba(123,155,140,0.3)', marginBottom: 24, overflow: 'hidden' },
   weeklyHeader: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 20 },
   weeklyTitle: { fontSize: TITLE_SECTION_SIZE, color: TEXT_PRIMARY, fontWeight: TITLE_SECTION_WEIGHT },
   weeklySubtitle: { fontSize: LABEL_SMALL_SIZE, color: TEXT_SECONDARY, marginTop: 4 },
@@ -906,8 +923,8 @@ const styles = StyleSheet.create({
   chartSatisfactionText: { fontSize: LABEL_SMALL_SIZE, color: '#F49EC4', fontWeight: CARD_TITLE_WEIGHT },
   chartDayLabel: { fontSize: LABEL_SMALL_SIZE, color: TEXT_SECONDARY, marginTop: 4 },
   chartLegend: { paddingTop: 16, borderTopWidth: 1, borderTopColor: '#D8D5CF', gap: 12 },
-  chartLegendItem: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, padding: 12, borderRadius: 12, backgroundColor: '#E8F5E9' },
-  chartLegendItemSatisfaction: { backgroundColor: '#F5E6F0' },
+  chartLegendItem: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, padding: 12, borderRadius: 12, overflow: 'hidden' },
+  chartLegendItemSatisfaction: {},
   chartLegendDotConsistency: { width: 12, height: 12, borderRadius: 6, backgroundColor: '#95C98E', marginTop: 2 },
   chartLegendDotSatisfaction: { width: 12, height: 12, borderRadius: 6, backgroundColor: '#F49EC4', marginTop: 2 },
   chartLegendTextWrap: { flex: 1 },
@@ -919,7 +936,7 @@ const styles = StyleSheet.create({
   timelineConnector: { position: 'absolute', left: 9, top: 24, bottom: -16, width: 2, backgroundColor: '#7B9B8C' },
   timelineDot: { position: 'absolute', left: 0, top: 20, width: 20, height: 20, borderRadius: 10, borderWidth: 2, borderColor: '#D8D5CF', backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center' },
   timelineDotComplete: { backgroundColor: '#7B9B8C', borderColor: '#FFFFFF' },
-  timelineCard: { padding: 14, borderRadius: 12, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#D8D5CF' },
+  timelineCard: { padding: 14, borderRadius: 12, borderWidth: 1, borderColor: '#D8D5CF', overflow: 'hidden' },
   timelineCardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, paddingBottom: 8, borderBottomWidth: 1, borderBottomColor: 'rgba(216,213,207,0.5)' },
   timelineDate: { fontSize: BODY_SIZE, color: TEXT_PRIMARY, fontWeight: CARD_TITLE_WEIGHT },
   timelineRoutineBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999, backgroundColor: '#7B9B8C' },
@@ -946,7 +963,7 @@ const styles = StyleSheet.create({
   photoRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 6 },
   photoIconWrap: { padding: 6, borderRadius: 8, backgroundColor: '#E8F5E9' },
   photoText: { fontSize: LABEL_SIZE, color: '#7B9B8C' },
-  showMoreBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, padding: 16, borderRadius: 20, borderWidth: 2, borderColor: 'rgba(123,155,140,0.3)', backgroundColor: '#FFFFFF', marginTop: 8 },
+  showMoreBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, padding: 16, borderRadius: 20, borderWidth: 2, borderColor: 'rgba(123,155,140,0.3)', marginTop: 8, overflow: 'hidden' },
   showMoreText: { fontSize: BODY_SIZE, color: '#5F8575' },
 
   emptyState: { paddingVertical: 48, alignItems: 'center' },
