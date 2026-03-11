@@ -224,7 +224,7 @@ export function ProfilePage({
                       </View>
                     ))}
                   </View>
-                  <Text style={styles.bodyText}>
+                  <Text style={[styles.bodyText, { flex: 1 }]}>
                     {satisfactionLabels[registrationData.satisfaction] ?? '—'}
                   </Text>
                 </View>
